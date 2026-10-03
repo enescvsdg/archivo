@@ -1,0 +1,16 @@
+# Keep source bytes consistent across macOS and Windows (including CSP hashes).
+* text=auto
+*.html text eol=lf
+*.js text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.txt text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.png binary
+*.ico binary
+*.icns binary

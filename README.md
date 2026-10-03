@@ -83,3 +83,5 @@ Yerel testler gerçek WhatsApp hesabına bağlanmadan yürütülür. Windows ve 
 Eşleşme akışında Web istemcisi hazır olur olmaz grup isimleri alınarak Ayarlar’daki listeye eklenir; telefon senkronizasyon onayı ayrıca yalnızca yeni eşleşmenin tamamlanması için beklenir. Grup listesi yenilemesi bu onayı istemez. Tamamlanınca grup sayısı bildirilir. Liste güncellenirken mevcut seçili grup adları korunur.
 
 QR düğmesi kayıtlı eşleşme veya açık bağlantı olduğunda gri ve pasiftir. Çıkış düğmesi bu durumda turuncu ve aktiftir; eşleşme yokken gri ve pasiftir. Çalışan işlemler sırasında ikisi de pasiftir. Uygulama yeniden açıldıktan sonra gerçek çıkış yapmak için kayıtlı oturum bir kez açılır; QR ile yeni oturum oluşturulmaz. Oturum geçersiz veya ağ erişimi başarısızsa çıkış doğrulanamadığı açıkça bildirilir.
+
+Programın işlevleri, yapılan çalışmalar ve doğrulama sınırları: [PROGRAM-VE-YAPILANLAR.md](PROGRAM-VE-YAPILANLAR.md).
