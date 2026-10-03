@@ -41,6 +41,6 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 
 1.4.4 için 62 yerel test geçti. Testler sahte WhatsApp istemcisi kullanır; gerçek hesap üzerinde otomatik bağlantı, QR, indirme veya çıkış denemesi yapılmadı. Paket içindeki kaynak dosyalarının güncel kaynakla aynı olduğu kontrol edildi.
 
-İlk GitHub çalışmasında iki Mac derlemesi başarılı, Windows test aşaması başarısızdı. Düzeltmenin sonraki GitHub sonucu Actions ekranından kontrol edilmelidir: https://github.com/enescvsdg/archivo/actions.
+İlk GitHub çalışmasında iki Mac derlemesi başarılı, Windows test aşaması başarısızdı. Düzeltme sonrası GitHub çalışmasında Windows x64, Apple Silicon Mac ve Intel Mac test, paketleme ve artefakt yükleme adımları başarılı tamamlandı: https://github.com/enescvsdg/archivo/actions/runs/37087414373.
 
 Windows ve Intel Mac’te gerçek kullanıcı açılışı ile canlı WhatsApp davranışı ayrıca doğrulanmalıdır. Paketler imzasızdır; Mac notarizasyonu yapılmamıştır. Yeni sürüm, otomatik olarak tüm geçmişe erişim veya kısıtlanma riskinin ortadan kalkması anlamına gelmez.
