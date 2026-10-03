@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-lcUag7IxELSnrNpTW5WMdfRBuQGezP9ypCxRyVESmNo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<title>Archivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Iceberg (Victor Kharyk / Cyreal) — SIL Open Font License 1.1.
+     Lisans metni Iceberg-LISANS.txt dosyasindadir.
+     Internet gerekmesin diye dosyaya gomuldu. */
+  @font-face {
+    font-family: 'Iceberg';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
+
+  :root {
+    --taban:        #0C0E11;
+    --cam-alfa:     0.13;
+    --cam-bulanik:  30px;
+    --cam:          rgba(255,255,255,var(--cam-alfa));
+    --cam-koyu:     rgba(255,255,255,calc(var(--cam-alfa) * 0.55));
+    --kenar-koyu:   rgba(0,0,0,0.42);
+    --parlak:       rgba(255,255,255,0.38);
+    --parlak-alt:   rgba(255,255,255,0.07);
+    --yazi:         #F4F5F7;
+    --yazi-yumusak: rgba(244,245,247,0.62);
+    --yazi-silik:   rgba(244,245,247,0.38);
+    --kehribar:     #E9A63C;
+    --kehribar-koy: #A8721F;
+    --uyari:        #F08A7A;
+
+    --sans: 'Inter', -apple-system, 'SF Pro Display', system-ui, sans-serif;
+    --marka: 'Iceberg', 'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    background: var(--taban);
+    color: var(--yazi);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- açılış ekranı ---- */
+
+  #giris {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: var(--taban);
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 22px;
+    transition: opacity 420ms ease, visibility 420ms;
+  }
+
+  #giris.kapan {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  #giris .amblem-giris {
+    width: 150px;
+    height: 150px;
+    filter: drop-shadow(0 14px 40px rgba(0,0,0,0.6));
+    animation: girisAmblem 900ms cubic-bezier(.2,.75,.3,1) both;
+  }
+
+  @keyframes girisAmblem {
+    from { transform: scale(0.72) rotate(-14deg); opacity: 0; }
+    60%  { transform: scale(1.04) rotate(2deg);  opacity: 1; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  .giris-ad {
+    display: flex;
+    font-family: var(--marka);
+    font-size: 40px;
+    color: var(--yazi);
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+
+  .giris-ad span {
+    display: inline-block;
+    opacity: 0;
+    animation: girisHarf 520ms cubic-bezier(.2,.8,.3,1) both;
+  }
+
+  .giris-ad span:nth-child(1) { animation-delay: 340ms; }
+  .giris-ad span:nth-child(2) { animation-delay: 410ms; }
+  .giris-ad span:nth-child(3) { animation-delay: 480ms; }
+  .giris-ad span:nth-child(4) { animation-delay: 550ms; }
+  .giris-ad span:nth-child(5) { animation-delay: 620ms; }
+  .giris-ad span:nth-child(6) { animation-delay: 690ms; }
+  .giris-ad span:nth-child(7) { animation-delay: 760ms; }
+
+  @keyframes girisHarf {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---- arkadaki foto duvarı: camın kıracağı içerik ---- */
+
+  #duvar {
+    position: fixed;
+    inset: -80px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    filter: blur(46px) saturate(1.5);
+    opacity: 0.5;
+    transform: scale(1.08);
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity 700ms ease;
+  }
+
+  #duvar div {
+    background-size: cover;
+    background-position: center;
+    min-height: 140px;
+  }
+
+  #perde {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(120% 90% at 50% 0%, rgba(12,14,17,0.35), rgba(12,14,17,0.88) 70%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* ---- cam yüzey ---- */
+
+  .cam {
+    background: var(--cam);
+    backdrop-filter: blur(var(--cam-bulanik)) saturate(1.7);
+    -webkit-backdrop-filter: blur(var(--cam-bulanik)) saturate(1.7);
+    border: 1px solid var(--kenar-koyu);
+    box-shadow:
+      inset 0 1px 0 var(--parlak),
+      inset 0 -1px 0 var(--parlak-alt),
+      0 12px 32px rgba(0,0,0,0.42);
+  }
+
+  /* ---- üst şerit ---- */
+
+  #tepe {
+    position: fixed;
+    top: 12px; left: 12px; right: 12px;
+    z-index: 5;
+    border-radius: 22px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #tepe h1 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .marka {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .amblem {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    display: block;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.45));
+  }
+
+  .marka-ad {
+    font-family: var(--marka);
+    font-size: 19px;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+    color: var(--yazi);
+  }
+
+  .amblem-buyuk {
+    width: 168px;
+    height: 168px;
+    margin: 0 auto 4px;
+    opacity: 0.86;
+    filter: blur(1.6px) drop-shadow(0 10px 34px rgba(0,0,0,0.5));
+  }
+
+  .bos strong {
+    font-family: var(--marka);
+    font-size: 44px;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-indent: 0.18em;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+
+  .bos em {
+    display: block;
+    font-style: normal;
+    font-size: 13.5px;
+    color: var(--yazi-silik);
+    letter-spacing: 0.02em;
+    margin: 0 0 12px;
+  }
+
+  #yol {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    font-size: 12px;
+    color: var(--yazi-yumusak);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    padding: 0;
+  }
+
+  #yol:hover { color: var(--yazi); }
+
+  .yuvarlak {
+    flex: none;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.35);
+    background: rgba(255,255,255,0.1);
+    color: var(--yazi);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+
+  .yuvarlak:hover { background: rgba(255,255,255,0.18); }
+  .yuvarlak:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  .cizgiler {
+    display: block;
+    position: relative;
+    width: 16px;
+    height: 12px;
+  }
+
+  .cizgiler i {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1.6px;
+    border-radius: 2px;
+    background: var(--yazi);
+    transition: transform 280ms cubic-bezier(.3,.9,.3,1),
+                opacity 180ms ease, width 280ms ease;
+  }
+
+  .cizgiler i:nth-child(1) { top: 0; }
+  .cizgiler i:nth-child(2) { top: 5.2px; width: 72%; }
+  .cizgiler i:nth-child(3) { top: 10.4px; }
+
+  .yuvarlak:hover .cizgiler i:nth-child(2) { width: 100%; }
+
+  [aria-expanded="true"] .cizgiler i:nth-child(1) { transform: translateY(5.2px) rotate(45deg); }
+  [aria-expanded="true"] .cizgiler i:nth-child(2) { opacity: 0; width: 0; }
+  [aria-expanded="true"] .cizgiler i:nth-child(3) { transform: translateY(-5.2px) rotate(-45deg); }
+
+  /* ---- kaydırılan içerik ---- */
+
+  #sayfa {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    overflow-y: auto;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-bottom: 120px;
+    /* ust bosluk seridin ve suzgecin gercek yuksekligine gore hesaplanir */
+    padding-top: calc(12px + var(--tepe-yuk, 50px) + var(--suzgec-yuk, 0px) + 18px);
+  }
+
+  #sayfa::-webkit-scrollbar { width: 10px; }
+  #sayfa::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.14);
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  .gunbasi {
+    position: sticky;
+    top: 2px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin: 20px 0 10px;
+    padding: 5px 13px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  .gunbasi span { color: var(--yazi-yumusak); font-weight: 400; }
+
+  .izgara {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .kare {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.5);
+    background: rgba(255,255,255,0.05);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 6px 18px rgba(0,0,0,0.35);
+    transition: transform 160ms cubic-bezier(.2,.8,.3,1);
+  }
+
+  .kare img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .kare:hover { transform: scale(1.035); }
+  .kare:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  .kare b {
+    position: absolute;
+    left: 6px; right: 6px; bottom: 6px;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .kare:hover b { opacity: 1; }
+
+  .kare.yeni { animation: gel 420ms cubic-bezier(.2,.8,.3,1); }
+
+  @keyframes gel {
+    from { transform: scale(0.82); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  .bos {
+    max-width: 40ch;
+    margin: 22vh auto 0;
+    text-align: center;
+    color: var(--yazi-yumusak);
+  }
+
+  .bos strong {
+    display: block;
+    color: var(--yazi);
+  }
+
+  .uyari {
+    border-radius: 14px;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: var(--uyari);
+    border-color: rgba(240,138,122,0.4);
+  }
+
+  /* ---- alttaki topla düğmesi ---- */
+
+  #alt {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 7px 7px 16px;
+    border-radius: 999px;
+    max-width: calc(100% - 36px);
+  }
+
+  #ozet {
+    font-size: 12.5px;
+    color: var(--yazi-yumusak);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #topla {
+    flex: none;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.45);
+    border-radius: 999px;
+    padding: 9px 20px;
+    background: rgba(233,166,60,0.86);
+    color: #2A1B05;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 14px rgba(233,166,60,0.28);
+    transition: transform 100ms ease, background 160ms ease;
+  }
+
+  #topla:hover:not(:disabled) { background: rgba(243,180,80,0.94); }
+  #topla:active:not(:disabled) { transform: scale(0.97); }
+  #topla:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 3px; }
+
+  #topla:disabled {
+    cursor: default;
+    background: rgba(255,255,255,0.12);
+    color: var(--yazi);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+  }
+
+  #dolgu {
+    position: absolute;
+    inset: 0;
+    width: 0%;
+    background: rgba(233,166,60,0.55);
+    transition: width 260ms cubic-bezier(.3,.9,.4,1);
+  }
+
+  #toplaYazi { position: relative; }
+
+  /* ---- sayfa üstü kartlar ---- */
+
+  .katman {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(6,7,9,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .katman[hidden] { display: none; }
+
+  .kart {
+    width: 100%;
+    max-width: 380px;
+    border-radius: 26px;
+    padding: 24px;
+    animation: yuksel 260ms cubic-bezier(.2,.8,.3,1);
+  }
+
+  @keyframes yuksel {
+    from { transform: translateY(14px) scale(0.97); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  .kart::-webkit-scrollbar { width: 9px; }
+  .kart::-webkit-scrollbar-track { background: transparent; }
+  .kart::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 9px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  .kart h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .kart p {
+    margin: 0 0 18px;
+    font-size: 13.5px;
+    color: var(--yazi-yumusak);
+  }
+
+  #qrGorsel {
+    display: block;
+    width: 232px;
+    margin: 0 auto 18px;
+    border-radius: 16px;
+    background: #fff;
+    padding: 10px;
+  }
+
+  .satir {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 0;
+    border-top: 1px solid rgba(255,255,255,0.09);
+  }
+
+  .satir:first-of-type { border-top: none; }
+
+  .satir label { font-size: 13.5px; }
+  .satir small { display: block; color: var(--yazi-silik); font-size: 12px; }
+
+  .anahtar {
+    flex: none;
+    width: 46px; height: 27px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.12);
+    cursor: pointer;
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+    transition: background 180ms ease;
+  }
+
+  .anahtar::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 21px; height: 21px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    transition: transform 200ms cubic-bezier(.3,.9,.4,1);
+  }
+
+  .anahtar[aria-checked="true"] { background: rgba(233,166,60,0.85); }
+  .anahtar[aria-checked="true"]::after { transform: translateX(19px); }
+  .anahtar:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  .metinkutu {
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.08);
+    color: var(--yazi);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+
+  .metinkutu:focus { outline: 2px solid var(--kehribar); outline-offset: -1px; }
+  .metinkutu::placeholder { color: var(--yazi-silik); }
+
+  #grupListe {
+    max-height: 168px;
+    overflow-y: auto;
+    margin-top: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.35);
+    background: rgba(255,255,255,0.05);
+  }
+
+  #grupListe:empty { display: none; }
+
+  .grupsatir {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    color: var(--yazi);
+    font-family: var(--sans);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .grupsatir:first-child { border-top: none; }
+  .grupsatir:hover { background: rgba(255,255,255,0.07); }
+  .grupsatir:focus-visible { outline: 2px solid var(--kehribar); outline-offset: -2px; }
+
+  .kutucuk {
+    flex: none;
+    width: 17px; height: 17px;
+    border-radius: 5px;
+    border: 1px solid rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    color: #2A1B05;
+  }
+
+  .grupsatir[aria-checked="true"] .kutucuk {
+    background: var(--kehribar);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  .grupsatir .ad {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    margin: 10px 0 2px;
+    accent-color: var(--kehribar);
+  }
+
+  .esikler {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--yazi-silik);
+  }
+
+  .metindugme {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--yazi-yumusak);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .metindugme:hover { color: var(--yazi); }
+  .metindugme:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  .kapat {
+    width: 100%;
+    margin-top: 18px;
+    padding: 11px;
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.14);
+    color: var(--yazi);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+
+  .kapat:hover { background: rgba(255,255,255,0.2); }
+  .kapat:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .cam, #topla:disabled {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: #1B1E23;
+    }
+    #duvar { display: none; }
+  }
+
+  /* ---- süzgeç şeridi ---- */
+
+  #suzgec {
+    position: fixed;
+    top: calc(12px + var(--tepe-yuk, 50px) + 8px);
+    left: 12px; right: 12px;
+    z-index: 4;
+    border-radius: 16px;
+    padding: 7px 8px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #suzgec::-webkit-scrollbar { display: none; }
+  #suzgec[hidden] { display: none; }
+
+  .cip {
+    flex: none;
+    padding: 5px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.35);
+    background: rgba(255,255,255,0.09);
+    color: var(--yazi-yumusak);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+
+  .cip:hover { color: var(--yazi); background: rgba(255,255,255,0.15); }
+  .cip:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+
+  .cip[aria-pressed="true"] {
+    background: rgba(233,166,60,0.85);
+    color: #2A1B05;
+    font-weight: 500;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  #arama {
+    flex: none;
+    min-width: 130px;
+    padding: 5px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.35);
+    background: rgba(255,255,255,0.09);
+    color: var(--yazi);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+
+  #arama:focus { outline: 2px solid var(--kehribar); outline-offset: -1px; }
+  #arama::placeholder { color: var(--yazi-silik); }
+
+  #buyukAciklama {
+    margin-top: 10px;
+    padding: 11px 18px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--yazi);
+    max-width: min(70ch, 88vw);
+  }
+
+  #buyukAciklama[hidden] { display: none; }
+
+  .kare .not {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 16px; height: 16px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 10px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* ---- büyük önizleme ---- */
+
+  #buyuk { padding: 0; }
+
+  #buyukResim {
+    max-width: min(88vw, 1100px);
+    max-height: 74vh;
+    border-radius: 18px;
+    display: block;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.65);
+  }
+
+  #buyukBilgi {
+    margin-top: 14px;
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    color: var(--yazi);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 88vw;
+  }
+
+  #buyukBilgi span { color: var(--yazi-yumusak); }
+
+  .ok {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.13);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--yazi);
+    font-size: 19px;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+  }
+
+  .ok:hover { background: rgba(255,255,255,0.22); }
+  .ok:focus-visible { outline: 2px solid var(--kehribar); outline-offset: 2px; }
+  #okSol { left: 18px; }
+  #okSag { right: 18px; }
+
+  .kare.solgun { opacity: 0.16; pointer-events: none; }
+  .bolum.gizli { display: none; }
+
+  #islemPanel { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:min(620px,92vw); z-index:30; padding:18px; border-radius:22px; background:#24272bee; }
+  #islemPanel[hidden] { display:none; }
+  #islemPanel small { display:block; margin:8px 0; color:var(--yazi-yumusak); }
+  .donen { display:inline-block; width:16px; height:16px; border:2px solid #ffffff40; border-top-color:var(--kehribar); border-radius:50%; animation:don 1s linear infinite; margin-right:10px; }
+  @keyframes don { to { transform:rotate(360deg); } }
+  #qrKatman { z-index:45; }
+  #erisimRaporu { white-space:pre-wrap; font-size:12px; line-height:1.6; max-height:180px; overflow:auto; }
+  #gecmisGun { width:80px; padding:8px; color:var(--yazi); background:#303338; border:1px solid #666; border-radius:10px; }
+
+  .ayar-karti { max-height:86vh; padding:0; overflow:hidden; display:flex; flex-direction:column; }
+  .ayar-baslik { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 12px; flex-shrink:0; }
+  .ayar-baslik h2 { margin:0; }
+  #ayarX { font-size:28px; line-height:1; padding:4px 10px; }
+  .ayar-icerik { overflow-y:auto; min-height:0; padding:0 20px 24px 24px; margin:0 8px 12px 0; scrollbar-gutter:stable; scrollbar-width:auto; scrollbar-color:#aa8243 #24272b; }
+  .ayar-icerik::-webkit-scrollbar { width:10px; }
+  .ayar-icerik::-webkit-scrollbar-track { background:#24272b; border-radius:10px; }
+  .ayar-icerik::-webkit-scrollbar-thumb { background:#aa8243; border:2px solid #24272b; border-radius:10px; }
+  #gunTekerlek { height:120px; width:140px; margin:12px auto; overflow-y:auto; overscroll-behavior:contain; scroll-snap-type:y mandatory; scrollbar-width:none; border:1px solid #ffffff30; border-radius:18px; background:linear-gradient(#22262dcc 0%,#42403788 34%,#42403788 66%,#22262dcc 100%); }
+  #gunTekerlek::-webkit-scrollbar { display:none; }
+  #gunSecenekleri { padding:40px 0; }
+  .gun-secenek { display:block; height:40px; width:100%; border:0; padding:0; background:none; color:#ffffff60; font-size:19px; line-height:40px; scroll-snap-align:center; }
+  .gun-secenek[aria-selected="true"] { color:var(--kehribar); font-size:24px; font-weight:600; }
+  #fotoMenu { position:fixed; z-index:60; padding:8px; border-radius:12px; background:#292c31; border:1px solid #ffffff40; box-shadow:0 8px 30px #0008; }
+  #fotoMenu[hidden] { display:none; }
+.gun-sil { margin-left:12px; width:32px; height:32px; border:1px solid #a2784a; border-radius:50%; background:#303338; color:#edc08b; font-size:23px; cursor:pointer; }
+#syncKatman { z-index:46; }
+ #syncBar { height:10px; overflow:hidden; border-radius:20px; background:#1118; margin:24px 0 12px; }
+ #syncDolgu { display:block; height:100%; width:35%; border-radius:20px; background:linear-gradient(90deg,#a57937,#edbc6b); animation:syncAkis 1.8s ease-in-out infinite alternate; }
+ #syncBar.belirli #syncDolgu { animation:none; transition:width .3s; }
+ @keyframes syncAkis { from { transform:translateX(-80%); } to { transform:translateX(280%); } }
+ .gecmis-icon { width:44px; height:44px; margin:12px 12px 12px 0; border-radius:14px; border:1px solid #b78e50; color:#e6b765; background:#34322eee; cursor:pointer; }
+ .gecmis-icon svg { width:22px; height:22px; vertical-align:middle; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+ .gecmis-icon:disabled { opacity:.4; cursor:wait; }
+.gecmis-icon { width:116px; height:76px; }
+.gecmis-icon span { display:block; font-size:12px; margin-top:7px; }
+#syncDevam[hidden] { display:none; }
+ .gecmis-icon:disabled { background:#3b3d40; color:#999; border-color:#555; opacity:1; cursor:default; }
+</style>
+</head>
+<body>
+
+<div id="giris">
+  <svg class="amblem amblem-giris" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="agovGiris" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#F48C20"/>
+          <stop offset="0.55" stop-color="#FEFEFE"/>
+        </linearGradient>
+      </defs>
+      <g transform="rotate(45 32 32)">
+        <rect x="9.4" y="9.4" width="45.3" height="45.3" rx="5" fill="#2A4E94"/>
+        <rect x="12.8" y="12.8" width="38.5" height="38.5" rx="4.1"
+              fill="none" stroke="#F48C20" stroke-width="1.8"/>
+      </g>
+      <rect x="19.7" y="24.1" width="24.6" height="17.7" rx="2.9" fill="url(#agovGiris)"/>
+      <circle cx="32" cy="33" r="5.5" fill="#2A4E94"/>
+      <circle cx="32" cy="33" r="3.3" fill="url(#agovGiris)"/>
+      <circle cx="40.9" cy="28.3" r="1.35" fill="#2A4E94"/>
+    </svg>
+  <div class="giris-ad" aria-label="ARCHIVO">
+    <span>A</span><span>R</span><span>C</span><span>H</span><span>I</span><span>V</span><span>O</span>
+  </div>
+</div>
+
+<div id="duvar"></div>
+<div id="perde"></div>
+
+<header id="tepe" class="cam">
+  <h1 class="marka">
+    <svg class="amblem" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="agov" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#F48C20"/>
+          <stop offset="0.55" stop-color="#FEFEFE"/>
+        </linearGradient>
+      </defs>
+      <g transform="rotate(45 32 32)">
+        <rect x="9.4" y="9.4" width="45.3" height="45.3" rx="5" fill="#2A4E94"/>
+        <rect x="12.8" y="12.8" width="38.5" height="38.5" rx="4.1"
+              fill="none" stroke="#F48C20" stroke-width="1.8"/>
+      </g>
+      <rect x="19.7" y="24.1" width="24.6" height="17.7" rx="2.9" fill="url(#agov)"/>
+      <circle cx="32" cy="33" r="5.5" fill="#2A4E94"/>
+      <circle cx="32" cy="33" r="3.3" fill="url(#agov)"/>
+      <circle cx="40.9" cy="28.3" r="1.35" fill="#2A4E94"/>
+    </svg>
+    <span class="marka-ad">ARCHIVO</span>
+  </h1>
+  <button id="yol" title="Klasörü aç"></button>
+  <button class="yuvarlak" id="ayarAc" aria-label="Ayarlar" aria-expanded="false">
+    <span class="cizgiler"><i></i><i></i><i></i></span>
+  </button>
+</header>
+
+<nav id="suzgec" class="cam" hidden></nav>
+
+<main id="sayfa">
+  <div class="bos" id="bos">
+    <svg class="amblem amblem-buyuk" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="agovBuyuk" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#F48C20"/>
+          <stop offset="0.55" stop-color="#FEFEFE"/>
+        </linearGradient>
+      </defs>
+      <g transform="rotate(45 32 32)">
+        <rect x="9.4" y="9.4" width="45.3" height="45.3" rx="5" fill="#2A4E94"/>
+        <rect x="12.8" y="12.8" width="38.5" height="38.5" rx="4.1"
+              fill="none" stroke="#F48C20" stroke-width="1.8"/>
+      </g>
+      <rect x="19.7" y="24.1" width="24.6" height="17.7" rx="2.9" fill="url(#agovBuyuk)"/>
+      <circle cx="32" cy="33" r="5.5" fill="#2A4E94"/>
+      <circle cx="32" cy="33" r="3.3" fill="url(#agovBuyuk)"/>
+      <circle cx="40.9" cy="28.3" r="1.35" fill="#2A4E94"/>
+    </svg>
+    <strong>ARCHIVO</strong>
+    <em>Arşiv boş</em>
+    Topla dediğinde gruplara düşen fotoğraflar inecek ve geldiği günün klasörüne yerleşecek.
+  </div>
+</main>
+
+<div id="alt" class="cam">
+  <span id="ozet">Henüz hiç toplanmadı</span>
+  <button id="topla"><span id="dolgu"></span><span id="toplaYazi">Topla</span></button>
+</div>
+
+<div id="fotoMenu" role="menu" hidden><button id="fotoSil" class="metindugme" role="menuitem">Sil</button></div>
+<section id="islemPanel" class="cam" hidden aria-label="İşlem ilerlemesi" aria-live="polite">
+  <strong><span class="donen" aria-hidden="true"></span><span id="islemAsama">Hazırlanıyor</span></strong>
+  <small id="islemAyrinti"></small><small id="islemSure"></small>
+  <button class="metindugme" id="islemDurdur">İptal / Durdur</button>
+</section>
+<div class="katman" id="syncKatman" hidden role="dialog" aria-modal="true" aria-labelledby="syncBaslik">
+ <div class="kart cam"><h2 id="syncBaslik">Senkronizasyon devam ediyor</h2>
+ <p id="syncMetin">WhatsApp ve seçili sohbetler hazırlanıyor. Tamamlanana kadar bekleyin.</p>
+ <div id="syncBar" role="progressbar" aria-label="WhatsApp hazırlığı"><span id="syncDolgu"></span></div>
+ <small id="syncBilgi">Kesin ilerleme yüzdesi henüz alınmadı.</small>
+ <button class="metindugme" id="syncDevam" hidden>Telefonda tamamlandı · Devam et</button>
+ <button class="metindugme" id="syncIptal">İptal / Durdur</button></div>
+</div>
+<div class="katman" id="qrKatman" hidden>
+  <div class="kart cam">
+    <h2>Telefonunu eşleştir</h2>
+    <p>WhatsApp &rsaquo; Ayarlar &rsaquo; Bağlı Cihazlar &rsaquo; Cihaz Bağla, sonra bu kodu okut.</p>
+    <img id="qrGorsel" alt="Eşleştirme karekodu" />
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span style="font-size:12.5px;color:var(--yazi-silik)">Bir kez yeter, sonra hatırlar.</span>
+      <button class="metindugme" id="qrIptal">Vazgeç</button>
+    </div>
+  </div>
+</div>
+
+<div class="katman" id="buyukKatman" hidden>
+  <button class="ok" id="okSol" aria-label="Önceki">&#8249;</button>
+  <div id="buyuk">
+    <img id="buyukResim" alt="" />
+    <div id="buyukBilgi" class="cam"></div>
+    <div id="buyukAciklama" class="cam" hidden></div>
+  </div>
+  <button class="ok" id="okSag" aria-label="Sonraki">&#8250;</button>
+</div>
+
+<div class="katman" id="ayarKatman" hidden>
+  <div class="kart cam ayar-karti">
+    <header class="ayar-baslik"><h2>Ayarlar</h2><button id="ayarX" class="metindugme" aria-label="Ayarları kapat">×</button></header>
+    <div class="ayar-icerik">
+
+    <div class="satir" style="display:block">
+      <label for="camSlider">Cam saydamlığı</label>
+      <input type="range" id="camSlider" min="6" max="30" step="1" value="13" />
+      <div class="esikler"><span>Berrak</span><span>Örtülü</span></div>
+    </div>
+
+    <div class="satir">
+      <label>Videoları da indir<small>Kapalıyken sadece fotoğraf</small></label>
+      <button class="anahtar" id="videoAnahtar" role="switch" aria-checked="false"></button>
+    </div>
+
+    <div class="satir">
+      <label>Yinelenenleri atla<small>Aynı foto birden çok grupta ise tek kopya</small></label>
+      <button class="anahtar" id="yinelenenAnahtar" role="switch" aria-checked="true"></button>
+    </div>
+
+    <div class="satir">
+      <label>Ayrı atılan mesajları bağla<small>Fotoğrafın altına yazılmayan notları da al</small></label>
+      <button class="anahtar" id="notAnahtar" role="switch" aria-checked="true"></button>
+    </div>
+
+    <div class="satir" style="display:block">
+      <label for="pencereSlider">Ne kadar yakın sayılsın<small id="pencereEtiket">2,5 dakika</small></label>
+      <input type="range" id="pencereSlider" min="30" max="600" step="30" value="150" />
+      <div class="esikler"><span>Dar</span><span>Geniş</span></div>
+    </div>
+
+    <div class="satir">
+      <label>Kişisel sohbetler<small>Gruplara ek olarak</small></label>
+      <button class="anahtar" id="bireyselAnahtar" role="switch" aria-checked="false"></button>
+    </div>
+
+    <div class="satir">
+      <label>Açılışta uygulamayı aç<small>Fotoğraf indirmez; Topla’yı bekler</small></label>
+      <button class="anahtar" id="otomatikAnahtar" role="switch" aria-checked="false"></button>
+    </div>
+
+    <div class="satir" style="display:block">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <label>Hangi gruplar<small id="grupOzet">Hiçbiri seçili değil — hepsi taranır</small></label>
+        <button class="metindugme" id="gruplariYenile">Yenile</button>
+      </div>
+      <div id="grupListe"></div>
+    </div>
+
+    <div class="satir">
+      <label>Kaydedilecek klasör<small id="klasorEtiket"></small></label>
+      <button class="metindugme" id="klasorDegistir">Değiştir</button>
+    </div>
+
+    <div class="satir" style="display:block">
+      <label for="surumKutu">WhatsApp Web sürümünü sabitle</label>
+      <input type="text" class="metinkutu" id="surumKutu" placeholder="Boş bırak = otomatik" />
+      <small style="color:var(--yazi-silik);font-size:12px">
+        Sadece "Sohbet listesi alınamadı" hatası alırsan doldur.
+        Sürüm numaralarını wppconnect-team/wa-version deposundaki html klasöründe bulursun.
+      </small>
+    </div>
+
+    <div class="satir" style="display:block">
+      <label for="gecmisGun">Kaç gün geriye taransın?<small>1–90 gün. WhatsApp Web erişimiyle sınırlıdır.</small></label>
+      <input type="hidden" id="gecmisGun" value="3" /><div id="gunTekerlek" role="listbox" tabindex="0" aria-label="Geçmiş gün sayısı"><div id="gunSecenekleri"></div></div><small>Ortadaki sayı seçilir · fare veya trackpad ile kaydır</small>
+      <button class="gecmis-icon" id="gecmisTara" title="Geçmişi Tara" aria-label="Geçmişi Tara"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M10 7v3l2 2"/></svg><span>Geçmişi Tara</span></button><button class="gecmis-icon" id="gecmisIndir" title="Geçmişi İndir" aria-label="Geçmişi İndir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Geçmişi İndir</span></button>
+      <small>Geçmişi Tara yalnızca kontrol eder. Geçmişi İndir seçili aralığı indirir. Topla bugünü toplar ve bu geçmiş aralığındaki eksikleri onayınıza sunar.</small>
+      <p><small>Sırayla işlem • istekler arasında en az 1,5 saniye • grup başına 500 mesaj • çalışma başına 24 sohbet/mesaj bilgisi isteği, 100 medya ve 15 dakika. Kayıt sınırı 100 MB (dosya boyutu indirmeden önce bilinmeyebilir). Art arda 3 medya hatasında durur. Hesap kısıtlanması riskini ortadan kaldırmaz.</small></p>
+      <div id="erisimRaporu"></div>
+    </div>
+    <div class="satir">
+      <label>Toplama geçmişi<small id="gecmisEtiket">Son çalışma kayıtlarını sıfırlar; silinen görsel tercihleri korunur</small></label>
+      <button class="metindugme" id="gecmisSifirla">Sıfırla</button>
+    </div>
+
+    <div class="satir">
+      <label>Telefon eşlemesi<small id="baglantiEtiket">Bağlantı kapalı</small></label>
+      <button class="gecmis-icon" id="baglanDugme" aria-label="QR kod göster"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h-3zM21 15v6h-6"/></svg><span id="baglanYazi">QR kod göster</span></button>
+      <button class="gecmis-icon" id="esleşmeSifirla" aria-label="WhatsApp’tan çıkış yap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H4v18h5M13 7l5 5-5 5M8 12h13"/></svg><span>WhatsApp’tan çıkış yap</span></button>
+    </div>
+
+    <div class="satir">
+      <label>Uygulama verileri<small>Ayarlar, eşleşme, küçük resimler</small></label>
+      <button class="metindugme" id="veriKlasoru">Klasörü aç</button>
+    </div>
+
+    <button class="kapat" id="ayarKapat">Bitti</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  window.addEventListener('unhandledrejection', e => {
+    e.preventDefault();
+    calismaModu(false);
+    $('ozet').textContent = 'İşlem tamamlanamadı: ' + (e.reason?.message || String(e.reason));
+  });
+  const AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+  let ayar = null;
+  let calisiyor = false;
+  let oturumKayitli = false;
+  let secili = new Set();
+  let aktifSuzgec = null;
+  let aramaMetni = '';
+  const bolumler = new Map();
+  const tumKareler = [];
+
+  // Windows yollari (C:\Users\...) ile Unix yollarini (/home/...) dogru
+  // file:// adresine cevirir. Surucu harfi kodlanmamalidir, yoksa C%3A olur.
+  function dosyaUrl(yol) {
+    let y = String(yol).replace(/\\/g, '/');
+    if (!y.startsWith('/')) y = '/' + y;
+    return 'file://' + y
+      .split('/')
+      .map((p) => (/^[A-Za-z]:$/.test(p) ? p : encodeURIComponent(p)))
+      .join('/');
+  }
+  const gunBasligi = (g) => { const [y,a,d] = g.split('-'); return Number(d) + ' ' + AYLAR[Number(a)-1] + ' ' + y; };
+
+  function saatiOku(unix) {
+    const d = new Date(unix * 1000);
+    return d.getDate() + ' ' + AYLAR[d.getMonth()] + ', ' +
+      String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  // Ust serit ve suzgec yukseklikleri icerige gore degisiyor; sabit piksel
+  // yazmak yerine olcup CSS degiskenlerine yaziyoruz. Boylece ust uste binmiyor.
+  function seritleriOlc() {
+    const kok = document.documentElement;
+    const tepe = $('tepe').getBoundingClientRect().height;
+    kok.style.setProperty('--tepe-yuk', tepe.toFixed(1) + 'px');
+
+    const s = $('suzgec');
+    const suz = s.hidden ? 0 : s.getBoundingClientRect().height + 8;
+    kok.style.setProperty('--suzgec-yuk', suz.toFixed(1) + 'px');
+  }
+
+  if (window.ResizeObserver) {
+    const gozlem = new ResizeObserver(() => seritleriOlc());
+    gozlem.observe(document.getElementById('tepe'));
+    gozlem.observe(document.getElementById('suzgec'));
+  }
+  window.addEventListener('resize', seritleriOlc);
+
+  function camAyarla(v) {
+    document.documentElement.style.setProperty('--cam-alfa', (v/100).toFixed(2));
+    document.documentElement.style.setProperty('--cam-bulanik', (14 + v*1.1).toFixed(0) + 'px');
+  }
+
+  // --- kucuk resimleri gorunduklerinde uret ---
+  const gozcu = new IntersectionObserver(async (girisler) => {
+    for (const g of girisler) {
+      if (!g.isIntersecting) continue;
+      const kare = g.target;
+      gozcu.unobserve(kare);
+      const v = kare._veri;
+      const yeni = await window.api.kucukUret({ yol: v.yol, gun: v.gun, ad: v.ad });
+      kare.querySelector('img').src = dosyaUrl(yeni || v.yol);
+    }
+  }, { rootMargin: '400px' });
+
+  function bolumBul(gun) {
+    if (bolumler.has(gun)) return bolumler.get(gun);
+    const bolum = document.createElement('section');
+    bolum.className = 'bolum';
+    bolum.dataset.gun = gun;
+
+    const bas = document.createElement('div');
+    bas.className = 'gunbasi cam';
+    const ad = document.createElement('b');
+    ad.style.fontWeight = '500';
+    ad.textContent = gunBasligi(gun);
+    const adet = document.createElement('span');
+    const sil = document.createElement('button');
+    sil.className = 'gun-sil'; sil.textContent = '×'; sil.title = 'Bu tarihin tüm indirmelerini sil';
+    sil.setAttribute('aria-label', gunBasligi(gun) + ' indirmelerini sil');
+    sil.addEventListener('click', async () => {
+      if (calisiyor) return;
+      try { const sonuc = await window.api.gunSil(gun); if (sonuc.silindi) await arsiviYenile(); }
+      catch (e) { await arsiviYenile(); $('ozet').textContent = e.message; }
+    });
+    bas.append(ad, adet, sil);
+
+    const izgara = document.createElement('div');
+    izgara.className = 'izgara';
+    bolum.append(bas, izgara);
+
+    const kayit = { bolum, izgara, adet, sayi: 0 };
+    bolumler.set(gun, kayit);
+
+    const kardes = [...$('sayfa').querySelectorAll('section')].find((s) => s.dataset.gun < gun);
+    if (kardes) $('sayfa').insertBefore(bolum, kardes);
+    else $('sayfa').append(bolum);
+    return kayit;
+  }
+
+  function kareEkle(gun, d, animasyon) {
+    const kayit = bolumBul(gun);
+    const kare = document.createElement('button');
+    kare.className = 'kare' + (animasyon ? ' yeni' : '');
+    kare.title = d.ad;
+    kare._veri = { ...d, gun };
+
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = '';
+    if (d.kucuk) img.src = dosyaUrl(d.kucuk);
+    else gozcu.observe(kare);
+
+    const etiket = document.createElement('b');
+    const ilkNot = d.aciklama || (d.notlar && d.notlar[0]) || null;
+    etiket.textContent = ilkNot || (d.gonderen ? d.gonderen + ' · ' + (d.grup || '') : (d.grup || d.ad));
+
+    kare.append(img, etiket);
+
+    if (ilkNot) {
+      const rozet = document.createElement('span');
+      rozet.className = 'not';
+      rozet.textContent = '❝';
+      kare.append(rozet);
+      kare.title = [d.aciklama, ...(d.notlar || [])].filter(Boolean).join('\n');
+    }
+    kare.addEventListener('click', () => buyukAc(kare));
+    kare.addEventListener('contextmenu', e => { e.preventDefault(); secilenFoto = kare; $('fotoMenu').style.left = Math.min(e.clientX, window.innerWidth - 100) + 'px'; $('fotoMenu').style.top = Math.min(e.clientY, window.innerHeight - 60) + 'px'; $('fotoMenu').hidden = false; });
+
+    if (animasyon) kayit.izgara.prepend(kare); else kayit.izgara.append(kare);
+    if (animasyon) tumKareler.unshift(kare); else tumKareler.push(kare);
+
+    kayit.sayi++;
+    kayit.adet.textContent = kayit.sayi + ' foto';
+    $('bos').style.display = 'none';
+    return kare;
+  }
+
+  async function arsiviYenile() {
+    for (const b of bolumler.values()) b.bolum.remove();
+    bolumler.clear(); tumKareler.length = 0;
+    $('buyukKatman').hidden = true; secilenFoto = null;
+    await arsiviYukle();
+    $('bos').style.display = tumKareler.length ? 'none' : '';
+  }
+  let secilenFoto = null;
+  document.addEventListener('click', () => { $('fotoMenu').hidden = true; });
+  $('fotoSil').addEventListener('click', async () => {
+    $('fotoMenu').hidden = true;
+    if (!secilenFoto) return;
+    const sonuc = await window.api.fotografSil(secilenFoto._veri.yol);
+    if (!sonuc.silindi) return;
+    for (const b of bolumler.values()) b.bolum.remove();
+    bolumler.clear(); tumKareler.length = 0;
+    $('buyukKatman').hidden = true; secilenFoto = null;
+    await arsiviYukle();
+    $('bos').style.display = tumKareler.length ? 'none' : '';
+  });
+
+  // --- süzgeç ---
+
+  function suzgeciKur() {
+    const gruplar = new Map();
+    for (const k of tumKareler) {
+      const g = k._veri.grup;
+      if (g) gruplar.set(g, (gruplar.get(g) || 0) + 1);
+    }
+    const serit = $('suzgec');
+    serit.innerHTML = '';
+    if (tumKareler.length === 0) { serit.hidden = true; seritleriOlc(); return; }
+    serit.hidden = false;
+
+    const yap = (etiket, deger) => {
+      const c = document.createElement('button');
+      c.className = 'cip';
+      c.textContent = etiket;
+      c.setAttribute('aria-pressed', String(aktifSuzgec === deger));
+      c.addEventListener('click', () => {
+        aktifSuzgec = deger;
+        suzgeciUygula();
+        for (const d of serit.querySelectorAll('.cip')) {
+          d.setAttribute('aria-pressed', String(d === c));
+        }
+      });
+      serit.append(c);
+    };
+
+    const kutu = document.createElement('input');
+    kutu.type = 'text';
+    kutu.id = 'arama';
+    kutu.placeholder = 'Açıklamada ara';
+    kutu.value = aramaMetni;
+    kutu.addEventListener('input', (e) => { aramaMetni = e.target.value; suzgeciUygula(); });
+    serit.append(kutu);
+
+    yap('Tümü', null);
+    for (const [ad, sayi] of [...gruplar].sort((a, b) => b[1] - a[1])) yap(ad + ' · ' + sayi, ad);
+  }
+
+  function suzgeciUygula() {
+    const q = aramaMetni.trim().toLocaleLowerCase('tr');
+    for (const k of tumKareler) {
+      const v = k._veri;
+      const grupTutmaz = !!aktifSuzgec && v.grup !== aktifSuzgec;
+      const havuz = [v.aciklama, ...(v.notlar || []), v.gonderen, v.grup, v.ad]
+        .filter(Boolean).join(' ').toLocaleLowerCase('tr');
+      const aramaTutmaz = q.length > 0 && !havuz.includes(q);
+      k.classList.toggle('solgun', grupTutmaz || aramaTutmaz);
+    }
+    for (const [, kayit] of bolumler) {
+      const gorunur = [...kayit.izgara.children].some((c) => !c.classList.contains('solgun'));
+      kayit.bolum.classList.toggle('gizli', !gorunur);
+    }
+  }
+
+  // --- büyük önizleme ---
+
+  let buyukSira = [];
+  let buyukIndeks = 0;
+
+  function buyukAc(kare) {
+    buyukSira = tumKareler.filter((k) => !k.classList.contains('solgun'));
+    buyukIndeks = buyukSira.indexOf(kare);
+    buyukCiz();
+    $('buyukKatman').hidden = false;
+  }
+
+  function buyukCiz() {
+    const k = buyukSira[buyukIndeks];
+    if (!k) return;
+    const v = k._veri;
+    $('buyukResim').src = dosyaUrl(v.yol);
+    const parcalar = [];
+    if (v.gonderen) parcalar.push(v.gonderen);
+    if (v.grup) parcalar.push(v.grup);
+    $('buyukBilgi').innerHTML = '';
+    const b = document.createElement('b');
+    b.style.fontWeight = '500';
+    b.textContent = parcalar.join(' · ') || v.ad;
+    const s = document.createElement('span');
+    s.textContent = gunBasligi(v.gun) + '  ·  ' + (buyukIndeks + 1) + '/' + buyukSira.length;
+    const ac = document.createElement('button');
+    ac.className = 'metindugme';
+    ac.textContent = 'Klasörde göster';
+    ac.addEventListener('click', () => window.api.dosyaGoster(v.yol));
+    $('buyukBilgi').append(b, s, ac);
+
+    const kutu = $('buyukAciklama');
+    kutu.innerHTML = '';
+    const satirlar = [];
+    if (v.aciklama) satirlar.push({ metin: v.aciklama, ayri: false });
+    for (const n of v.notlar || []) satirlar.push({ metin: n, ayri: true });
+
+    if (satirlar.length === 0) { kutu.hidden = true; return; }
+
+    for (const s of satirlar) {
+      const p = document.createElement('div');
+      p.textContent = s.metin;
+      if (s.ayri) {
+        p.style.color = 'var(--yazi-yumusak)';
+        p.style.borderLeft = '2px solid rgba(233,166,60,0.55)';
+        p.style.paddingLeft = '10px';
+        p.style.marginTop = '8px';
+      }
+      kutu.append(p);
+    }
+    kutu.hidden = false;
+  }
+
+  const buyukGez = (yon) => {
+    buyukIndeks = (buyukIndeks + yon + buyukSira.length) % buyukSira.length;
+    buyukCiz();
+  };
+
+  $('okSol').addEventListener('click', () => buyukGez(-1));
+  $('okSag').addEventListener('click', () => buyukGez(1));
+  $('buyukKatman').addEventListener('click', (e) => {
+    if (e.target.id === 'buyukKatman' || e.target.id === 'buyuk') $('buyukKatman').hidden = true;
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!$('buyukKatman').hidden) {
+      if (e.key === 'Escape') $('buyukKatman').hidden = true;
+      if (e.key === 'ArrowLeft') buyukGez(-1);
+      if (e.key === 'ArrowRight') buyukGez(1);
+      return;
+    }
+    if (e.key === 'Escape') {
+      void ayariXileKapat();
+    }
+  });
+
+  // --- arka plan duvarı ---
+
+  function duvarKur(gunler) {
+    const kareler = [];
+    for (const g of gunler) {
+      for (const d of g.dosyalar) {
+        kareler.push(d.kucuk || d.yol);
+        if (kareler.length >= 16) break;
+      }
+      if (kareler.length >= 16) break;
+    }
+    const duvar = $('duvar');
+    duvar.innerHTML = '';
+    if (kareler.length === 0) { duvar.style.opacity = '0'; return; }
+    for (const y of kareler) {
+      const h = document.createElement('div');
+      h.style.backgroundImage = 'url("' + dosyaUrl(y) + '")';
+      duvar.append(h);
+    }
+    duvar.style.opacity = '0.5';
+  }
+
+  async function arsiviYukle() {
+    const gunler = await window.api.arsivAl(60);
+    for (const g of gunler) for (const d of g.dosyalar) kareEkle(g.gun, d, false);
+    duvarKur(gunler);
+    suzgeciKur();
+  }
+
+  async function durumuYukle() {
+    const d = await window.api.durumAl();
+    ayar = d.ayar;
+    calismaModu(d.calisiyor);
+    baglantiCiz(d);
+    if (d.canliDurum) ilerlemeGoster(d.canliDurum);
+    raporuGoster(d.rapor);
+    $('yol').textContent = ayar.hedefKlasor;
+    $('klasorEtiket').textContent = ayar.hedefKlasor;
+    $('ozet').textContent = d.sonZaman ? 'En son ' + saatiOku(d.sonZaman) : 'Henüz hiç toplanmadı';
+    camAyarla(ayar.saydamlik || 13);
+    $('camSlider').value = ayar.saydamlik || 13;
+  }
+
+  let ilerleme = null;
+  function tarihYaz(sn) { return sn ? new Date(sn * 1000).toLocaleString('tr-TR') : 'Erişilebilir mesaj yok'; }
+  function raporuGoster(rapor) {
+    if (!rapor) { $('erisimRaporu').textContent = 'Henüz erişim raporu yok.'; return; }
+    const durumlar = { ulasildi: 'İstenen tarihe ulaşıldı', 'erisim-belirsiz': 'Erişilebilir liste bitti; daha eski geçmişin erişimi doğrulanamadı', sinir: 'Tarama sınırına ulaşıldı', hata: 'Tamamlanamadı' };
+    $('erisimRaporu').textContent = 'Son tarama: ' + tarihYaz(rapor.baslangic) + ' · ' + (rapor.sonuc === 'bitti' ? 'İşlem bitti; erişim ayrıntılarını kontrol edin' : 'Eksik veya durduruldu') + (rapor.neden ? '\n' + rapor.neden : '') + '\n' + (rapor.gruplar || []).map(g => g.ad + '\nİstenen: ' + tarihYaz(g.istenen) + '\nEn eski erişilen: ' + tarihYaz(g.enEski) + '\n' + (durumlar[g.durum] || g.durum) + (g.neden ? ' · ' + g.neden : '')).join('\n\n');
+    const eksikler = rapor.alinamayanMedya || [];
+    if (rapor.eksikGunler?.length) $('erisimRaporu').textContent += '\n\nErişilebilen geçmişteki eksikler:\n' + rapor.eksikGunler.map(x => x.gun + ': ' + x.adet + ' görsel').join('\n');
+    if (eksikler.length) $('erisimRaporu').textContent += '\n\nAlınamayan medya (' + eksikler.length + '):\n' + eksikler.map(m => m.grup + ' · ' + m.tur + ' · ' + tarihYaz(m.zaman) + '\n' + m.neden).join('\n\n');
+  }
+  function ilerlemeGoster(d) {
+    ilerleme = { ...d, baslangic: d.baslangic || ilerleme?.baslangic || Date.now(), sonIlerleme: d.sonIlerleme || Date.now() };
+    $('islemPanel').hidden = false;
+    $('islemAsama').textContent = d.metin;
+    const parcalar = [d.ayrinti];
+    if (d.toplamGrup) parcalar.push('Grup ' + d.grup + ' / ' + d.toplamGrup);
+    if (typeof d.mesaj === 'number') parcalar.push(d.mesaj + ' mesaj yüklendi');
+    if (typeof d.indirilen === 'number') parcalar.push(d.indirilen + ' fotoğraf kaydedildi');
+    $('islemAyrinti').textContent = parcalar.filter(Boolean).join(' · ');
+  }
+  setInterval(() => {
+    if (!ilerleme || $('islemPanel').hidden) return;
+    const gecen = Math.floor((Date.now() - ilerleme.baslangic) / 1000);
+    const sessiz = Math.floor((Date.now() - ilerleme.sonIlerleme) / 1000);
+    $('islemSure').textContent = 'Geçen süre: ' + gecen + ' sn · Son ilerleme: ' + sessiz + ' sn önce' + (sessiz >= 30 ? ' · Yeni ilerleme bilgisi alınamıyor; tamamlandığı varsayılmıyor.' : '');
+  }, 1000);
+  $('islemDurdur').addEventListener('click', async () => {
+    $('islemAsama').textContent = 'Durduruluyor';
+    await window.api.durdur();
+    await durumuYukle();
+  });
+  function calismaModu(acik) {
+    calisiyor = acik;
+    $('topla').disabled = acik;
+    for (const id of ['baglanDugme','gecmisTara','gecmisIndir','gruplariYenile','gecmisSifirla','esleşmeSifirla']) $(id).disabled = acik;
+    if (!acik) { $('baglanDugme').disabled = oturumKayitli; $('esleşmeSifirla').disabled = !oturumKayitli; }
+    if (!acik) { $('syncKatman').hidden = true; $('islemPanel').hidden = true; ilerleme = null; }
+    if (!acik) { $('toplaYazi').textContent = 'Topla'; $('dolgu').style.width = '0%'; }
+  }
+
+  $('topla').addEventListener('click', async () => {
+    if (calisiyor) return;
+    calismaModu(true);
+    $('toplaYazi').textContent = 'Bağlanıyor';
+    ilerlemeGoster({ metin: 'WhatsApp açılıyor' });
+    const sonuc = await window.api.topla(false, false);
+    if (sonuc && sonuc.hata) { calismaModu(false); $('ozet').textContent = sonuc.hata; }
+  });
+
+  $('yol').addEventListener('click', () => window.api.klasorAc());
+
+  window.api.onQr((g) => {
+    if (g) { $('qrGorsel').src = g; $('qrKatman').hidden = false; }
+    else { const okundu = !$('qrKatman').hidden; $('qrKatman').hidden = true; if (okundu && calisiyor) $('syncKatman').hidden = false; }
+  });
+
+  $('qrIptal').addEventListener('click', async () => {
+    $('qrKatman').hidden = true;
+    calismaModu(false);
+    $('gruplariYenile').textContent = 'Yenile';
+    try { await window.api.durdur(); } catch (e) {}
+  });
+
+  $('syncDevam').addEventListener('click', async () => { $('syncDevam').disabled = true; await window.api.senkronizasyonOnayla(); });
+  $('syncIptal').addEventListener('click', async () => { await window.api.durdur(); await durumuYukle(); });
+  window.api.onDurum((d) => {
+    $('syncDevam').hidden = !d.telefonOnayi; $('syncDevam').disabled = false;
+    const hazirlik = /Senkronize|WhatsApp hazır|WhatsApp bağlantısı hazırlanıyor/.test(d.metin);
+    $('syncKatman').hidden = !hazirlik;
+    if (hazirlik) {
+      const yuzde = d.yuklemeYuzdesi;
+      const belirli = Number.isFinite(yuzde);
+      $('syncBar').classList.toggle('belirli', belirli);
+      $('syncDolgu').style.width = belirli ? Math.min(100, Math.max(0, yuzde)) + '%' : '35%';
+      $('syncBilgi').textContent = belirli ? 'WhatsApp yükleme bildirimi: %' + yuzde + ' · Sohbet hazırlığı ayrıca bekleniyor.' : 'Kesin ilerleme yüzdesi alınmadı; hazırlık bekleniyor.';
+      $('syncMetin').textContent = d.ayrinti || 'WhatsApp ve seçili sohbetler hazırlanıyor. Tamamlanana kadar bekleyin.';
+    }
+
+    $('toplaYazi').textContent = d.metin.length > 16 ? d.metin.slice(0,15) + '…' : d.metin;
+    calismaModu(true);
+    ilerlemeGoster(d);
+    if (/WhatsApp açılıyor|Senkronize|QR bekleniyor/.test(d.metin)) $('baglantiEtiket').textContent = d.metin;
+    if (typeof d.oran === 'number') $('dolgu').style.width = (d.oran*100).toFixed(0) + '%';
+  });
+
+  window.api.onDosya((d) => kareEkle(d.gun, d, true));
+  window.api.onYinelenen((d) => { $('ozet').textContent = 'Yinelenen atlandı · ' + d.grup; });
+
+  window.api.onHata((m) => {
+    const u = document.createElement('div');
+    u.className = 'uyari cam';
+    u.textContent = m;
+    $('sayfa').prepend(u);
+  });
+
+  window.api.onBitti(async (s) => {
+    calismaModu(false);
+    await durumuYukle();
+    const parcalar = [];
+    if (s.indirilen) parcalar.push(s.indirilen + ' yeni');
+    if (s.yinelenen) parcalar.push(s.yinelenen + ' yinelenen');
+    if (s.atlanan) parcalar.push(s.atlanan + ' alınamadı');
+    if (s.hata) parcalar.push(s.hata + ' hata');
+    $('ozet').textContent = s.rapor?.sadeceTara ? 'Geçmiş erişimi kontrol edildi; indirme yapılmadı' : parcalar.length ? parcalar.join(' · ') : 'Yeni foto yok';
+
+    if (s.hata && !s.indirilen) {
+      const u = document.createElement('div');
+      u.className = 'uyari cam';
+      u.textContent = 'Bazı işlemler tamamlanamadı. Yukarıdaki hata mesajlarını kontrol edin; tamamlanmayan gruplar sonraki toplamada yeniden taranacak.';
+      $('sayfa').prepend(u);
+    }
+    suzgeciKur();
+    duvarKur(await window.api.arsivAl(60));
+  });
+
+  // --- ayarlar ---
+
+  function anahtarKur(id, alan) {
+    const d = $(id);
+    d.addEventListener('click', () => {
+      const yeni = d.getAttribute('aria-checked') !== 'true';
+      d.setAttribute('aria-checked', String(yeni));
+      ayar[alan] = yeni;
+    });
+  }
+
+  anahtarKur('videoAnahtar', 'videolariDaIndir');
+  anahtarKur('yinelenenAnahtar', 'yinelenenleriAtla');
+  anahtarKur('bireyselAnahtar', 'bireyselSohbetlerDeIndir');
+  anahtarKur('otomatikAnahtar', 'otomatikCalistir');
+  anahtarKur('notAnahtar', 'yakinMesajlariAl');
+
+  function pencereEtiketYaz(sn) {
+    const dk = sn / 60;
+    $('pencereEtiket').textContent = sn < 60
+      ? sn + ' saniye'
+      : dk.toFixed(1).replace('.0', '').replace('.', ',') + ' dakika';
+  }
+
+  $('pencereSlider').addEventListener('input', (e) => {
+    ayar.notPenceresiSaniye = Number(e.target.value);
+    pencereEtiketYaz(ayar.notPenceresiSaniye);
+  });
+
+  $('camSlider').addEventListener('input', (e) => {
+    camAyarla(Number(e.target.value));
+    ayar.saydamlik = Number(e.target.value);
+  });
+
+  function grupOzetYaz() {
+    $('grupOzet').textContent = secili.size === 0
+      ? 'Hiçbiri seçili değil — hepsi taranır'
+      : secili.size + ' grup seçili';
+  }
+
+  function gruplariCiz(liste) {
+    const kap = $('grupListe');
+    kap.innerHTML = '';
+    for (const g of liste) {
+      const satir = document.createElement('button');
+      satir.className = 'grupsatir';
+      satir.setAttribute('role', 'checkbox');
+      satir.setAttribute('aria-checked', String(secili.has(g.ad)));
+      const kutu = document.createElement('span');
+      kutu.className = 'kutucuk';
+      kutu.textContent = secili.has(g.ad) ? '✓' : '';
+      const ad = document.createElement('span');
+      ad.className = 'ad';
+      ad.textContent = g.ad;
+      satir.append(kutu, ad);
+      satir.addEventListener('click', () => {
+        if (secili.has(g.ad)) secili.delete(g.ad); else secili.add(g.ad);
+        satir.setAttribute('aria-checked', String(secili.has(g.ad)));
+        kutu.textContent = secili.has(g.ad) ? '✓' : '';
+        grupOzetYaz();
+      });
+      kap.append(satir);
+    }
+    grupOzetYaz();
+  }
+
+  window.api.onGruplar(liste => { gruplariCiz(liste); $('grupOzet').textContent = liste.length + ' adet grup bulundu'; });
+
+  function baglantiCiz(d) {
+    const bagli = !!d.eslesmeKayitli || (d.bagli ?? d.baglantiDurumu === 'Bağlı');
+    oturumKayitli = bagli;
+    $('baglanYazi').textContent = bagli ? 'Bağlandı' : d.calisiyor ? d.baglantiDurumu || 'Bağlanıyor' : 'QR kod göster';
+    $('baglanDugme').disabled = bagli || !!d.calisiyor;
+    $('baglantiEtiket').textContent = d.baglantiDurumu || 'Bağlantı yok';
+    if (!bagli && d.eslesmeKayitli) $('baglantiEtiket').textContent += ' · Eşleşme kayıtlı; yeniden kullanılabilir';
+    $('esleşmeSifirla').disabled = !bagli || !!d.calisiyor;
+  }
+  $('baglanDugme').addEventListener('click', async () => {
+    calismaModu(true); ilerlemeGoster({ metin: 'WhatsApp açılıyor' });
+    try {
+      const s = await window.api.baglan();
+      $('baglantiEtiket').textContent = s.hata || 'Bağlı';
+      if (!s.hata) { $('baglanYazi').textContent = 'Bağlandı'; $('grupOzet').textContent = (s.liste || []).length + ' adet grup bulundu'; }
+    } finally { calismaModu(false); const durum = await window.api.durumAl(); baglantiCiz(durum); }
+  });
+  $('gecmisTara').addEventListener('click', async () => {
+    const gun = Number($('gecmisGun').value);
+    calismaModu(true); ilerlemeGoster({ metin: 'Geçmiş erişimi kontrol ediliyor' });
+    const sonuc = await window.api.gecmisKontrol({ ilkCalismaGunSayisi: gun, sadeceSuGruplar: [...secili] });
+    if (sonuc?.hata) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata; }
+  });
+  $('gecmisIndir').addEventListener('click', async () => {
+    calismaModu(true); ilerlemeGoster({ metin: 'Geçmiş indirme hazırlanıyor' });
+    try {
+      const sonuc = await window.api.gecmisIndir({ ilkCalismaGunSayisi: Number($('gecmisGun').value), sadeceSuGruplar: [...secili] });
+      if (sonuc?.hata) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata; }
+    } catch (e) { calismaModu(false); $('erisimRaporu').textContent = e.message; }
+  });
+  $('gruplariYenile').addEventListener('click', async () => {
+    const d = $('gruplariYenile');
+    d.textContent = 'Bağlanıyor…';
+    const s = await window.api.gruplariGetir();
+    calismaModu(false);
+    d.textContent = 'Yenile';
+    if (s.hata) { $('grupOzet').textContent = s.hata; return; }
+    $('baglantiEtiket').textContent = 'Bağlı';
+    gruplariCiz(s.liste);
+  });
+
+  let ayarYedek = null, ayarImza = '';
+  $('ayarAc').addEventListener('click', async () => {
+    ayar = JSON.parse(JSON.stringify((await window.api.durumAl()).ayar));
+    ayarYedek = JSON.parse(JSON.stringify(ayar));
+    $('videoAnahtar').setAttribute('aria-checked', String(!!ayar.videolariDaIndir));
+    $('yinelenenAnahtar').setAttribute('aria-checked', String(ayar.yinelenenleriAtla !== false));
+    $('bireyselAnahtar').setAttribute('aria-checked', String(!!ayar.bireyselSohbetlerDeIndir));
+    $('otomatikAnahtar').setAttribute('aria-checked', String(!!ayar.otomatikCalistir));
+    $('notAnahtar').setAttribute('aria-checked', String(ayar.yakinMesajlariAl !== false));
+    $('pencereSlider').value = ayar.notPenceresiSaniye || 150;
+    pencereEtiketYaz(ayar.notPenceresiSaniye || 150);
+    secili = new Set(ayar.sadeceSuGruplar || []);
+    gruplariCiz(await window.api.gruplarAl());
+    gunuSec(ayar.ilkCalismaGunSayisi || 3, false);
+    const durum = await window.api.durumAl();
+    baglantiCiz(durum);
+    raporuGoster(durum.rapor);
+    $('surumKutu').value = ayar.waSurum || '';
+    $('klasorEtiket').textContent = ayar.hedefKlasor;
+    $('ayarKatman').hidden = false;
+    $('ayarAc').setAttribute('aria-expanded', 'true');
+    gunuSec(ayar.ilkCalismaGunSayisi || 3, false);
+    ayarImza = JSON.stringify(ayarTaslagi());
+  });
+
+  $('klasorDegistir').addEventListener('click', async () => {
+    const y = await window.api.klasorSec();
+    if (y) { ayar.hedefKlasor = y; $('klasorEtiket').textContent = y; $('yol').textContent = y; }
+  });
+
+  $('gecmisSifirla').addEventListener('click', async () => {
+    await window.api.gecmisiSifirla();
+    $('gecmisEtiket').textContent = 'Sıfırlandı — Topla dediğinde baştan bakacak';
+    $('ozet').textContent = 'Geçmiş sıfırlandı';
+  });
+
+  $('veriKlasoru').addEventListener('click', () => window.api.veriKlasoruAc());
+
+  $('esleşmeSifirla').addEventListener('click', async () => {
+    $('esleşmeSifirla').disabled = true;
+    const sonuc = await window.api.whatsappCikis();
+    $('ozet').textContent = sonuc.hata || (sonuc.cikildi ? 'WhatsApp’tan çıkış yapıldı' : 'Çıkış iptal edildi');
+    await durumuYukle();
+    if (sonuc.cikildi) { secili.clear(); gruplariCiz([]); }
+  });
+
+  function ayarTaslagi() { return {
+      ilkCalismaGunSayisi: Number($('gecmisGun').value),
+      sadeceSuGruplar: [...secili],
+      videolariDaIndir: !!ayar.videolariDaIndir,
+      yinelenenleriAtla: ayar.yinelenenleriAtla !== false,
+      bireyselSohbetlerDeIndir: !!ayar.bireyselSohbetlerDeIndir,
+      otomatikCalistir: !!ayar.otomatikCalistir,
+      yakinMesajlariAl: ayar.yakinMesajlariAl !== false,
+      notPenceresiSaniye: ayar.notPenceresiSaniye || 150,
+      hedefKlasor: ayar.hedefKlasor,
+      saydamlik: ayar.saydamlik || 13,
+      waSurum: $('surumKutu').value.trim(),
+    }; }
+  function ayariGizle() { $('ayarKatman').hidden = true; $('ayarAc').setAttribute('aria-expanded', 'false'); }
+  async function ayariKaydetKapat() {
+    ayar = await window.api.ayarKaydet(ayarTaslagi());
+    $('yol').textContent = ayar.hedefKlasor;
+    ayariGizle();
+  }
+  async function ayariXileKapat() {
+    if ($('ayarKatman').hidden) return;
+    if (JSON.stringify(ayarTaslagi()) !== ayarImza) {
+      if (await window.api.degisiklikSor()) { await ayariKaydetKapat(); return; }
+      ayar = JSON.parse(JSON.stringify(ayarYedek));
+      camAyarla(ayar.saydamlik || 13); $('yol').textContent = ayar.hedefKlasor;
+    }
+    ayariGizle();
+  }
+  $('ayarX').addEventListener('click', ayariXileKapat);
+  $('ayarKapat').addEventListener('click', ayariKaydetKapat);
+  const gunSecenekleri = [];
+  function gunuSec(n, hareket = true) {
+    n = Math.max(1, Math.min(90, Math.round(n)));
+    $('gecmisGun').value = n;
+    gunSecenekleri.forEach((el, i) => el.setAttribute('aria-selected', String(i + 1 === n)));
+    $('gunTekerlek').setAttribute('aria-activedescendant', 'gun-' + n);
+    $('gunTekerlek').scrollTo({ top: (n - 1) * 40, behavior: hareket ? 'smooth' : 'instant' });
+  }
+  for (let n = 1; n <= 90; n++) {
+    const el = document.createElement('button'); el.id = 'gun-' + n; el.className = 'gun-secenek'; el.textContent = n + ' gün';
+    el.setAttribute('role', 'option'); el.setAttribute('tabindex', '-1');
+    el.addEventListener('click', () => gunuSec(n)); gunSecenekleri.push(el); $('gunSecenekleri').append(el);
+  }
+  $('gunTekerlek').addEventListener('scroll', () => {
+    const n = Math.max(1, Math.min(90, Math.round($('gunTekerlek').scrollTop / 40) + 1));
+    $('gecmisGun').value = n;
+    gunSecenekleri.forEach((el, i) => el.setAttribute('aria-selected', String(i + 1 === n)));
+    $('gunTekerlek').setAttribute('aria-activedescendant', 'gun-' + n);
+  });
+  $('gunTekerlek').addEventListener('keydown', e => {
+    if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      e.preventDefault(); gunuSec(e.key === 'Home' ? 1 : e.key === 'End' ? 90 : Number($('gecmisGun').value) + (e.key === 'ArrowDown' ? 1 : -1));
+    }
+  });
+
+  // Acilis ekrani: 1,5 saniye sonra yumusakca kapanir.
+  // Hareket azaltma acikken animasyon olmadan hemen kaybolur.
+  (function girisiKapat() {
+    const g = $('giris');
+    if (!g) return;
+    const azalt = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const sure = azalt ? 400 : 1500;
+    setTimeout(() => {
+      g.classList.add('kapan');
+      setTimeout(() => g.remove(), 500);
+    }, sure);
+  })();
+
+  seritleriOlc();
+  durumuYukle().then(arsiviYukle).then(seritleriOlc);
+</script>
+</body>
+</html>

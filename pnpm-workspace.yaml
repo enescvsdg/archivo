@@ -1,0 +1,4 @@
+allowBuilds:
+  electron: true
+  puppeteer: false
+  electron-winstaller: false

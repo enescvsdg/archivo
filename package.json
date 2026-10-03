@@ -1,0 +1,84 @@
+{
+  "name": "wa-foto-arsivi",
+  "version": "1.4.4",
+  "private": true,
+  "description": "WhatsApp grup fotograflarini tarih klasorlerine arsivleyen masaustu uygulamasi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "exe": "node scripts/build.cjs win x64",
+    "kurulum-exe": "node scripts/build.cjs nsis x64",
+    "mac": "node scripts/build.cjs mac",
+    "linux": "electron-builder --linux AppImage",
+    "test": "node --test tests/*.test.js",
+    "prepare-browser": "node scripts/prepare-browser.cjs",
+    "mac:arm64": "node scripts/build.cjs mac arm64",
+    "mac:x64": "node scripts/build.cjs mac x64"
+  },
+  "build": {
+    "appId": "com.local.wafotoarsivi",
+    "productName": "Archivo",
+    "files": [
+      "main.js",
+      "archive-state.js",
+      "preload.js",
+      "index.html",
+      "package.json",
+      "simge.ico",
+      "simge-256.png",
+      "Iceberg-LISANS.txt",
+      "connection-config.js",
+      "operation-policy.js",
+      "collection-plan.js",
+      "connection-diagnostics.js"
+    ],
+    "compression": "normal",
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "Archivo-${version}-win-${arch}.${ext}",
+      "icon": "simge.ico"
+    },
+    "portable": {
+      "artifactName": "Archivo-${version}-win-${arch}.exe",
+      "unpackDirName": "archivo",
+      "requestExecutionLevel": "user"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Archivo-${version}-Kurulum-${arch}.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "simge.icns",
+      "category": "public.app-category.utilities",
+      "artifactName": "Archivo-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "icon": "simge.ico"
+    },
+    "directories": {
+      "output": "dist/${version}"
+    },
+    "toolsets": {
+      "nsis": "1.2.1"
+    }
+  },
+  "dependencies": {
+    "whatsapp-web.js": "1.34.7",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "packageManager": "pnpm@11.19.0",
+  "author": "enescvsdg"
+}
