@@ -175,3 +175,27 @@ test('completion card: uppercase title, outcome texts, folder button only when p
  // cikis mesaji kart acmaz
  await h.callbacks.onBitti({mesaj:'WhatsApp bu oturumu zaten kapatmış'});assert.equal(e.get('bitisKart').hidden,true);
 });
+
+test('phone pairing badge: green dot only for Bağlı, grey for Bağlı değil, blue while connecting; buttons follow the pairing state',async()=>{
+ const h=await renderer();const e=h.elements;
+ const rozet=()=>[e.get('baglantiEtiket').textContent,e.get('baglantiEtiket').attrs['data-durum'],e.get('baglantiAyrinti').textContent];
+ const yenile=async()=>{await h.callbacks.onBitti({indirilen:0,rapor:{sonuc:'bitti'}});};
+ // eslesmemis
+ Object.assign(h.state,{eslesmeKayitli:false,bagli:false,baglantiDurumu:'Bağlantı kapalı',calisiyor:false});await yenile();
+ assert.deepEqual(rozet(),['Bağlı değil','degil','Telefondaki WhatsApp ile bağlantı']);
+ assert.equal(e.get('baglanDugme').disabled,false);assert.equal(e.get('baglanYazi').textContent,'QR kod göster');assert.equal(e.get('esleşmeSifirla').disabled,true);
+ // eslesmis, tarayici kapali
+ Object.assign(h.state,{eslesmeKayitli:true,bagli:false,baglantiDurumu:'Bağlantı kapalı'});await yenile();
+ assert.deepEqual(rozet(),['Bağlı','bagli','Eşleşme kayıtlı; WhatsApp Topla ile açılır']);
+ assert.equal(e.get('baglanDugme').disabled,true);assert.equal(e.get('baglanYazi').textContent,'Bağlandı');assert.equal(e.get('esleşmeSifirla').disabled,false);
+ // eslesmis ve baglanti acik
+ Object.assign(h.state,{baglantiDurumu:'Bağlı',bagli:true});await yenile();
+ assert.deepEqual(rozet(),['Bağlı','bagli','Telefondaki WhatsApp ile bağlantı']);
+ // gecici durumlar mavi
+ for(const metin of ['WhatsApp açılıyor','Senkronize ediliyor','QR bekleniyor']){h.callbacks.onDurum({metin});assert.deepEqual(rozet().slice(0,2),[metin,'surer'],metin);}
+ // is bitince gercek duruma doner
+ await yenile();assert.equal(rozet()[1],'bagli');
+ // eslesme kaldirilinca gri
+ Object.assign(h.state,{eslesmeKayitli:false,bagli:false,baglantiDurumu:'Bağlantı kapalı'});await yenile();
+ assert.deepEqual(rozet().slice(0,2),['Bağlı değil','degil']);
+});

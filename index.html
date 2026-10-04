@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-4XkoEL5mr1J2oBFHlpm0th7mgBmkpSYgxkEFNCNaba8='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-VS2cgO+9nLpByl/VDcXyoyHeCR9Jq0jHngeUxAqWTHE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -424,8 +424,9 @@
 
   .satir:first-of-type { border-top: none; }
 
-  .satir label { font-size: 13.5px; }
-  .satir small { display: block; color: var(--yazi-silik); font-size: 12px; }
+  /* Ayarlar basliklari: her kelimenin bas harfi buyuk ve kalin; aciklama (small) normal kalir */
+  .satir label { font-size: 13.5px; font-weight: 600; }
+  .satir small { display: block; color: var(--yazi-silik); font-size: 12px; font-weight: 400; }
 
   .anahtar {
     flex: none;
@@ -609,7 +610,7 @@
 
   .ayar-karti { max-height:86vh; padding:0; overflow:hidden; display:flex; flex-direction:column; }
   .ayar-baslik { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 12px; flex-shrink:0; }
-  .ayar-baslik h2 { margin:0; }
+  .ayar-baslik h2 { margin:0; font-weight: 600; }
   .ayar-icerik { overflow-y:auto; min-height:0; padding:0 20px 24px 24px; margin:0 8px 12px 0; scrollbar-gutter:stable; scrollbar-width:auto; scrollbar-color:#4C7BD0 #161c2b; }
   .ayar-icerik::-webkit-scrollbar { width:10px; }
   .ayar-icerik::-webkit-scrollbar-track { background:#161c2b; border-radius:10px; }
@@ -942,6 +943,17 @@
   .satir .dg, .islem-dugme { flex: none; }
   .islem-dugme { margin-top: 6px; align-self: flex-end; }
   .dugme-satiri { display: flex; flex-wrap: wrap; gap: 18px; margin: 14px 0 6px; }
+  /* Telefon eslemesi: ustte baslik + durum rozeti, altta iki esit cam kutulu dugme */
+  .satir.eslesme { display: block; }
+  .eslesme-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .eslesme-ust label { min-width: 0; flex: 1; }
+  .durum-rozet { flex: none; max-width: 55%; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,0.3); box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); font-size: 12px; color: rgba(244,245,247,0.85); white-space: nowrap; }
+  .durum-rozet::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #8B93A3; }
+  .durum-rozet[data-durum="bagli"]::before { background: #5FD68A; box-shadow: 0 0 8px rgba(95,214,138,0.8); }
+  .durum-rozet[data-durum="surer"]::before { background: var(--vurgu-acik); box-shadow: 0 0 8px var(--vurgu-isik); }
+  .eslesme-dugmeler { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .eslesme-dugmeler .dg { justify-content: flex-start; padding: 14px 8px 11px; min-height: 98px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14); }
+  .eslesme-dugmeler .dg > span:last-child { max-width: none; }
 </style>
 </head>
 <body>
@@ -1099,57 +1111,57 @@
     <div class="ayar-icerik">
 
     <div class="satir" style="display:block">
-      <label for="camSlider">Cam saydamlığı</label>
+      <label for="camSlider">Cam Saydamlığı</label>
       <input type="range" id="camSlider" min="6" max="30" step="1" value="13" />
       <div class="esikler"><span>Berrak</span><span>Örtülü</span></div>
     </div>
 
     <div class="satir">
-      <label>Videoları da indir<small>Kapalıyken sadece fotoğraf</small></label>
+      <label>Videoları da İndir<small>Kapalıyken sadece fotoğraf</small></label>
       <button class="anahtar" id="videoAnahtar" role="switch" aria-checked="false"></button>
     </div>
 
     <div class="satir">
-      <label>Yinelenenleri atla<small>Aynı foto birden çok grupta ise tek kopya</small></label>
+      <label>Yinelenenleri Atla<small>Aynı foto birden çok grupta ise tek kopya</small></label>
       <button class="anahtar" id="yinelenenAnahtar" role="switch" aria-checked="true"></button>
     </div>
 
     <div class="satir">
-      <label>Ayrı atılan mesajları bağla<small>Fotoğrafın altına yazılmayan notları da al</small></label>
+      <label>Ayrı Atılan Mesajları Bağla<small>Fotoğrafın altına yazılmayan notları da al</small></label>
       <button class="anahtar" id="notAnahtar" role="switch" aria-checked="true"></button>
     </div>
 
     <div class="satir" style="display:block">
-      <label for="pencereSlider">Ne kadar yakın sayılsın<small id="pencereEtiket">2,5 dakika</small></label>
+      <label for="pencereSlider">Ne Kadar Yakın Sayılsın<small id="pencereEtiket">2,5 dakika</small></label>
       <input type="range" id="pencereSlider" min="30" max="600" step="30" value="150" />
       <div class="esikler"><span>Dar</span><span>Geniş</span></div>
     </div>
 
     <div class="satir">
-      <label>Kişisel sohbetler<small>Gruplara ek olarak</small></label>
+      <label>Kişisel Sohbetler<small>Gruplara ek olarak</small></label>
       <button class="anahtar" id="bireyselAnahtar" role="switch" aria-checked="false"></button>
     </div>
 
     <div class="satir">
-      <label>Açılışta uygulamayı aç<small>Fotoğraf indirmez; Topla’yı bekler</small></label>
+      <label>Açılışta Uygulamayı Aç<small>Fotoğraf indirmez; Topla’yı bekler</small></label>
       <button class="anahtar" id="otomatikAnahtar" role="switch" aria-checked="false"></button>
     </div>
 
     <div class="satir" style="display:block">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
-        <label>Hangi gruplar<small id="grupOzet">Hiçbiri seçili değil — hepsi taranır</small></label>
+        <label>Hangi Gruplar<small id="grupOzet">Hiçbiri seçili değil — hepsi taranır</small></label>
         <button class="dg" id="gruplariYenile"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-refresh"/></svg></span><span id="gruplariYenileYazi">Yenile</span></button>
       </div>
       <div id="grupListe"></div>
     </div>
 
     <div class="satir">
-      <label>Kaydedilecek klasör<small id="klasorEtiket"></small></label>
+      <label>Kaydedilecek Klasör<small id="klasorEtiket"></small></label>
       <button class="dg" id="klasorDegistir"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-replace"/></svg></span><span>Değiştir</span></button>
     </div>
 
     <div class="satir" style="display:block">
-      <label for="surumKutu">WhatsApp Web sürümünü sabitle</label>
+      <label for="surumKutu">WhatsApp Web Sürümünü Sabitle</label>
       <input type="text" class="metinkutu" id="surumKutu" placeholder="Boş bırak = otomatik" />
       <small style="color:var(--yazi-silik);font-size:12px">
         Sadece "Sohbet listesi alınamadı" hatası alırsan doldur.
@@ -1158,7 +1170,7 @@
     </div>
 
     <div class="satir" style="display:block">
-      <label for="gecmisGun">Kaç gün geriye taransın?<small>1–90 gün. WhatsApp Web erişimiyle sınırlıdır.</small></label>
+      <label for="gecmisGun">Kaç Gün Geriye Taransın?<small>1–90 gün. WhatsApp Web erişimiyle sınırlıdır.</small></label>
       <input type="hidden" id="gecmisGun" value="3" /><div id="gunTekerlek" role="listbox" tabindex="0" aria-label="Geçmiş gün sayısı"><div id="gunSecenekleri"></div></div><small>Ortadaki sayı seçilir · fare veya trackpad ile kaydır</small>
       <div class="dugme-satiri"><button title="Geçmişi Tara" aria-label="Geçmişi Tara" class="dg" id="gecmisTara"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-history"/></svg></span><span>Geçmişi tara</span></button><button title="Geçmişi İndir" aria-label="Geçmişi İndir" class="dg" id="gecmisIndir"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-download"/></svg></span><span>Geçmişi indir</span></button></div>
       <small>Geçmişi Tara yalnızca kontrol eder. Geçmişi İndir seçili aralığı indirir. Topla bugünü toplar ve bu geçmiş aralığındaki eksikleri onayınıza sunar.</small>
@@ -1166,17 +1178,20 @@
       <div id="erisimRaporu"></div>
     </div>
     <div class="satir">
-      <label>Toplama geçmişi<small id="gecmisEtiket">Son çalışma kayıtlarını sıfırlar; silinen görsel tercihleri korunur</small></label>
+      <label>Toplama Geçmişi<small id="gecmisEtiket">Son çalışma kayıtlarını sıfırlar; silinen görsel tercihleri korunur</small></label>
       <button class="dg" id="gecmisSifirla"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-restore"/></svg></span><span>Sıfırla</span></button>
     </div>
 
-    <div class="satir">
-      <label>Telefon eşlemesi<small id="baglantiEtiket">Bağlantı kapalı</small></label>
-      <div class="dugme-satiri"><button aria-label="QR kod göster" class="dg" id="baglanDugme"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-qrcode"/></svg></span><span id="baglanYazi">QR kod göster</span></button><button aria-label="WhatsApp’tan çıkış yap" class="dg" id="esleşmeSifirla"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-logout"/></svg></span><span>WhatsApp’tan çıkış yap</span></button></div>
+    <div class="satir eslesme">
+      <div class="eslesme-ust">
+        <label>Telefon Eşlemesi<small id="baglantiAyrinti">Telefondaki WhatsApp ile bağlantı</small></label>
+        <span class="durum-rozet" id="baglantiEtiket" data-durum="degil" role="status">Bağlı değil</span>
+      </div>
+      <div class="eslesme-dugmeler"><button aria-label="QR kod göster" class="dg" id="baglanDugme"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-qrcode"/></svg></span><span id="baglanYazi">QR kod göster</span></button><button aria-label="WhatsApp’tan çıkış yap" class="dg" id="esleşmeSifirla"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-logout"/></svg></span><span>WhatsApp’tan çıkış yap</span></button></div>
     </div>
 
     <div class="satir">
-      <label>Uygulama verileri<small>Ayarlar, eşleşme, küçük resimler</small></label>
+      <label>Uygulama Verileri<small>Ayarlar, eşleşme, küçük resimler</small></label>
       <button class="dg" id="veriKlasoru"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-folder-open"/></svg></span><span>Klasörü aç</span></button>
     </div>
 
@@ -2143,7 +2158,7 @@
     $('toplaYazi').textContent = d.metin.length > 16 ? d.metin.slice(0,15) + '…' : d.metin;
     calismaModu(true);
     ilerlemeGoster(d);
-    if (/WhatsApp açılıyor|Senkronize|QR bekleniyor/.test(d.metin)) $('baglantiEtiket').textContent = d.metin;
+    if (/WhatsApp açılıyor|Senkronize|QR bekleniyor/.test(d.metin)) baglantiYaz(d.metin);
     if (typeof d.oran === 'number') $('dolgu').style.width = (d.oran*100).toFixed(0) + '%';
   });
 
@@ -2237,22 +2252,30 @@
 
   window.api.onGruplar(liste => { gruplariCiz(liste); $('grupOzet').textContent = liste.length + ' adet grup bulundu'; });
 
-  function baglantiCiz(d) {
+  // Telefon eslemesi rozeti: yesil nokta yalniz "Bagli"; "Bagli degil" gri; gecici durumlar (WhatsApp aciliyor, Senkronize ediliyor, QR bekleniyor) mavi.
+  function baglantiYaz(durum, ayrinti) {
+    const e = $('baglantiEtiket');
+    e.textContent = durum;
+    e.setAttribute('data-durum', durum === 'Bağlı' ? 'bagli' : durum === 'Bağlı değil' ? 'degil' : 'surer');
+    $('baglantiAyrinti').textContent = ayrinti || 'Telefondaki WhatsApp ile bağlantı';
+  }
+  function baglantiCiz(d, hata) {
     const bagli = !!d.eslesmeKayitli || (d.bagli ?? d.baglantiDurumu === 'Bağlı');
     oturumKayitli = bagli;
     $('baglanYazi').textContent = bagli ? 'Bağlandı' : d.calisiyor ? d.baglantiDurumu || 'Bağlanıyor' : 'QR kod göster';
     $('baglanDugme').disabled = bagli || !!d.calisiyor;
-    $('baglantiEtiket').textContent = d.baglantiDurumu || 'Bağlantı yok';
-    if (!bagli && d.eslesmeKayitli) $('baglantiEtiket').textContent += ' · Eşleşme kayıtlı; yeniden kullanılabilir';
+    if (d.calisiyor) baglantiYaz(d.baglantiDurumu || 'Bağlanıyor', hata);
+    else baglantiYaz(bagli ? 'Bağlı' : 'Bağlı değil', hata || (bagli && d.baglantiDurumu !== 'Bağlı' ? 'Eşleşme kayıtlı; WhatsApp Topla ile açılır' : ''));
     $('esleşmeSifirla').disabled = !bagli || !!d.calisiyor;
   }
   $('baglanDugme').addEventListener('click', async () => {
     calismaModu(true); ilerlemeGoster({ metin: 'WhatsApp açılıyor' });
+    let hata = '';
     try {
       const s = await window.api.baglan();
-      $('baglantiEtiket').textContent = s.hata || 'Bağlı';
-      if (!s.hata) { $('baglanYazi').textContent = 'Bağlandı'; $('grupOzet').textContent = (s.liste || []).length + ' adet grup bulundu'; }
-    } finally { calismaModu(false); const durum = await window.api.durumAl(); baglantiCiz(durum); }
+      hata = s.hata || '';
+      if (!s.hata) { baglantiYaz('Bağlı'); $('baglanYazi').textContent = 'Bağlandı'; $('grupOzet').textContent = (s.liste || []).length + ' adet grup bulundu'; }
+    } finally { calismaModu(false); const durum = await window.api.durumAl(); baglantiCiz(durum, hata); }
   });
   $('gecmisTara').addEventListener('click', async () => {
     const gun = Number($('gecmisGun').value);
@@ -2276,7 +2299,7 @@
     calismaModu(false);
     d.textContent = 'Yenile';
     if (s.hata) { $('grupOzet').textContent = s.hata; return; }
-    $('baglantiEtiket').textContent = 'Bağlı';
+    baglantiYaz('Bağlı');
     gruplariCiz(s.liste);
   });
 

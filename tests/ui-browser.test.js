@@ -641,3 +641,88 @@ test('bitis karti: Topla cubugunun yerini alir, baslik BUYUK HARF (Turkce I), ca
   assert.equal(await h.sayfa.$eval('#bitisIkon', (e) => e.className), 'tl t-kirmizi');
   await foto(h, '16b-bitis-karti-hata');
 });
+
+async function ayarlariAc(h) {
+  await tikla(h.sayfa, '#ayarAc'); await bekle(350);
+  await h.sayfa.evaluate(() => { const k = document.querySelector('.ayar-icerik'); k.scrollTop = k.scrollHeight; }); await bekle(150);
+}
+
+test('ayarlar: tum basliklar her kelimenin bas harfi buyuk ve kalin; aciklama yazilari normal agirlikta', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await ayarlariAc(h);
+  const r = await h.sayfa.evaluate(() => {
+    const BAGLAC = new Set(['ve', 'ile', 'veya', 'de', 'da', 'ki', 'mi', 'mı', 'mu', 'mü']);
+    const baslikEl = [...document.querySelectorAll('#ayarKatman .ayar-baslik h2, #ayarKatman .ayar-icerik .satir label')].filter((e) => !e.closest('#grupListe'));
+    return baslikEl.map((e) => {
+      const metin = (e.childNodes[0].textContent || '').trim();
+      const kotu = metin.split(/\s+/).filter((w, i) => /^\p{L}/u.test(w) && !(i > 0 && BAGLAC.has(w)) && w[0] !== w[0].toLocaleUpperCase('tr'));
+      const small = e.querySelector('small');
+      return { metin, kotu, agirlik: Number(getComputedStyle(e).fontWeight), smallAgirlik: small ? Number(getComputedStyle(small).fontWeight) : null };
+    });
+  });
+  assert.ok(r.length >= 14, 'Ayarlar başlıkları bulunamadı: ' + r.length);
+  for (const b of r) {
+    assert.deepEqual(b.kotu, [], '"' + b.metin + '" başlığında küçük harfle başlayan kelime var');
+    assert.ok(b.agirlik >= 600, '"' + b.metin + '" kalın değil: ' + b.agirlik);
+    if (b.smallAgirlik !== null) assert.ok(b.smallAgirlik <= 400, 'açıklama yazısı normal kalmalı: ' + b.metin);
+  }
+  const metinler = r.map((b) => b.metin);
+  for (const beklenen of ['Ayarlar', 'Telefon Eşlemesi', 'Toplama Geçmişi', 'Uygulama Verileri', 'Videoları da İndir', 'WhatsApp Web Sürümünü Sabitle', 'Kaç Gün Geriye Taransın?', 'Cam Saydamlığı'])
+    assert.ok(metinler.includes(beklenen), beklenen + ' bulunamadı: ' + metinler.join(' | '));
+  await foto(h, '17-ayar-basliklari');
+});
+
+test('telefon eslemesi satiri: baslik solda, durum rozeti sagda, iki esit dugme; nokta renkleri Bagli yesil, Bagli degil gri, gecici durum mavi', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await ayarlariAc(h);
+  const nokta = () => h.sayfa.evaluate(() => { const e = document.getElementById('baglantiEtiket'); return { metin: e.textContent, durum: e.dataset.durum, renk: getComputedStyle(e, '::before').backgroundColor, ayrinti: document.getElementById('baglantiAyrinti').textContent, kapsamTasma: e.scrollWidth > e.clientWidth + 1 }; });
+  const yerlesim = () => h.sayfa.evaluate(() => {
+    const R = (e) => e.getBoundingClientRect(), satir = document.getElementById('baglanDugme').closest('.satir'), sr = R(satir);
+    const lab = R(satir.querySelector('label')), roz = R(document.getElementById('baglantiEtiket')), a = R(document.getElementById('baglanDugme')), b = R(document.getElementById('esleşmeSifirla'));
+    const ic = document.querySelector('.ayar-icerik');
+    return { sol: lab.left - sr.left, rozetSag: sr.right - roz.right, rozetMerkez: (roz.top + roz.bottom) / 2, labelMerkez: (lab.top + lab.bottom) / 2,
+      genislikFark: Math.abs(a.width - b.width), yukseklikFark: Math.abs(a.height - b.height), ustFark: Math.abs(a.top - b.top), altta: a.top > roz.bottom && b.top > roz.bottom,
+      aralik: b.left - a.right, ikiKutu: [a.width, b.width], satirGenislik: sr.width, tasma: ic.scrollWidth > ic.clientWidth + 1, kutuIcinde: a.left >= sr.left - 1 && b.right <= sr.right + 1,
+      cinsiyet: getComputedStyle(document.getElementById('baglanDugme')).backgroundColor };
+  });
+  // 1) eslesmis + bagli (sahte API varsayilani)
+  let n = await nokta();
+  assert.deepEqual([n.metin, n.durum, n.renk, n.ayrinti], ['Bağlı', 'bagli', 'rgb(95, 214, 138)', 'Telefondaki WhatsApp ile bağlantı']);
+  const y = await yerlesim();
+  assert.ok(y.sol >= 0 && y.sol < 6, 'başlık solda: ' + y.sol); assert.ok(y.rozetSag >= 0 && y.rozetSag < 6, 'rozet sağ köşede: ' + y.rozetSag);
+  assert.ok(Math.abs(y.rozetMerkez - y.labelMerkez) < 14, 'rozet başlıkla aynı hizada');
+  assert.ok(y.genislikFark <= 1 && y.yukseklikFark <= 1 && y.ustFark <= 1, 'iki düğme aynı boyutta ve hizada: ' + JSON.stringify(y));
+  assert.ok(y.altta && y.kutuIcinde && !y.tasma && y.aralik > 6 && y.aralik < 24);
+  assert.equal(await h.sayfa.$eval('#baglanDugme', (e) => e.disabled), true); assert.equal(await h.sayfa.$eval('#esleşmeSifirla', (e) => e.disabled), false);
+  assert.equal(await h.sayfa.$eval('#baglanYazi', (e) => e.textContent), 'Bağlandı');
+  await foto(h, '17b-eslesme-bagli');
+  // 2) eslesmemis: gri nokta, QR aktif, cikis pasif
+  await h.sayfa.evaluate(async () => { const d = await window.api.durumAl(); window.api.durumAl = async () => ({ ...d, eslesmeKayitli: false, bagli: false, baglantiDurumu: 'Bağlantı kapalı', calisiyor: false }); window.__cb.onBitti({ indirilen: 0, rapor: { sonuc: 'bitti' } }); });
+  await bekle(250);
+  n = await nokta();
+  assert.deepEqual([n.metin, n.durum, n.renk], ['Bağlı değil', 'degil', 'rgb(139, 147, 163)']);
+  assert.equal(await h.sayfa.$eval('#baglanDugme', (e) => e.disabled), false); assert.equal(await h.sayfa.$eval('#esleşmeSifirla', (e) => e.disabled), true);
+  assert.equal(await h.sayfa.$eval('#baglanYazi', (e) => e.textContent), 'QR kod göster');
+  await h.sayfa.evaluate(() => { const k = document.querySelector('.ayar-icerik'); k.scrollTop = k.scrollHeight; });
+  await foto(h, '17c-eslesme-degil');
+  // 3) QR kod gosterilirken / senkronizasyonda gecici durum: mavi nokta, rozet tasmaz
+  for (const metin of ['WhatsApp açılıyor', 'QR bekleniyor', 'Senkronize ediliyor']) {
+    await h.sayfa.evaluate((m) => window.__cb.onDurum({ metin: m }), metin); await bekle(100);
+    n = await nokta();
+    assert.deepEqual([n.metin, n.durum, n.renk], [metin, 'surer', 'rgb(143, 181, 242)']);
+    assert.equal(n.kapsamTasma, false, 'rozet taşmamalı: ' + metin);
+    assert.equal((await yerlesim()).tasma, false);
+  }
+  await h.sayfa.evaluate(() => window.__cb.onBitti({ indirilen: 0, rapor: { sonuc: 'bitti' } })); await bekle(250);
+  n = await nokta(); assert.equal(n.durum, 'degil', 'iş bitince gerçek duruma döner');
+  // 4) QR ile baglanti hatasi: hata aciklamada, rozet gri
+  await h.sayfa.evaluate(() => { window.api.baglan = async () => ({ hata: 'Bağlantı kurulamadı: deneme hatası' }); });
+  await h.sayfa.evaluate(() => document.getElementById('baglanDugme').click()); await bekle(400);
+  n = await nokta();
+  assert.deepEqual([n.metin, n.durum, n.ayrinti], ['Bağlı değil', 'degil', 'Bağlantı kurulamadı: deneme hatası']);
+  // 5) QR ile basarili baglanti: yesil
+  await h.sayfa.evaluate(() => { window.api.baglan = async () => ({ bagli: true, liste: [] }); const d0 = window.api.durumAl; window.api.durumAl = async () => ({ ...(await d0()), eslesmeKayitli: true, bagli: true, baglantiDurumu: 'Bağlı' }); });
+  await h.sayfa.evaluate(() => document.getElementById('baglanDugme').click()); await bekle(400);
+  n = await nokta(); assert.deepEqual([n.metin, n.durum, n.renk], ['Bağlı', 'bagli', 'rgb(95, 214, 138)']);
+  assert.deepEqual(h.hatalar, []);
+});
