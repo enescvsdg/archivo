@@ -8,8 +8,16 @@ function dayKey(seconds) {
   const d = new Date(seconds * 1000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+const RESIM_UZANTISI = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
+// Belge olarak gonderilen fotograf: dosya turu resim, ya da dosya adi resim uzantili.
+// Resim olmayan belgeler (PDF vb.) alinmaz.
+function belgeResmi(msg) {
+  if (msg.type !== 'document') return false;
+  const veri = msg._data || {};
+  return String(veri.mimetype || '').startsWith('image/') || RESIM_UZANTISI.test(String(veri.filename || ''));
+}
 function eligibleMedia(msg, videos = false) {
-  return !!msg.hasMedia && ['image', 'sticker', ...(videos ? ['video'] : [])].includes(msg.type);
+  return !!msg.hasMedia && (['image', 'sticker', ...(videos ? ['video'] : [])].includes(msg.type) || belgeResmi(msg));
 }
 function missingDays(messages, stored, deleted, today, videos = false) {
   const counts = new Map(), seen = new Set();
@@ -22,4 +30,4 @@ function missingDays(messages, stored, deleted, today, videos = false) {
   }
   return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([gun, adet]) => ({ gun, adet }));
 }
-module.exports = { dayStart, dayKey, eligibleMedia, missingDays };
+module.exports = { dayStart, dayKey, eligibleMedia, belgeResmi, missingDays };

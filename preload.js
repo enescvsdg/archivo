@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   durumAl: () => ipcRenderer.invoke('durum-al'),
   arsivAl: (gun) => ipcRenderer.invoke('arsiv-al', gun),
   gruplarAl: () => ipcRenderer.invoke('gruplar-al'),
-  gunSil: (gun) => ipcRenderer.invoke('gun-sil', gun),
+  gunSil: (gun, grup) => ipcRenderer.invoke('gun-sil', gun, grup ?? null),
   gecmisIndir: (a) => ipcRenderer.invoke('gecmis-indir', a),
   fotografSil: (yol) => ipcRenderer.invoke('fotograf-sil', yol),
   degisiklikSor: () => ipcRenderer.invoke('degisiklik-sor'),

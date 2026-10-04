@@ -40,6 +40,11 @@ async function scanMessages(chat, since, until, ceiling, pause, check, progress 
     limit = Math.min(limit * 2, ceiling);
     await pause(1500);
   }
+  return scanResult(messages, since, until, complete);
+}
+
+// Tarama sonucunu kurar: pencere ici mesajlar, medyalar ve erisim durumu.
+function scanResult(messages, since, until, complete) {
   const current = messages.filter(m => m.timestamp > since && m.timestamp <= until);
   const oldest = messages[0]?.timestamp ?? null;
   const status = oldest !== null && oldest <= since ? 'ulasildi'
@@ -48,4 +53,27 @@ async function scanMessages(chat, since, until, ceiling, pause, check, progress 
     erisim: { durum: status, istenen: since, enEski: oldest, mesaj: messages.length } };
 }
 
-module.exports = { readJson, writeJson, scanMessages };
+// Insan hizi: gecmis mesajlar sayfa sayfa yuklenir, her yuklemeden once beklenir ve istenen tarihe
+// ulasilinca durulur (fazla yuklenmez). chat: { bak(), yukle(), fetchMessages() }.
+// bak() yuklu mesajlarin { toplam, enEski } bilgisini ag istegi olmadan verir; yukle() bir sayfa daha ister.
+async function scanPaced(chat, since, until, ceiling, pause, check, progress = () => {}) {
+  let durum = await chat.bak();
+  let complete = false;
+  while (true) {
+    check();
+    progress({ mesaj: durum.toplam, enEski: durum.enEski });
+    if (durum.enEski !== null && durum.enEski <= since) { complete = true; break; }
+    if (durum.toplam >= ceiling) break;
+    await pause();
+    check();
+    durum = await chat.yukle();
+    check();
+    if (!durum.yeni) { complete = true; break; }
+  }
+  const messages = await chat.fetchMessages({ limit: durum.toplam });
+  check();
+  messages.sort((a, b) => a.timestamp - b.timestamp);
+  return scanResult(messages, since, until, complete);
+}
+
+module.exports = { readJson, writeJson, scanMessages, scanPaced };

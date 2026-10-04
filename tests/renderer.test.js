@@ -10,7 +10,7 @@ async function renderer() {
  for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,element());
  const callbacks={},calls=[],ticks=[];
  const state={ayar:{hedefKlasor:'/tmp/test',ilkCalismaGunSayisi:3,sadeceSuGruplar:[]},calisiyor:false,baglantiDurumu:'Bağlantı kapalı',rapor:null};
- const api={durumAl:async()=>state,arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
+ const api={durumAl:async()=>state,whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
  for(const name of ['onGruplar','onQr','onDurum','onDosya','onYinelenen','onBitti','onHata'])api[name]=fn=>callbacks[name]=fn;
  const context={window:{api,addEventListener(){},matchMedia:()=>({matches:true})},document:{getElementById:id=>{assert.ok(elements.has(id),'Unknown element '+id);return elements.get(id);},documentElement:element(),createElement:element,addEventListener(){}},IntersectionObserver:class{observe(){}unobserve(){}},setInterval:fn=>ticks.push(fn),setTimeout:()=>0,console};
  vm.createContext(context);vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
@@ -94,4 +94,20 @@ test('stored pairing disables QR and enables logout even while browser is closed
  h.state.eslesmeKayitli=false;await h.elements.get('ayarAc').events.click();
  assert.equal(h.elements.get('baglanDugme').disabled,false);
  assert.equal(h.elements.get('esleşmeSifirla').disabled,true);
+});
+
+// Cikis duzeltmesi: ana surec bitisi bildirince panel kapanir ve sonuc mesaji gosterilir.
+test('a logout result message closes the progress panel and becomes the summary',async()=>{
+ const h=await renderer();
+ h.callbacks.onDurum({metin:'İşlem sürüyor'});
+ assert.equal(h.elements.get('topla').disabled,true);
+ await h.callbacks.onBitti({mesaj:'WhatsApp bu oturumu zaten kapatmış'});
+ assert.equal(h.elements.get('islemPanel').hidden,true);
+ assert.equal(h.elements.get('topla').disabled,false);
+ assert.equal(h.elements.get('ozet').textContent,'WhatsApp bu oturumu zaten kapatmış');
+});
+test('the logout button shows the message returned by the main process',async()=>{
+ const h=await renderer();h.state.cikis={cikildi:true,zatenCikilmis:true,mesaj:'Telefondan zaten çıkılmış; yerel eşleşme temizlendi'};
+ await h.elements.get('esleşmeSifirla').events.click();
+ assert.equal(h.elements.get('ozet').textContent,'Telefondan zaten çıkılmış; yerel eşleşme temizlendi');
 });

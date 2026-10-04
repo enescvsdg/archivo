@@ -4,16 +4,18 @@ const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { readJson, writeJson, scanMessages } = require('./archive-state');
+const { readJson, writeJson, scanMessages, scanPaced } = require('./archive-state');
 const { observeConnection, errorText } = require('./connection-diagnostics');
 const { connectionConfig } = require('./connection-config');
-const { dayStart, eligibleMedia, missingDays } = require('./collection-plan');
-const { LIMITS, days, withTimeout, budget } = require('./operation-policy');
+const { dayStart, eligibleMedia, belgeResmi, missingDays } = require('./collection-plan');
+const { LIMITS, PACE, days, withTimeout, budget } = require('./operation-policy');
 let canliDurum = null;
 let baglantiDurumu = 'Bağlantı kapalı';
 let islem = null;
 let kapaniyor = false;
 let yerelSilme = false;
+// Cikis icin acilan gecici istemci; Durdur ve uygulama kapanisinda temizlenir.
+let cikisClient = null, cikisReddet = null, cikisIptal = false, cikisCalisiyor = false;
 // Grup yenilemeden Topla'ya aynı hazır tarayıcı ile geçilir.
 let hazirClient = null;
 function hazirIstemiAl() {
@@ -21,6 +23,25 @@ function hazirIstemiAl() {
   hazirClient = null;
   if (client) client.removeAllListeners();
   return client;
+}
+// Kopmus cerceve ("detached Frame") veya kapanmis sayfa yeniden kullanilirsa her islem ayni hatayla biter.
+async function istemciSaglikli(client) {
+  const page = client?.pupPage;
+  if (!page) return true;
+  let timer;
+  try {
+    if (page.isClosed?.() || page.mainFrame?.().detached) return false;
+    await Promise.race([page.evaluate(() => true), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Sayfa yanıt vermiyor')), 5000); })]);
+    return true;
+  } catch (_) { return false; } finally { clearTimeout(timer); }
+}
+async function bozukHazirIstemciyiAt() {
+  const client = hazirClient;
+  if (!client || await istemciSaglikli(client) || hazirClient !== client) return;
+  hazirClient = null;
+  client.removeAllListeners();
+  baglantiDurumu = 'Bağlantı kapalı';
+  try { await client.destroy(); } catch (e) {}
 }
 
 
@@ -30,6 +51,12 @@ function kontrol(i) {
 }
 
 async function islemiDurdur() {
+  // Cikis calisiyorsa: iptal isaretle, bekleyen cikisi reddet, gecici istemciyi kapat.
+  if (cikisCalisiyor) {
+    cikisIptal = true;
+    cikisReddet?.(new Error('İşlem iptal edildi'));
+    if (cikisClient) { try { await cikisClient.destroy(); } catch (e) {} }
+  }
   const i = islem;
   if (!i) {
     const client = hazirIstemiAl();
@@ -52,7 +79,10 @@ else {
   app.setPath('userData', profil);
 }
 const SESSIZ = process.argv.includes('--sessiz');
-const BEKLEME_DAKIKA = 30;
+// Gec ulasan mesajlar icin taramaya son toplama kaydindan 2 saat once baslanir.
+const ORTUSME_SANIYE = 2 * 3600;
+// Ayni fotograf bu kadar ayri Topla'da alinamazsa vazgecilir; kuyrugu tikamaz, raporda gorunur.
+const ALINAMAYAN_DENEME = 3;
 
 let pencere = null;
 let tepsi = null;
@@ -75,7 +105,7 @@ const VARSAYILAN_AYAR = {
   videolariDaIndir: false,
   grubaGoreAltKlasor: false,
   ilkCalismaGunSayisi: 3,
-  taramaTavani: 5000,
+  taramaTavani: LIMITS.messages,
   saydamlik: 13,
   yinelenenleriAtla: true,
   yakinMesajlariAl: true,
@@ -109,6 +139,102 @@ const UZANTILAR = {
 const GORSEL = /\.(jpe?g|png|webp|gif|heic)$/i;
 const ikiHane = (n) => String(n).padStart(2, '0');
 const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
+// Insan hizi: rastgele bekleme. Durdur ve sure siniri her saniyede kontrol edilir (uzun molada bile hemen durur).
+// bildir(kalanMs) verilirse her 15 saniyede bir cagrilir (arayuz uzun molada donmus gorunmesin).
+async function insanBekle(aralik, i, bildir) {
+  let kalan = aralik[0] + Math.random() * (aralik[1] - aralik[0]);
+  for (let dilimNo = 0; kalan > 0; dilimNo++) {
+    if (i) kontrol(i);
+    if (bildir && dilimNo % 15 === 0) bildir(kalan);
+    const dilim = Math.min(kalan, 1000);
+    await bekle(dilim);
+    kalan -= dilim;
+  }
+  if (i) kontrol(i);
+}
+// Sayfada sohbetin yuklu mesaj bilgisini verir; islem 'yukle' ise bir sayfa daha eski mesaj ister.
+// Kutuphanenin fetchMessages'inin kullandigi ayni cagrilardir, ama sayfalar arasinda bekleme yapilir.
+async function sohbetSayfasi(sayfa, chat, islem) {
+  const sohbet = typeof chat.id === 'string' ? chat.id : chat.id?._serialized;
+  return sayfa.evaluate(async ({ sohbet, islem }) => {
+    const c = await window.WWebJS.getChat(sohbet, { getAsModel: false });
+    let yeni = 0;
+    if (islem === 'yukle') {
+      const yuklenen = await window.require('WAWebChatLoadMessages').loadEarlierMsgs({ chat: c });
+      yeni = yuklenen ? yuklenen.length : 0;
+    }
+    const liste = c.msgs.getModelsArray().filter(m => !m.isNotification);
+    let enEski = null;
+    for (const m of liste) if (typeof m.t === 'number' && (enEski === null || m.t < enEski)) enEski = m.t;
+    return { toplam: liste.length, enEski, yeni };
+  }, { sohbet, islem });
+}
+// WhatsApp Web sayfayi kendiliginden yenileyebilir; yenilenince window.WWebJS ve sayfaya taktigimiz yamalar silinir.
+// Donus: false = sayfa su an yenileniyor (sorgu hata verdi), null = durum okunamadi, nesne = sayfa durumu.
+async function sayfaDurumu(sayfa) {
+  try {
+    const d = await sayfa.evaluate(() => ({ wwebjs: !!window.WWebJS, req: typeof window.require === 'function', medya: typeof window.WWebJS?.resolveMediaBlob === 'function' }), { islem: 'hazirlik' });
+    return d && typeof d === 'object' ? d : null;
+  } catch (e) { return false; }
+}
+// Sayfa hazir olana kadar bekler ve silinen indirme yamasini yeniden uygular. Hazir olmazsa acik bir hatayla durur.
+async function sayfaHazirla(sayfa, i) {
+  for (let n = 0; n < 45; n++) {
+    kontrol(i);
+    const d = await sayfaDurumu(sayfa);
+    if (d === null) return;
+    if (d && d.wwebjs && d.req) { if (!d.medya) await medyayiSadelestir(sayfa); return; }
+    await insanBekle([1000, 2000], i);
+  }
+  const hata = new Error('WhatsApp sayfası yenilendi ve hazır olmadı; işlem durduruldu');
+  hata.sayfaYenilendi = true;
+  throw hata;
+}
+// Islemi calistirir; sayfa yenilendiyse (hata sonrasi sayfa hazir degil ya da yama silinmis) bekleyip en fazla 2 kez yeniden dener.
+// Sayfa saglamsa hata aynen yukari verilir.
+async function sayfadaDene(sayfa, i, islem) {
+  for (let deneme = 0; ; deneme++) {
+    await sayfaHazirla(sayfa, i);
+    try { return await islem(); }
+    catch (e) {
+      kontrol(i);
+      const d = await sayfaDurumu(sayfa);
+      const yenilendi = d === false || (d && (!d.wwebjs || !d.req || !d.medya));
+      if (!yenilendi || deneme >= 2) throw e;
+      await insanBekle([2000, 5000], i);
+    }
+  }
+}
+// Kutuphane 'ready'yi yalnizca WhatsApp Web'in change:hasSynced OLAYINDAN yayinlar. Sayfa yenilenip bu islem yarida kesilirse
+// (ya da olay kacirilirse) WhatsApp "bagli ve senkron" dese bile hazir hic gelmez. Nobetci bunu yakalar ve kutuphanenin kendi
+// hazir islemini (window.onAppStateHasSyncedEvent) yeniden tetikler. Donus: nobeti birakan fonksiyon.
+function hazirBekcisi(client, kayit = () => {}) {
+  let hazir = false, durdu = false, ardisik = 0, tetik = 0, zaman;
+  const durdur = () => { durdu = true; clearTimeout(zaman); };
+  client.once('ready', () => { hazir = true; durdur(); });
+  const planla = () => { if (durdu || hazir) return; zaman = setTimeout(dongu, LIMITS.hazirBekciAraligi); zaman.unref?.(); };
+  const dongu = async () => {
+    if (durdu || hazir) return;
+    try {
+      const sayfa = client.pupPage;
+      if (sayfa && !sayfa.isClosed?.()) {
+        const d = await sayfa.evaluate(() => ({ durum: window.AuthStore?.AppState?.state, senkron: window.AuthStore?.AppState?.hasSynced, fn: typeof window.onAppStateHasSyncedEvent }), { islem: 'hazirlik-bekcisi' });
+        if (!durdu && !hazir) {
+          ardisik = d && d.durum === 'CONNECTED' && d.senkron === true && d.fn === 'function' ? ardisik + 1 : 0;
+          if (ardisik >= 3) {
+            ardisik = 0; tetik++;
+            kayit('hazir-tetiklendi');
+            await sayfa.evaluate(() => window.onAppStateHasSyncedEvent(), { islem: 'hazir-tetikle' });
+            if (tetik >= 5 && !hazir) { kayit('hazir-tetiklenemedi'); durdur(); }
+          }
+        }
+      }
+    } catch (e) { ardisik = 0; }
+    finally { planla(); }
+  };
+  planla();
+  return durdur;
+}
 
 function temizle(metin) {
   return String(metin || 'bilinmeyen')
@@ -361,22 +487,42 @@ async function modeliSadelestir(sayfa, secili = [], bireysel = false) {
   }, secili, bireysel);
 }
 
-async function sohbetHazirliginiBekle(client, i, secili = []) {
+// WhatsApp'in kapaliyken gelen mesaj sayaci takilabiliyor: yonetici "COMPLETE" dese bile 11/12 = %92'de kalip hic %100 olmuyor
+// (canli testte 6 dk boyunca %92'de kaldi). Bu yuzden sayac 45 sn kipirdamazsa ya da toplam bekleme 5 dk'yi asarsa devam edilir;
+// neden tani kaydina yazilir. Sonraki Topla son toplamadan 2 saat geri taradigi icin gec gelen mesaj yine yakalanir.
+async function sohbetHazirliginiBekle(client, i, secili = [], kayit = () => {}) {
   if (!client.pupPage) return;
+  const adim = 2000;
+  const durguTur = Math.ceil(LIMITS.hazirlikDurguSaniye * 1000 / adim);
+  const ustTur = Math.ceil(LIMITS.hazirlikUstSaniye * 1000 / adim);
+  let tur = 0, durgun = 0, son = null, beklendi = false, sonuc = 'hazir';
   while (true) {
     kontrol(i);
-    const hazir = await client.pupPage.evaluate(secim => {
+    const d = await client.pupPage.evaluate(secim => {
       const chats = window.require('WAWebCollections').Chat.getModelsArray();
       const socket = window.AuthStore?.AppState;
       const progress = window.AuthStore?.OfflineMessageHandler?.getOfflineDeliveryProgress?.();
-      if (socket?.hasSynced === false || (Number.isFinite(progress) && progress > 0 && progress < 100)) return false;
-      return !!chats.length && secim.every(ad => chats.some(chat => (chat.formattedTitle || chat.name || '') === ad));
+      if (socket?.hasSynced === false) return { bekle: true, neden: 'senkron' };
+      if (Number.isFinite(progress) && progress > 0 && progress < 100) return { bekle: true, neden: 'cevrimdisi', ilerleme: progress };
+      const hazir = !!chats.length && secim.every(ad => chats.some(chat => (chat.formattedTitle || chat.name || '') === ad));
+      return hazir ? { bekle: false } : { bekle: true, neden: 'sohbet' };
     }, secili);
     kontrol(i);
-    if (hazir !== false) break;
-    yolla('durum', { metin: 'Senkronize ediliyor', ayrinti: 'Seçili sohbetlerin yerel listede hazır olması bekleniyor' });
-    await bekle(2000);
+    if (!d?.bekle) break;
+    tur++;
+    const cevrimdisi = d.neden === 'cevrimdisi';
+    durgun = cevrimdisi && d.ilerleme === son ? durgun + 1 : 0;
+    son = cevrimdisi ? d.ilerleme : null;
+    if (!beklendi) { beklendi = true; kayit('hazirlik-bekleniyor', { kod: d.neden, ...(cevrimdisi ? { ilerleme: d.ilerleme } : {}) }); }
+    if (durgun >= durguTur) { sonuc = 'durgun'; break; }
+    if (tur >= ustTur) { sonuc = 'zaman-asimi'; break; }
+    const ayrinti = cevrimdisi ? 'Kapalıyken gelen mesajlar alınıyor: %' + d.ilerleme
+      : d.neden === 'senkron' ? 'WhatsApp senkronizasyonu bekleniyor'
+        : 'Seçili sohbetlerin yerel listede hazır olması bekleniyor';
+    yolla('durum', { metin: 'Senkronize ediliyor', ayrinti, ...(cevrimdisi ? { yuklemeYuzdesi: d.ilerleme } : {}) });
+    await bekle(adim);
   }
+  if (beklendi) kayit('hazirlik-bitti', { kod: sonuc, ...(son != null ? { ilerleme: son } : {}) });
 }
 
 async function telefonOnayiniBekle(i) {
@@ -521,8 +667,8 @@ async function notlariEslestir(medyalar, tumMesajlar, pencere, islemBilgisi) {
 
     // 1) alintili cevap: kesin bag
     if (t.hasQuotedMsg) {
-      kontrol(islemBilgisi); islemBilgisi.butce.request();
-      await bekle(LIMITS.pause); kontrol(islemBilgisi);
+      islemBilgisi.butce.request();
+      await insanBekle(PACE.arama, islemBilgisi);
       try {
         const alinti = await withTimeout(t.getQuotedMessage(), LIMITS.timeout, 'Alıntı bilgisi');
         const hedef = kimlik(alinti);
@@ -555,8 +701,8 @@ async function gonderenAdi(msg, islemBilgisi) {
   if (kisiOnbellek.has(kimlik)) return kisiOnbellek.get(kimlik);
   let ad = null;
   if (typeof msg.getContact !== 'function') return null;
-  kontrol(islemBilgisi); islemBilgisi.butce.request();
-  await bekle(LIMITS.pause); kontrol(islemBilgisi);
+  islemBilgisi.butce.request();
+  await insanBekle(PACE.arama, islemBilgisi);
   try {
     const kisi = await withTimeout(msg.getContact(), LIMITS.timeout, 'Gönderen bilgisi');
     ad = kisi.pushname || kisi.name || kisi.number || null;
@@ -567,28 +713,34 @@ async function gonderenAdi(msg, islemBilgisi) {
 
 async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak = {}) {
   if (calisiyor || yerelSilme) return { hata: 'Toplama zaten sürüyor' };
+  if (hazirClient) {
+    await bozukHazirIstemciyiAt();
+    if (calisiyor || yerelSilme) return { hata: 'Toplama zaten sürüyor' };
+  }
 
   const ayar = { ...ayarOku(), ...taslak };
   const gunSayisi = days(ayar.ilkCalismaGunSayisi);
   const simdi = Math.floor(Date.now() / 1000);
   const sonZaman = sonZamanOku();
-  const sonIslem = Math.max(sonZaman || 0, jsonOku(path.join(veriKok(), 'son-istek.json'), {}).zaman || 0, jsonOku(path.join(veriKok(), 'son-gecmis-tarama.json'), {}).zaman || 0);
-
-  if (!sadeceTara && !zorla && sonIslem && simdi - sonIslem < BEKLEME_DAKIKA * 60) {
-    const kalan = Math.ceil((BEKLEME_DAKIKA * 60 - (simdi - sonIslem)) / 60);
-    return { hata: `Son işlemden sonra bekleme sürüyor. ${kalan} dakika sonra tekrar dene.` };
-  }
 
   const baglanmaYolu = path.join(veriKok(), 'son-baglanti.json');
   if (!zorla && !hazirClient && Date.now() - (jsonOku(baglanmaYolu, {}).zaman || 0) < 60000) return { hata: 'Yeni bağlantı için en az 1 dakika bekleyin.' };
   if (!hazirClient) jsonYaz(baglanmaYolu, { zaman: Date.now() });
-  if (!sadeceTara) jsonYaz(path.join(veriKok(), 'son-istek.json'), { zaman: simdi });
   const eskiDurum = jsonOku(durumYolu(), {});
   const ilerleme = { ...(eskiDurum.sohbetler || {}) };
   const ilkBaslangic = simdi - gunSayisi * 86400;
   const bugunBaslangic = dayStart(simdi);
-  const sohbetBaslangici = () => Math.min(ilkBaslangic, bugunBaslangic - 1);
-  const rapor = { baslangic: simdi, gun: gunSayisi, gecmis, sadeceTara, gruplar: [], alinamayanMedya: [], sonuc: 'devam' };
+  // Eski bicimde yalniz genel sonZaman vardir; yeni bicimde her grubun kendi kaydi.
+  const eskiBicim = eskiDurum.sohbetler === undefined && sonZaman != null;
+  const hamBaslangic = chat => ilerleme[chat.id._serialized] ?? (eskiBicim ? sonZaman : null);
+  // Normal Topla her grubu kendi kaydindan baslatir (kaydi olmayan grup: ilk calisma gun sayisi).
+  // Gecmis modlari secilen gun araligini tarar. Tekrar eden mesajlari mesaj kimligi eler.
+  const sohbetBaslangici = chat => {
+    if (gecmis) return ilkBaslangic;
+    const kayit = hamBaslangic(chat);
+    return kayit == null ? ilkBaslangic : Math.max(kayit - ORTUSME_SANIYE, simdi - LIMITS.days * 86400);
+  };
+  const rapor = { baslangic: simdi, gun: gunSayisi, gecmis, sadeceTara, gruplar: [], alinamayanMedya: [], bekleyenGrupSayisi: 0, sonuc: 'devam' };
   const sayac = { indirilen: 0, yinelenen: 0, atlanan: 0, hata: 0 };
   const dizin = dizinOku();
   const mevcutAdlar = new Set(arsivListele(Infinity).flatMap(g => g.dosyalar.map(d => d.ad)));
@@ -596,6 +748,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const hashHaritasi = new Map(mevcutKayitlar.map(([ad, k]) => [k.hash, ad]));
   const silinenYolu = path.join(veriKok(), 'silinen-mesajlar.json');
   const silinen = jsonOku(silinenYolu, {});
+  const alinamayanYolu = path.join(veriKok(), 'alinamayan-medya.json');
+  const alinamayanlar = jsonOku(alinamayanYolu, {});
   const islenenMesajlar = new Set(mevcutKayitlar.flatMap(([, k]) => [k.mesajKimligi, ...(k.mesajKimlikleri || [])]).filter(Boolean));
   let silinenSecimi;
   const kuyruk = [];
@@ -607,6 +761,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const mevcutClient = hazirIstemiAl();
   const client = mevcutClient || new Client(istemciSecenekleri());
   const tani = observeConnection(client, path.join(veriKok(), 'baglanti-tanisi.json'), bilgi => yolla('durum', bilgi), !!mevcutClient);
+  const bekci = mevcutClient ? null : hazirBekcisi(client, tani.record);
   const i = { client, iptal: false };
   islem = i;
   calisiyor = true;
@@ -615,16 +770,22 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const bitir = async () => {
     if (tamamlandi) return;
     tamamlandi = true;
+    bekci?.();
     clearTimeout(sure);
     await tani.finish(i.iptal ? 'iptal' : sayac.hata ? 'hata' : 'bitti', rapor.neden);
     rapor.baglantiAsamasi = tani.state.asama;
-    if (i.basladi && !i.iptal && !kapaniyor) {
+    if (i.basladi && !i.iptal && !kapaniyor && await istemciSaglikli(client)) {
       client.removeAllListeners(); hazirClient = client;
       client.once('disconnected', () => { if (hazirClient === client) { hazirClient = null; baglantiDurumu = 'Bağlantı kapalı'; void client.destroy().catch(() => {}); } });
     } else { try { await client.destroy(); } catch (e) {} }
     if (islem === i) { islem = null; calisiyor = false; }
     baglantiDurumu = hazirClient ? 'Bağlı' : 'Bağlantı kapalı';
     rapor.sonuc = i.iptal ? 'iptal' : (sayac.hata || sayac.atlanan) ? 'eksik' : 'bitti';
+    // Vazgecilen fotograflar her raporda gorunur; hicbiri sessizce eksik kalmaz.
+    for (const [kimlik, k] of Object.entries(alinamayanlar)) {
+      if (!k.vazgecildi || (k.zaman ?? simdi) < simdi - LIMITS.days * 86400 || rapor.alinamayanMedya.some(m => m.mesajKimligi === kimlik)) continue;
+      rapor.alinamayanMedya.push({ grup: k.grup, tur: k.tur, iletildi: !!k.iletildi, zaman: k.zaman, mesajKimligi: kimlik, neden: k.neden + ' · ' + ALINAMAYAN_DENEME + ' denemeden sonra vazgeçildi' });
+    }
     try { jsonYaz(raporYolu(), rapor); } catch (e) { hataYaz('rapor', e); }
     yolla('bitti', { ...sayac, rapor });
     if (SESSIZ && !pencere) app.quit();
@@ -668,8 +829,10 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     yolla('qr', null);
     yolla('durum', { metin: 'Senkronize ediliyor', ayrinti: 'Seçili grup hazırlanıyor' });
 
+    // Yarida kesilirse hangi gruplarin sirada kaldigini raporlamak icin.
+    const sira = { hedefler: [], baslayan: 0, biten: 0 };
     try {
-      await sohbetHazirliginiBekle(client, i, ayar.sadeceSuGruplar);
+      await sohbetHazirliginiBekle(client, i, ayar.sadeceSuGruplar, tani.record);
       await telefonOnayiniBekle(i);
       i.butce = budget();
       yolla('durum', { metin: 'Grup listesi alınıyor' });
@@ -677,6 +840,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
       // bazi sohbetlerde cokuyor ve tek bir hata tum listeyi dusuruyor.
       // Yamayi bastan uygula: sorunlu sohbet sade modelle gecsin.
       if (client.pupPage) {
+        await sayfaHazirla(client.pupPage, i);
         await withTimeout(modeliSadelestir(client.pupPage, ayar.sadeceSuGruplar, ayar.bireyselSohbetlerDeIndir), LIMITS.timeout, 'Sohbet hazırlığı');
         await withTimeout(medyayiSadelestir(client.pupPage), LIMITS.timeout, 'Medya hazırlığı');
       }
@@ -708,6 +872,9 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
         if (c.timestamp && c.timestamp < sohbetBaslangici(c)) { elenen.eski++; return false; }
         return true;
       });
+      // Kaydi en eski (veya hic olmayan) grup once: butce dolsa bile hicbir grup ac kalmaz.
+      if (!gecmis) hedefler.sort((a, b) => (hamBaslangic(a) ?? 0) - (hamBaslangic(b) ?? 0));
+      sira.hedefler = hedefler;
 
       console.log('  elenen -> grup degil: ' + elenen.grupDegil +
         ', suzgec: ' + elenen.suzgec + ', baslangictan eski: ' + elenen.eski);
@@ -720,23 +887,28 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
       console.log('=== TARAMA SONU ===\n');
 
       let islenen = 0;
+      let indirmeSayaci = 0;
 
       for (const chat of hedefler) {
         kontrol(i);
         const baslangic = sohbetBaslangici(chat);
         let sohbetHatasi = false;
-        islenen++;
+        islenen++; sira.baslayan = islenen;
         yolla('durum', { metin: 'Gruplar taranıyor', ayrinti: chat.name, grup: islenen, toplamGrup: hedefler.length });
 
         let paket = { tum: [], medyalar: [] };
         try {
-          paket = await scanMessages({ fetchMessages: async options => {
-            kontrol(i); i.butce.request();
-            await bekle(LIMITS.pause); kontrol(i);
-            return withTimeout(chat.fetchMessages(options), LIMITS.timeout, 'Mesaj taraması');
-          } }, baslangic, simdi, Math.min(LIMITS.messages, Math.max(25, Number(ayar.taramaTavani) || 5000)), bekle, () => kontrol(i), bilgi => {
+          const tavan = Math.min(LIMITS.messages, Math.max(25, Number(ayar.taramaTavani) || LIMITS.messages));
+          const taramaDurumu = bilgi => {
             yolla('durum', { metin: 'Gruplar taranıyor', ayrinti: chat.name, grup: islenen, toplamGrup: hedefler.length, ...bilgi });
-          });
+          };
+          const mesajlariGetir = options => withTimeout(chat.fetchMessages(options), LIMITS.timeout, 'Mesaj taraması');
+          // Insan hizi: gecmis sayfa sayfa yuklenir, her sayfadan once beklenir, istenen tarihe ulasinca durulur.
+          paket = client.pupPage
+            ? await scanPaced({ bak: () => sayfadaDene(client.pupPage, i, () => sohbetSayfasi(client.pupPage, chat, 'bak')), yukle: () => sayfadaDene(client.pupPage, i, () => sohbetSayfasi(client.pupPage, chat, 'yukle')), fetchMessages: options => sayfadaDene(client.pupPage, i, () => mesajlariGetir(options)) },
+              baslangic, simdi, tavan, () => insanBekle(PACE.sayfa, i), () => kontrol(i), taramaDurumu)
+            : await scanMessages({ fetchMessages: async options => { kontrol(i); i.butce.request(); await insanBekle(PACE.sayfa, i); return mesajlariGetir(options); } },
+              baslangic, simdi, tavan, bekle, () => kontrol(i), taramaDurumu);
           rapor.gruplar.push({ ad: chat.name, ...paket.erisim });
           if (!paket.tamam) {
             sohbetHatasi = true;
@@ -745,7 +917,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           }
         } catch (e) {
           kontrol(i);
-          if (!sadeceTara && !gecmis) { ilerleme[chat.id._serialized] = ilerleme[chat.id._serialized] ?? sonZaman ?? baslangic; sonZamanYaz(sonZaman ?? ilkBaslangic, ilerleme); }
+          if (!sadeceTara && !gecmis) { ilerleme[chat.id._serialized] = hamBaslangic(chat) ?? ilkBaslangic; sonZamanYaz(sonZaman ?? ilkBaslangic, ilerleme); }
           rapor.gruplar.push({ ad: chat.name, durum: 'hata', istenen: baslangic, enEski: null, neden: e.message });
           throw e; // Aynı hata üzerinde yeni WhatsApp istekleri başlatma.
         }
@@ -754,23 +926,10 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           paket.medyalar.length + ' yeni medya');
 
         kuyruk.push({ chat, paket, islenen });
-      }
 
-      kontrol(i);
-      const eksikler = missingDays(kuyruk.flatMap(({ paket }) => paket.medyalar), islenenMesajlar, silinen, bugunBaslangic, ayar.videolariDaIndir);
-      rapor.eksikGunler = eksikler;
-      let gecmisOnay = gecmis;
-      if (!gecmis && !sadeceTara && eksikler.length) {
-        yolla('durum', { metin: 'Onay bekleniyor', ayrinti: 'Geçmişteki eksik görseller' });
-        const { response } = await dialog.showMessageBox(pencere, { type: 'question', buttons: ['Hayır', 'Evet'], defaultId: 0, cancelId: 0,
-          message: 'Geçmişteki eksik görseller de indirilsin mi?',
-          detail: eksikler.map(x => `${x.gun}: ${x.adet} görsel indirilmemiş`).join('\n') + '\nBu sayılar yalnızca erişilebilen mesajları kapsar. Silinen görseller ayrıca sorulacak.' });
-        kontrol(i); gecmisOnay = response === 1;
-      }
-      for (const item of kuyruk) {
-        const { chat, paket, islenen } = item;
-        const baslangic = sohbetBaslangici(chat);
-        let sohbetHatasi = !paket.tamam;
+        // Grup grup calisma: bu grubun fotograflari hemen indirilir ve kaydi ilerletilir.
+        // Butce dolsa bile biten gruplar kaybolmaz.
+        kontrol(i);
         let notHaritasi = null;
 
         for (const msg of paket.medyalar) {
@@ -779,6 +938,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           // Even with content deduplication disabled, a retry must not save the same message twice.
           if (kimlik && islenenMesajlar.has(kimlik)) continue;
           if (!eligibleMedia(msg, ayar.videolariDaIndir)) continue;
+          // Vazgecilen fotograf istek harcamaz ve art arda hata sayacini tetiklemez; rapora bitirde eklenir.
+          if (kimlik && alinamayanlar[kimlik]?.vazgecildi) continue;
           const onceSilindi = kimlik && silinen[kimlik];
           if (onceSilindi) {
             let cevap = silinenSecimi;
@@ -797,17 +958,21 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
             if (!cevap) continue;
           }
           if (sadeceTara) continue;
-          if (!gecmis && msg.timestamp < bugunBaslangic && !gecmisOnay && !onceSilindi) continue;
           if (!notHaritasi) notHaritasi = ayar.yakinMesajlariAl ? await notlariEslestir(paket.medyalar, paket.tum, ayar.notPenceresiSaniye, i) : new Map();
           i.butce.media();
-          await bekle(LIMITS.pause); kontrol(i);
+          // Insan hizi: her PACE.molaHer indirmede uzun mola, her indirmeden once rastgele bekleme.
+          if (indirmeSayaci > 0 && indirmeSayaci % PACE.molaHer === 0) {
+            await insanBekle(PACE.mola, i, kalan => yolla('durum', { metin: 'Dinleniyor', ayrinti: 'Hesabı yormamak için mola veriliyor · yaklaşık ' + Math.max(1, Math.ceil(kalan / 60000)) + ' dk kaldı', grup: islenen, toplamGrup: hedefler.length, indirilen: sayac.indirilen }));
+          }
+          indirmeSayaci++;
+          await insanBekle(PACE.indirme, i);
           yolla('durum', { metin: 'Fotoğraflar indiriliyor', ayrinti: chat.name, grup: islenen, toplamGrup: hedefler.length, indirilen: sayac.indirilen, medya: paket.medyalar.length });
           let media = null;
           let indirmeHatasi = null;
 
           if (kimlik && client.pupPage) {
             try {
-              media = await withTimeout(medyaIndir(client.pupPage, kimlik), LIMITS.timeout, 'Medya indirme');
+              media = await withTimeout(sayfadaDene(client.pupPage, i, () => medyaIndir(client.pupPage, kimlik)), LIMITS.timeout, 'Medya indirme');
             } catch (e) { indirmeHatasi = e; }
           }
 
@@ -819,35 +984,51 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           }
 
           kontrol(i);
+          // Sayfa yenilenip toparlanamadiysa bu fotografin suclu olmadigi bilinir: deneme sayilmaz, islem acik hatayla durur.
+          if (indirmeHatasi?.sayfaYenilendi) throw indirmeHatasi;
           const eksigiKaydet = neden => rapor.alinamayanMedya.push({
-            grup: chat.name, tur: msg.type || 'bilinmiyor', zaman: msg.timestamp || null,
+            grup: chat.name, tur: msg.type || 'bilinmiyor', iletildi: !!msg.isForwarded, zaman: msg.timestamp || null,
             mesajKimligi: kimlik || null, neden,
           });
           if (indirmeHatasi?.message?.includes('yanıt süresi aşıldı')) {
             eksigiKaydet(indirmeHatasi.message);
             throw indirmeHatasi;
           }
+          // Ayni fotograf birkac Topla'da alinamazsa vazgecilir (kuyrugu tikamasin); rapora yazilir.
+          const denemeyiKaydet = neden => {
+            if (!kimlik) return false;
+            const deneme = (alinamayanlar[kimlik]?.deneme || 0) + 1;
+            alinamayanlar[kimlik] = { deneme, grup: chat.name, tur: msg.type || 'bilinmiyor', iletildi: !!msg.isForwarded, zaman: msg.timestamp || null, neden, vazgecildi: deneme >= ALINAMAYAN_DENEME };
+            jsonYaz(alinamayanYolu, alinamayanlar);
+            return alinamayanlar[kimlik].vazgecildi;
+          };
           if (!media && indirmeHatasi) {
-            eksigiKaydet(indirmeHatasi.message || String(indirmeHatasi));
+            const neden = indirmeHatasi.message || String(indirmeHatasi);
+            const vazgecildi = denemeyiKaydet(neden);
+            eksigiKaydet(vazgecildi ? neden + ' · ' + ALINAMAYAN_DENEME + ' denemeden sonra vazgeçildi' : neden);
             i.butce.failed();
             const e = indirmeHatasi;
-            sohbetHatasi = true;
+            if (!vazgecildi) sohbetHatasi = true;
             sayac.hata++;
             console.log('    ! indirilemedi: ' + ((e && e.message) || e));
 
             continue;
           }
           if (!media || !media.mimetype) {
-            eksigiKaydet(!media ? 'İndirme boş sonuç döndürdü. Dosyanın neden erişilemediği doğrulanamadı.' : 'İndirme sonucunda dosya türü bulunamadı.');
+            const neden = !media ? 'İndirme boş sonuç döndürdü. Dosyanın neden erişilemediği doğrulanamadı.' : 'İndirme sonucunda dosya türü bulunamadı.';
+            const vazgecildi = denemeyiKaydet(neden);
+            eksigiKaydet(vazgecildi ? neden + ' · ' + ALINAMAYAN_DENEME + ' denemeden sonra vazgeçildi' : neden);
             i.butce.failed();
-            sohbetHatasi = true;
+            if (!vazgecildi) sohbetHatasi = true;
             sayac.atlanan++;
             console.log('    - bos dondu (sunucuda suresi dolmus olabilir)');
             continue;
           }
 
           i.butce.succeeded();
-          const resimMi = media.mimetype.startsWith('image/');
+          if (kimlik && alinamayanlar[kimlik]) { delete alinamayanlar[kimlik]; jsonYaz(alinamayanYolu, alinamayanlar); }
+          // Belge olarak gelen fotograf bazen "octet-stream" turunde gelir; dosya adindan resim sayilir.
+          const resimMi = media.mimetype.startsWith('image/') || belgeResmi(msg);
           const videoMu = media.mimetype.startsWith('video/');
           if (!resimMi && !(videoMu && ayar.videolariDaIndir)) {
             console.log('    . atlandi (tur: ' + media.mimetype + ')');
@@ -881,7 +1062,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           const hedefKlasor = path.join(gunKlasoru, grupAdi);
           fs.mkdirSync(hedefKlasor, { recursive: true });
 
-          const uzanti = UZANTILAR[media.mimetype] || path.extname(media.filename || '') || '.bin';
+          const uzanti = UZANTILAR[media.mimetype] || path.extname(media.filename || msg._data?.filename || '') || '.bin';
           const tamYol = cakismayanYol(hedefKlasor, `${klasor}_${saat}_${grupAdi}`, uzanti);
           fs.writeFileSync(tamYol, tampon);
 
@@ -911,18 +1092,19 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           sayac.indirilen++;
           console.log('    + ' + ad);
           yolla('dosya', { gun: klasor, ad, yol: tamYol, kucuk, grup: chat.name, gonderen, aciklama, notlar });
-          await bekle(LIMITS.pause);
         }
         kontrol(i);
         if (!sadeceTara && !gecmis && !sohbetHatasi) ilerleme[chat.id._serialized] = simdi - 1;
         // Checkpoint each successful conversation. Failed conversations retain their old boundary.
-        else if (!sadeceTara && !gecmis && !(chat.id._serialized in ilerleme)) ilerleme[chat.id._serialized] = sonZaman ?? baslangic;
+        else if (!sadeceTara && !gecmis && !(chat.id._serialized in ilerleme)) ilerleme[chat.id._serialized] = hamBaslangic(chat) ?? ilkBaslangic;
         if (!sadeceTara && !gecmis) sonZamanYaz(sonZaman ?? ilkBaslangic, ilerleme);
+        sira.biten++;
       }
 
       kontrol(i);
+      // Indirmeden sonra hala eksik kalan gunler (alinamayan, atlanan, erisilemeyen).
+      rapor.eksikGunler = missingDays(kuyruk.flatMap(({ paket }) => paket.medyalar), islenenMesajlar, silinen, bugunBaslangic, ayar.videolariDaIndir);
       if (!sadeceTara && !gecmis) sonZamanYaz(simdi - 1, ilerleme);
-      else if (!sadeceTara) jsonYaz(path.join(veriKok(), 'son-gecmis-tarama.json'), { zaman: simdi });
       console.log('\n=== BITTI ===');
       console.log('  indirilen: ' + sayac.indirilen + ', yinelenen: ' + sayac.yinelenen +
         ', atlanan: ' + sayac.atlanan + ', hata: ' + sayac.hata);
@@ -932,7 +1114,11 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
       sayac.hata++;
       const mesaj = hataYaz('toplama', err);
       rapor.neden = mesaj;
-      yolla('hata', 'Toplama tamamlanamadı: ' + mesaj + '. Tamamlanmayan gruplar yeniden taranacak.');
+      const bekleyen = sira.hedefler.slice(sira.biten);
+      rapor.bekleyenGrupSayisi = bekleyen.length;
+      // Hic baslanmayan gruplar raporda gorunur; baslayip yarim kalanin kaydi zaten vardir.
+      for (const c of sira.hedefler.slice(sira.baslayan)) rapor.gruplar.push({ ad: c.name, durum: 'Sırada', istenen: sohbetBaslangici(c), enEski: null, neden: 'Bu çalışmada sırası gelmedi; sonraki Topla’da taranacak.' });
+      yolla('hata', 'Toplama tamamlanamadı: ' + mesaj + '. ' + (bekleyen.length ? bekleyen.length + ' grup sırada; Topla’ya yeniden basarak devam edebilirsiniz.' : 'Tamamlanmayan gruplar yeniden taranacak.'));
 
     } finally {
       await bitir();
@@ -1102,13 +1288,27 @@ async function yerelFotografSil(yol, onayli = false, kilitli = false) {
 }
 
 ipcMain.handle('fotograf-sil', (_e, yol) => yerelFotografSil(yol));
-ipcMain.handle('gun-sil', async (_e, gun) => {
+// Bir tarihin fotograflari silinir. `grup` verilirse yalnizca o grubun o gunku fotograflari (grup gorunumu),
+// verilmezse o tarihteki TUM gruplarin fotograflari (Tumu gorunumu) silinir ve onay penceresi bunu buyuk harfle belirtir.
+async function gunDosyalari(gun, grup) {
+  const hepsi = arsivListele(Infinity).find(x => x.gun === gun)?.dosyalar || [];
+  return grup ? hepsi.filter(d => d.grup === grup) : hepsi;
+}
+ipcMain.handle('gun-sil', async (_e, gun, grup = null) => {
   if (calisiyor || yerelSilme) throw new Error('Önce çalışan işlemi durdurun');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(gun)) throw new Error('Geçersiz tarih');
-  const { response } = await dialog.showMessageBox(pencere, { type: 'warning', buttons: ['Hayır', 'Evet'], defaultId: 0, cancelId: 0,
-    message: 'Bu tarihe ait tüm indirilen görseller silinsin mi?', detail: gun + '\nYerel dosyalar Çöp Kutusu’na taşınacak; önizleme ve arşiv kayıtları kaldırılacak. WhatsApp değişmeyecek.' });
+  if (grup !== null && (typeof grup !== 'string' || !grup.trim())) throw new Error('Geçersiz grup');
+  const onceki = await gunDosyalari(gun, grup);
+  if (!onceki.length) return { silindi: false, adet: 0 };
+  const gunTR = gun.split('-').reverse().join('.');
+  const soru = grup
+    ? { buttons: ['Hayır', 'Evet'], message: gunTR + ' tarihli “' + grup + '” fotoğrafları silinsin mi?',
+      detail: onceki.length + ' fotoğraf yerel Çöp Kutusu’na taşınacak; yalnızca bu grubun fotoğrafları silinir, diğer gruplara dokunulmaz. WhatsApp değişmeyecek.' }
+    : { buttons: ['Vazgeç', 'Tüm fotoğrafları sil'], message: 'DİKKAT: ' + gunTR + ' TARİHİNDEKİ TÜM GRUPLARIN FOTOĞRAFLARI SİLİNECEK',
+      detail: new Set(onceki.map(d => d.grup)).size + ' gruptan toplam ' + onceki.length + ' fotoğraf yerel Çöp Kutusu’na taşınacak; önizleme ve arşiv kayıtları kaldırılacak. WhatsApp değişmeyecek.\n\nYalnızca bir grubun fotoğraflarını silmek istiyorsanız Vazgeç’e basın, önce o grubu seçin.' };
+  const { response } = await dialog.showMessageBox(pencere, { type: 'warning', buttons: soru.buttons, defaultId: 0, cancelId: 0, message: soru.message, detail: soru.detail });
   if (response !== 1) return { silindi: false };
-  const dosyalar = arsivListele(Infinity).find(x => x.gun === gun)?.dosyalar || [];
+  const dosyalar = await gunDosyalari(gun, grup);
   if (calisiyor || yerelSilme) throw new Error('Önce çalışan işlemi durdurun');
   let adet = 0; yerelSilme = true;
   try {
@@ -1132,16 +1332,33 @@ function eslesmeYaz(giris) { jsonYaz(path.join(veriKok(), 'eslesme-durumu.json')
 // Kullanıcının çıkış isteği: kayıtlı oturumu bir kez aç, QR ile yeniden giriş yapma.
 async function cikisIstemcisi() {
   const client = new Client(istemciSecenekleri());
+  cikisClient = client;
+  const bekci = hazirBekcisi(client);
+  let zamanlayici;
   try {
     await new Promise((resolve, reject) => {
+      const hata = (mesaj, isaret) => { const e = new Error(mesaj); if (isaret) e[isaret] = true; reject(e); };
+      cikisReddet = reject;
       client.once('ready', resolve);
-      client.once('qr', () => reject(new Error('Kayıtlı oturum kullanılamıyor; telefondaki Bağlı Cihazlar’dan çıkış yapın')));
-      client.once('auth_failure', () => reject(new Error('Kayıtlı eşleşme doğrulanamadı')));
-      client.once('disconnected', () => reject(new Error('Bağlantı kesildi')));
+      // QR istenmesi, WhatsApp'in bu oturumu artik kabul etmedigi (zaten cikilmis) anlamina gelir.
+      client.once('qr', () => hata('Kayıtlı oturum kullanılamıyor; WhatsApp bu oturumu zaten kapatmış', 'oturumGecersiz'));
+      client.once('auth_failure', () => hata('Kayıtlı eşleşme doğrulanamadı'));
+      client.once('disconnected', () => hata('Bağlantı kesildi'));
+      zamanlayici = setTimeout(() => hata('WhatsApp ' + LIMITS.cikisZamanAsimi / 1000 + ' saniyede yanıt vermedi', 'zamanAsimi'), LIMITS.cikisZamanAsimi);
       client.initialize().catch(reject);
     });
     return client;
   } catch (e) { try { await client.destroy(); } catch (_) {} throw e; }
+  finally { bekci(); clearTimeout(zamanlayici); cikisReddet = null; }
+}
+
+// Yerel eslesmeyi temizler: sunucuda oturum kapali oldugu bilindiginde ya da kullanici onayladiginda.
+function yerelEslesmeyiTemizle() {
+  eslesmeYaz(false);
+  hazirClient = null;
+  baglantiDurumu = 'Çıkış yapıldı';
+  jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
+  gruplariYaz([]);
 }
 
 async function whatsappCikis() {
@@ -1151,24 +1368,44 @@ async function whatsappCikis() {
     message: 'WhatsApp’tan çıkış yapılsın mı?', detail: 'Bu uygulamanın WhatsApp oturumu kapatılacak. Fotoğraf arşivi korunacak.' });
   if (response !== 1) return { cikildi: false };
   if (calisiyor || yerelSilme) return { hata: 'Bağlantı durumu değişti; çıkış yapılmadı' };
-  let client = hazirClient;
-  calisiyor = true;
+  let client = hazirClient, sonuc;
+  calisiyor = true; cikisCalisiyor = true; cikisIptal = false;
   try {
-    if (!client) client = await cikisIstemcisi();
-    await client.logout();
-    eslesmeYaz(false);
-    hazirClient = null; baglantiDurumu = 'Çıkış yapıldı';
-    jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
-    gruplariYaz([]);
-    return { cikildi: true };
-  } catch (e) { if (client && client !== hazirClient) { try { await client.destroy(); } catch (_) {} } return { hata: 'WhatsApp çıkışı doğrulanamadı: ' + errorText(e) + '. Yerel oturum zorla silinmedi.' }; }
-  finally { calisiyor = false; }
+    try {
+      if (!client) client = await cikisIstemcisi();
+      await client.logout();
+      yerelEslesmeyiTemizle();
+      sonuc = { cikildi: true };
+    } catch (e) {
+      if (client && client !== hazirClient) { try { await client.destroy(); } catch (_) {} }
+      if (cikisIptal) sonuc = { cikildi: false };
+      else if (e.oturumGecersiz) {
+        // WhatsApp QR istedi: oturum sunucuda zaten kapali. Yerel kaydi temizlemek guvenlidir.
+        yerelEslesmeyiTemizle();
+        sonuc = { cikildi: true, zatenCikilmis: true, mesaj: 'WhatsApp bu oturumu zaten kapatmış (telefondan çıkış yapılmış). Yerel eşleşme temizlendi; QR ile yeniden bağlanabilirsiniz.' };
+      } else {
+        const mesaj = 'WhatsApp çıkışı doğrulanamadı: ' + errorText(e) + '.';
+        // Dogrulanamayan cikista, kullanici onayiyla yalnizca yerel eslesme temizlenebilir.
+        const { response: temizle } = await dialog.showMessageBox(pencere, { type: 'warning', buttons: ['Hayır', 'Evet, yerel eşleşmeyi temizle'], defaultId: 0, cancelId: 0,
+          message: mesaj, detail: 'İsterseniz yalnızca bu bilgisayardaki eşleşme kaydı temizlenir. WhatsApp’taki cihaz kaydı telefonun Bağlı Cihazlar ekranından silinmelidir. Fotoğraf arşivi korunur.' });
+        if (temizle === 1) { yerelEslesmeyiTemizle(); sonuc = { cikildi: true, yerelTemizlendi: true, mesaj: 'Yerel eşleşme temizlendi. WhatsApp’taki cihaz kaydını telefondan silin; QR ile yeniden bağlanabilirsiniz.' }; }
+        else sonuc = { hata: mesaj + ' Yerel oturum silinmedi.' };
+      }
+    }
+  } finally { cikisClient = null; cikisReddet = null; cikisCalisiyor = false; calisiyor = false; }
+  // Pencere (yeniden acilmis olsa bile) bitisi ogrensin; bayat "Islem suruyor" paneli kalmasin.
+  yolla('bitti', { mesaj: sonuc.hata || sonuc.mesaj || (sonuc.cikildi ? 'WhatsApp’tan çıkış yapıldı' : 'Çıkış iptal edildi') });
+  return sonuc;
 }
 ipcMain.handle('whatsapp-cikis', whatsappCikis);
 ipcMain.handle('oturum-sifirla', whatsappCikis);
 
 async function baglanVeListele(sadeceBaglan = false) {
   if (calisiyor || yerelSilme) return { hata: 'Toplama sürüyor' };
+  if (hazirClient) {
+    await bozukHazirIstemciyiAt();
+    if (calisiyor || yerelSilme) return { hata: 'Toplama sürüyor' };
+  }
   const baglanmaYolu = path.join(veriKok(), 'son-baglanti.json');
   const onceki = jsonOku(baglanmaYolu, {}).zaman || 0;
   if (!hazirClient && Date.now() - onceki < 60000) return { hata: 'Yeni bağlantı için en az 1 dakika bekleyin; otomatik tekrar yapılmadı.' };
@@ -1180,6 +1417,7 @@ async function baglanVeListele(sadeceBaglan = false) {
   baglantiDurumu = 'Bağlanıyor';
   yolla('durum', { metin: 'WhatsApp açılıyor' });
   const tani = observeConnection(gecici, path.join(veriKok(), 'baglanti-tanisi.json'), bilgi => yolla('durum', bilgi), !!mevcutClient);
+  const bekci = mevcutClient ? null : hazirBekcisi(gecici, tani.record);
   let baglantiHatasi;
   const i = { client: gecici, iptal: false };
   islem = i;
@@ -1218,7 +1456,7 @@ async function baglanVeListele(sadeceBaglan = false) {
           yolla('gruplar', gruplar);
           if (sadeceBaglan) {
             yolla('durum', { metin: 'Senkronize ediliyor', ayrinti: gruplar.length + ' grup listeye eklendi; senkronizasyon bekleniyor.' });
-            await sohbetHazirliginiBekle(gecici, i, []);
+            await sohbetHazirliginiBekle(gecici, i, [], tani.record);
             await telefonOnayiniBekle(i);
           }
           yolla('durum', { metin: gruplar.length + ' adet grup bulundu' });
@@ -1238,9 +1476,10 @@ async function baglanVeListele(sadeceBaglan = false) {
     return { hata: hataYaz('gruplari-getir', e) };
   } finally {
     yolla('qr', null);
+    bekci?.();
     clearTimeout(sure);
     await tani.finish(i.iptal ? 'iptal' : listeAlindi ? 'bitti' : 'hata', baglantiHatasi);
-    if ((listeAlindi || tani.state.sayfa?.kutuphaneHazir) && !i.iptal && !kapaniyor) {
+    if ((listeAlindi || tani.state.sayfa?.kutuphaneHazir) && !i.iptal && !kapaniyor && await istemciSaglikli(gecici)) {
       gecici.removeAllListeners();
       hazirClient = gecici;
       gecici.once('disconnected', () => {
@@ -1331,7 +1570,7 @@ app.on('window-all-closed', () => {
 app.on('activate', () => pencereAc());
 
 app.on('before-quit', e => {
-  if (!kapaniyor && (islem || hazirClient)) {
+  if (!kapaniyor && (islem || hazirClient || cikisCalisiyor)) {
     e.preventDefault();
     kapaniyor = true;
     islemiDurdur().finally(() => app.quit());

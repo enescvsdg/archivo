@@ -1,6 +1,6 @@
 {
   "name": "wa-foto-arsivi",
-  "version": "1.4.4",
+  "version": "2.0.0",
   "private": true,
   "description": "WhatsApp grup fotograflarini tarih klasorlerine arsivleyen masaustu uygulamasi",
   "main": "main.js",
@@ -27,6 +27,7 @@
       "simge.ico",
       "simge-256.png",
       "Iceberg-LISANS.txt",
+      "Tabler-LISANS.txt",
       "connection-config.js",
       "operation-policy.js",
       "collection-plan.js",

@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
-const { readJson, writeJson, scanMessages } = require('../archive-state');
+const { readJson, writeJson, scanMessages, scanPaced } = require('../archive-state');
 
 function temp(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archivo-test-'));
@@ -40,7 +40,8 @@ test('scan cancellation stops immediately after a pending fetch returns', async 
 });
 
 function harness(t, chats, failure = false, options = {}) {
-  const dir = temp(t), handlers = new Map(), clients = [];
+  const dir = temp(t), handlers = new Map(), clients = [], appOn = {};
+  let quitSayisi = 0;
   writeJson(path.join(dir,'senkronizasyon-onayi.json'),{tamam:true});
   class FakeClient extends EventEmitter {
     constructor() { super(); clients.push(this); }
@@ -50,21 +51,24 @@ function harness(t, chats, failure = false, options = {}) {
     async logout() { if (options.logoutFailure) throw new Error('logout offline');this.loggedOut=true; }
     async getWWebVersion() { return 'test'; }
   }
-  const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: () => {}, setLoginItemSettings: () => {}, requestSingleInstanceLock: () => true, quit: () => {} };
+  const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: () => {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
   const electron = { app, dialog: { showMessageBox: async (_window, config) => { if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)) }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) } };
+  // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
+  const gercekPolitika = require('../operation-policy');
+  const politika = { ...gercekPolitika, LIMITS: { ...gercekPolitika.LIMITS, ...(options.limits || {}) }, PACE: { sayfa: [0, 0], indirme: [0, 0], arama: [0, 0], molaHer: 100, mola: [0, 0], ...(options.pace || {}) } };
   const context = {
     require: name => name === 'electron' ? electron : name === 'qrcode' ? { toDataURL: async () => 'qr' }
       : name === 'whatsapp-web.js' ? { Client: FakeClient, LocalAuth: class {} }
       : name === 'whatsapp-web.js/package.json' ? { version: 'test' }
-      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? require('../operation-policy') : require(name),
+      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? politika : require(name),
     __dirname: path.join(__dirname, '..'), process: { argv: [], platform: 'darwin', pid: process.pid },
-    Buffer, console: { log() {}, error() {} }, setTimeout: (fn, ms) => setTimeout(fn, ms <= 1500 ? 1 : ms), clearTimeout,
+    Buffer, console: { log() {}, error() {} }, setTimeout: (fn, ms) => { if (options.beklemeler) options.beklemeler.push(ms); return setTimeout(fn, ms <= 1500 ? 1 : ms); }, clearTimeout,
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8'), context);
   const invoke = (name, ...args) => handlers.get(name)(null, ...args);
-  const settle = async () => { for (let n = 0; n < 50 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
-  return { dir, clients, invoke, settle };
+  const settle = async () => { for (let n = 0; n < 1500 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
+  return { dir, clients, invoke, settle, ctx: context, appOn, quitSayisi: () => quitSayisi };
 }
 const group = (id, fetchMessages) => ({ id: { _serialized: id }, name: id, isGroup: true, timestamp: 0, fetchMessages });
 test('failed media keeps its group checkpoint while successful group advances', async t => {
@@ -213,12 +217,12 @@ test('pairing automatically lists groups without downloading media', async t => 
   assert.equal(fs.existsSync(path.join(h.dir,'dizin.json')),false);
   await h.invoke('durdur');
 });
-test('invalid days are rejected and failed collection has a cooldown', async t => {
+test('invalid days are rejected and a failed connection cannot be reopened within a minute', async t => {
   const h=harness(t,[],true);
   assert.throws(()=>h.invoke('ayar-kaydet',{ilkCalismaGunSayisi:0}),/1–90/);
   assert.throws(()=>h.invoke('ayar-kaydet',{ilkCalismaGunSayisi:91}),/1–90/);
   await h.invoke('topla',false);await h.settle();
-  assert.match((await h.invoke('topla',false)).hata,/dakika/);
+  assert.match((await h.invoke('topla',false)).hata,/en az 1 dakika/);
   assert.equal(h.clients.length,1);
 });
 test('three consecutive media failures stop further downloads', async t => {
@@ -232,12 +236,16 @@ test('three consecutive media failures stop further downloads', async t => {
  assert.equal(h.clients[0].destroyed,true);
   assert.match(readJson(path.join(h.dir,'tarama-raporu.json'),{}).neden,/3 medya/);
 });
-test('budget caps requests, media, bytes, duration and clears timeout timers',async()=>{
-  const {budget,LIMITS,withTimeout}=require('../operation-policy');
-  const b=budget();for(let n=0;n<LIMITS.requests;n++)b.request();assert.throws(()=>b.request(),/24/);
-  const m=budget();for(let n=0;n<LIMITS.media;n++)m.media();assert.throws(()=>m.media(),/100/);
-  assert.throws(()=>budget().bytes(LIMITS.bytes+1),/100 MB/);
-  let now=0;const clock=budget(()=>now);now=LIMITS.duration;assert.throws(()=>clock.check(),/15 dakika/);
+// Insan hizi modeli: istek/medya/MB tavanlari kalkti; yalnizca sure siniri (60 dk) ve art arda 3 hata durdurur.
+test('human-pace policy: no request, media or byte caps; duration ceiling, three failures and timeout timers remain',async()=>{
+  const {budget,LIMITS,PACE,withTimeout}=require('../operation-policy');
+  const b=budget();for(let n=0;n<5000;n++){b.request();b.media();b.bytes(50*1024*1024);}
+  let now=0;const clock=budget(()=>now);now=LIMITS.duration;assert.throws(()=>clock.check(),/60 dakika/);
+  assert.equal(LIMITS.duration,60*60*1000);
+  const f=budget();f.failed();f.failed();assert.throws(()=>f.failed(),/3 medya hatası/);
+  assert.deepEqual(PACE.sayfa,[1000,3000]);assert.deepEqual(PACE.indirme,[2000,5000]);assert.deepEqual(PACE.arama,[500,1500]);
+  assert.equal(PACE.molaHer,100);assert.deepEqual(PACE.mola,[120000,300000]);
+  assert.equal(LIMITS.messages,20000);assert.equal(LIMITS.hazirBekciAraligi,5000);
   assert.equal(await withTimeout(Promise.resolve(3),10,'test'),3);
   await assert.rejects(withTimeout(new Promise(()=>{}),5,'test'),/yanıt süresi/);
 });
@@ -252,7 +260,8 @@ test('renderer script remains valid and matches its CSP hash',()=>{
 test('compatibility setup failure stops before chat or media requests',async t=>{
  const h=harness(t,[]);let requests=0;
  await h.invoke('topla',true);
- h.clients[0].pupPage={evaluate:async()=>{throw new Error('setup failed');}};
+ // Canli sayfa: saglik yoklamasi (argumansiz) yanit verir, kurulum betikleri hata atar.
+ h.clients[0].pupPage={isClosed:()=>false,mainFrame:()=>({detached:false}),evaluate:async(_fn,...args)=>{if(args.length)throw new Error('setup failed');return true;}};
  h.clients[0].getChats=async()=>{requests++;return [];};
  h.clients[0].emit('ready');await h.settle();
  assert.equal(requests,0);
@@ -322,16 +331,15 @@ test('locally deleted message IDs are not downloaded again by Topla',async t=>{
  await h.invoke('topla',true,true);h.clients[0].emit('ready');await h.settle();assert.equal(requests,0);
 });
 
-test('Topla scans once, includes local midnight, excludes future and asks before past downloads', async t => {
+// 1. adim: Topla artik gecmis gunler icin soru sormaz; kaydi olmayan grup ilk calisma penceresini (3 gun) alir.
+test('Topla scans once, includes local midnight and the whole window, excludes future and never asks', async t => {
  const {dayStart}=require('../collection-plan');const now=Math.floor(Date.now()/1000), start=dayStart(now);
- for(const approve of [false,true]) {
-  let fetches=0;const downloaded=[],questions=[];
-  const messages=[['old',start-60],['midnight',start],['today',now-1],['future',now+60]].map(([id,timestamp])=>({timestamp,type:'image',hasMedia:true,id:{_serialized:id},downloadMedia:async()=>{downloaded.push(id);return null;}}));
-  const h=harness(t,[group('g',async()=>{fetches++;return messages;})],false,{dialog:async q=>{questions.push(q);return {response:approve?1:0};}});
-  await h.invoke('topla',true,false);h.clients[0].emit('ready');await h.settle();
-  assert.equal(fetches,1);assert.equal(questions.length,1);assert.match(questions[0].detail,/1 görsel/);
-  assert.deepEqual(downloaded,approve?['old','midnight','today']:['midnight','today']);
- }
+ let fetches=0;const downloaded=[],questions=[];
+ const messages=[['old',start-60],['midnight',start],['today',now-1],['future',now+60]].map(([id,timestamp])=>({timestamp,type:'image',hasMedia:true,id:{_serialized:id},downloadMedia:async()=>{downloaded.push(id);return null;}}));
+ const h=harness(t,[group('g',async()=>{fetches++;return messages;})],false,{dialog:async q=>{questions.push(q);return {response:0};}});
+ await h.invoke('topla',true,false);h.clients[0].emit('ready');await h.settle();
+ assert.equal(fetches,1);assert.equal(questions.length,0);
+ assert.deepEqual(downloaded,['old','midnight','today']);
 });
 test('history download uses its draft range and scan is download-free even when restoration is approved',async t=>{
  const now=Math.floor(Date.now()/1000);let downloads=0;
@@ -358,7 +366,7 @@ test('restoration apply-all Yes or No affects every deleted image with one dialo
 test('day deletion confirms once, only deletes that day and preserves cancelled files',async t=>{
  for(const yes of [false,true]) {
   let questions=0;
-  const h=harness(t,[],false,{dialog:async q=>{questions++;assert.deepEqual(Array.from(q.buttons),['Hayır','Evet']);return {response:yes?1:0};}});
+  const h=harness(t,[],false,{dialog:async q=>{questions++;assert.deepEqual(Array.from(q.buttons),['Vazgeç','Tüm fotoğrafları sil']);assert.match(q.message,/DİKKAT: 02\.10\.2026 TARİHİNDEKİ TÜM GRUPLARIN FOTOĞRAFLARI SİLİNECEK/);assert.match(q.detail,/toplam 2 fotoğraf/);assert.equal(q.defaultId,0);return {response:yes?1:0};}});
   writeJson(path.join(h.dir,'ayarlar.json'),{hedefKlasor:path.join(h.dir,'archive')});
   const entries={};
   for(const [day,name] of [['2026-10-02','one.jpg'],['2026-10-02','two.jpg'],['2026-10-01','other.jpg']]) {
@@ -373,6 +381,50 @@ test('day deletion confirms once, only deletes that day and preserves cancelled 
   assert.equal(Object.keys(readJson(path.join(h.dir,'dizin.json'),{})).length,yes?1:3);assert.equal(h.clients.length,0);
  }
 });
+function gunGrupKur(h){
+ const root=path.join(h.dir,'archive');writeJson(path.join(h.dir,'ayarlar.json'),{hedefKlasor:root});
+ const entries={};
+ for(const [gunTR,grup,name] of [['02.10.2026','Grup A','a1.jpg'],['02.10.2026','Grup A','a2.jpg'],['02.10.2026','Grup B','b1.jpg'],['01.10.2026','Grup A','a3.jpg']]){
+  const iso=gunTR.split('.').reverse().join('-');
+  const folder=path.join(root,'2026','Ekim',gunTR,grup);fs.mkdirSync(folder,{recursive:true});fs.writeFileSync(path.join(folder,name),'image');entries[name]={mesajKimligi:name,zaman:1,grup};
+  const cache=path.join(h.dir,'kucuk',iso,name);fs.mkdirSync(path.dirname(cache),{recursive:true});fs.writeFileSync(cache,'thumb');
+ }
+ writeJson(path.join(h.dir,'dizin.json'),entries);
+ const var_=(gunTR,grup,name)=>path.join(root,'2026','Ekim',gunTR,grup,name);
+ return {root,entries,var_};
+}
+test('deleting a day inside a group view removes only that group’s photos of that day and names the group in the question',async t=>{
+ for(const yes of [false,true]){
+  const asked=[];
+  const h=harness(t,[],false,{dialog:async q=>{asked.push(q);return {response:yes?1:0};}});
+  const k=gunGrupKur(h);
+  const result=await h.invoke('gun-sil','2026-10-02','Grup A');
+  assert.equal(result.silindi,yes);assert.equal(asked.length,1);
+  assert.deepEqual(Array.from(asked[0].buttons),['Hayır','Evet']);assert.match(asked[0].message,/02\.10\.2026 tarihli “Grup A” fotoğrafları silinsin mi\?/);assert.match(asked[0].detail,/^2 fotoğraf/);assert.match(asked[0].detail,/diğer gruplara dokunulmaz/);
+  assert.equal(fs.existsSync(k.var_('02.10.2026','Grup A','a1.jpg')),!yes);assert.equal(fs.existsSync(k.var_('02.10.2026','Grup A','a2.jpg')),!yes);
+  assert.equal(fs.existsSync(k.var_('02.10.2026','Grup B','b1.jpg')),true,'başka grup silinmemeli');
+  assert.equal(fs.existsSync(k.var_('01.10.2026','Grup A','a3.jpg')),true,'başka gün silinmemeli');
+  assert.equal(fs.existsSync(path.join(h.dir,'kucuk','2026-10-02','a1.jpg')),!yes);assert.equal(fs.existsSync(path.join(h.dir,'kucuk','2026-10-02','b1.jpg')),true);
+  assert.deepEqual(Object.keys(readJson(path.join(h.dir,'dizin.json'),{})).sort(),yes?['a3.jpg','b1.jpg']:['a1.jpg','a2.jpg','a3.jpg','b1.jpg']);
+ }
+});
+test('deleting a day without a group (Tümü view) removes every group of that day and keeps other days',async t=>{
+ const asked=[];const h=harness(t,[],false,{dialog:async q=>{asked.push(q);return {response:1};}});
+ const k=gunGrupKur(h);
+ const result=await h.invoke('gun-sil','2026-10-02');
+ assert.equal(result.silindi,true);assert.equal(result.adet,3);assert.match(asked[0].detail,/2 gruptan toplam 3 fotoğraf/);
+ for(const [g,n] of [['Grup A','a1.jpg'],['Grup A','a2.jpg'],['Grup B','b1.jpg']])assert.equal(fs.existsSync(k.var_('02.10.2026',g,n)),false);
+ assert.equal(fs.existsSync(k.var_('01.10.2026','Grup A','a3.jpg')),true);
+});
+test('day deletion with an unknown group asks nothing, deletes nothing, and a malformed group is rejected',async t=>{
+ let asked=0;const h=harness(t,[],false,{dialog:async()=>{asked++;return {response:1};}});
+ const k=gunGrupKur(h);
+ const result=await h.invoke('gun-sil','2026-10-02','Grup Yok');
+ assert.equal(result.silindi,false);assert.equal(asked,0);assert.equal(fs.existsSync(k.var_('02.10.2026','Grup A','a1.jpg')),true);
+ for(const bad of [42,'   ',{}])await assert.rejects(h.invoke('gun-sil','2026-10-02',bad),/Geçersiz grup/);
+ assert.equal(asked,0);
+});
+
 test('successful restoration clears tombstone and remains deduplicated on retry',async t=>{
  const now=Math.floor(Date.now()/1000);let downloads=0;
  const msg={timestamp:now-30,type:'image',hasMedia:true,id:{_serialized:'restored'},downloadMedia:async()=>{downloads++;return {mimetype:'image/jpeg',data:Buffer.from('restored').toString('base64')};}};
@@ -383,11 +435,11 @@ test('successful restoration clears tombstone and remains deduplicated on retry'
  await h.invoke('topla',true);await h.settle();assert.equal(downloads,1);
 });
 
-test('missing local files are offered as gaps rather than skipped by an old index entry',async t=>{
+test('a message whose local file is missing is downloaded again instead of being skipped by an old index entry',async t=>{
  const now=Math.floor(Date.now()/1000);let downloads=0,questions=0;
  const h=harness(t,[group('g',async()=>[{timestamp:now-86400,type:'image',hasMedia:true,id:{_serialized:'gone'},downloadMedia:async()=>{downloads++;return null;}}])],false,{dialog:async()=>{questions++;return {response:1};}});
  writeJson(path.join(h.dir,'dizin.json'),{'gone.jpg':{mesajKimligi:'gone',hash:'old'}});
- await h.invoke('topla',true);h.clients[0].emit('ready');await h.settle();assert.equal(questions,1);assert.equal(downloads,1);
+ await h.invoke('topla',true);h.clients[0].emit('ready');await h.settle();assert.equal(questions,0);assert.equal(downloads,1);
 });
 test('day trash failure preserves remaining files and their index entries',async t=>{
  let trashes=0;const h=harness(t,[],false,{confirm:1,trash:async file=>{if(++trashes===2)throw new Error('disk error');fs.unlinkSync(file);}});
@@ -416,15 +468,59 @@ test('no 45-second cutoff remains and disabled timeout simply awaits result',asy
  assert.equal(await withTimeout(Promise.resolve('ready'),0,'group'),'ready');
 });
 
-test('sync readiness polls only cached state and cancellation interrupts that wait',async()=>{
+function hazirlikKur(){
  const source=fs.readFileSync(path.join(__dirname,'../main.js'),'utf8');
  const a=source.indexOf('async function sohbetHazirliginiBekle('),b=source.indexOf('async function telefonOnayiniBekle',a);
- let reads=0,requests=0;const statuses=[];
- const ctx={kontrol:i=>{if(i.iptal)throw new Error('cancelled');},bekle:async()=>{},yolla:(_c,d)=>statuses.push(d)};
+ const statuses=[],waits=[],records=[];
+ const ctx={kontrol:i=>{if(i.iptal)throw new Error('cancelled');},bekle:async ms=>{waits.push(ms);},yolla:(_c,d)=>statuses.push(d),LIMITS:require('../operation-policy').LIMITS};
  vm.createContext(ctx);vm.runInContext(source.slice(a,b),ctx);
- const i={iptal:false};await ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>++reads>=3},getChats:()=>requests++},i,['selected']);
- assert.equal(reads,3);assert.equal(requests,0);assert.equal(statuses.length,2);
- await assert.rejects(ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>{i.iptal=true;return false;}}},i),/cancelled/);
+ return {ctx,statuses,waits,records,kayit:(asama,bilgi)=>records.push({asama,...bilgi}),toplamSure:()=>waits.reduce((x,y)=>x+y,0)};
+}
+
+test('sync readiness polls only cached state and cancellation interrupts that wait',async()=>{
+ const k=hazirlikKur();let reads=0,requests=0;
+ const i={iptal:false};await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>({bekle:++reads<3,neden:'sohbet'})},getChats:()=>requests++},i,['selected'],k.kayit);
+ assert.equal(reads,3);assert.equal(requests,0);assert.equal(k.statuses.length,2);
+ assert.deepEqual(k.records.map(r=>r.asama),['hazirlik-bekleniyor','hazirlik-bitti']);assert.equal(k.records[1].kod,'hazir');
+ await assert.rejects(k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>{i.iptal=true;return {bekle:true,neden:'sohbet'};}}},i),/cancelled/);
+});
+
+test('ready wait that was never needed leaves no diagnostic trace',async()=>{
+ const k=hazirlikKur();
+ await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>({bekle:false})}},{iptal:false},[],k.kayit);
+ assert.deepEqual(k.records,[]);assert.deepEqual(k.waits,[]);
+});
+
+test('offline delivery counter frozen at 92 percent no longer blocks forever: proceeds after 45 seconds and records why',async()=>{
+ const k=hazirlikKur();let reads=0;
+ await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>{reads++;return {bekle:true,neden:'cevrimdisi',ilerleme:92};}}},{iptal:false},['g'],k.kayit);
+ assert.ok(k.toplamSure()>=45000&&k.toplamSure()<=50000,'toplam bekleme '+k.toplamSure());assert.ok(reads>=23&&reads<=26,'okuma '+reads);
+ assert.deepEqual(k.records,[{asama:'hazirlik-bekleniyor',kod:'cevrimdisi',ilerleme:92},{asama:'hazirlik-bitti',kod:'durgun',ilerleme:92}]);
+ assert.ok(k.statuses.every(s=>s.metin==='Senkronize ediliyor'&&/Kapalıyken gelen mesajlar alınıyor: %92/.test(s.ayrinti)&&s.yuklemeYuzdesi===92));
+});
+
+test('offline delivery counter that keeps moving is waited for until it completes, however slowly',async()=>{
+ const k=hazirlikKur();let reads=0;
+ await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>{reads++;
+  // her 20 okumada (40 sn) bir ilerler: durgun sayaci hic 45 sn'ye varmaz
+  const adim=Math.floor((reads-1)/20)+1;return adim>=5?{bekle:false}:{bekle:true,neden:'cevrimdisi',ilerleme:20*adim};}}},{iptal:false},[],k.kayit);
+ assert.equal(reads,81);assert.ok(k.toplamSure()>=150000&&k.toplamSure()<=170000,'toplam '+k.toplamSure());
+ assert.equal(k.records[k.records.length-1].kod,'hazir');
+});
+
+test('ready wait has a five minute ceiling for every reason and names the reason',async()=>{
+ for(const neden of ['sohbet','senkron']){
+  const k=hazirlikKur();
+  await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>({bekle:true,neden})}},{iptal:false},['g'],k.kayit);
+  assert.ok(k.toplamSure()>=298000&&k.toplamSure()<=302000,neden+' '+k.toplamSure());
+  assert.deepEqual(k.records,[{asama:'hazirlik-bekleniyor',kod:neden},{asama:'hazirlik-bitti',kod:'zaman-asimi'}]);
+ }
+});
+
+test('ready wait limits are configurable and the real call sites pass the diagnostic recorder',()=>{
+ const {LIMITS}=require('../operation-policy');assert.equal(LIMITS.hazirlikDurguSaniye,45);assert.equal(LIMITS.hazirlikUstSaniye,300);
+ const source=fs.readFileSync(path.join(__dirname,'../main.js'),'utf8');
+ assert.equal((source.match(/sohbetHazirliginiBekle\([^)]*tani\.record\)/g)||[]).length,2);
 });
 
 test('phone sync confirmation blocks chat collection until approved',async t=>{
@@ -441,7 +537,7 @@ test('real logout requires an existing connected client',async t=>{
  assert.equal(h.clients.length,0);
 });
 for(const kind of ['cancel','success','failure'])test('real logout '+kind,async t=>{
- const h=harness(t,[],false,{confirm:kind==='cancel'?0:1,logoutFailure:kind==='failure'});
+ let soru=0;const h=harness(t,[],false,{confirm:kind==='cancel'?0:1,logoutFailure:kind==='failure',dialog:kind==='failure'?async()=>({response:soru++===0?1:0}):undefined});
  const pending=h.invoke('baglan');h.clients[0].emit('ready');await pending;
  const result=await h.invoke('whatsapp-cikis');
  if(kind==='success'){assert.equal(result.cikildi,true);assert.equal(h.clients[0].loggedOut,true);assert.equal(h.invoke('durum-al').bagli,false);}
@@ -485,9 +581,579 @@ test('logout restores a stored session once after application restart',async t=>
  assert.equal(h.clients.length,1);h.clients[0].emit('ready');assert.equal((await pending).cikildi,true);
  assert.equal(readJson(path.join(h.dir,'eslesme-durumu.json'),{}).giris,false);
 });
-test('logout cannot silently replace an invalid stored session with QR pairing',async t=>{
- const h=harness(t,[],false,{confirm:1});writeJson(path.join(h.dir,'eslesme-durumu.json'),{giris:true});
- const pending=h.invoke('whatsapp-cikis');await new Promise(r=>setTimeout(r,10));h.clients[0].emit('qr','secret');
- assert.match((await pending).hata,/doğrulanamadı/);assert.equal(h.clients[0].destroyed,true);
- assert.equal(readJson(path.join(h.dir,'eslesme-durumu.json'),{}).giris,true);
+// Kayitlarda gorulen hata: hazir tutulan tarayicinin sayfa cercevesi kopmus ("detached Frame")
+// ve uygulama ayni bozuk istemciyi sonraki islemlerde yeniden kullanmisti.
+function fakePage(state = {}) {
+  return {
+    isClosed: () => false,
+    mainFrame: () => ({ detached: !!state.broken }),
+    evaluate: async () => { if (state.broken) throw new Error("Attempted to use detached Frame 'B63985460E9263269F6384835749858B'."); },
+  };
+}
+test('a ready client whose page frame detached while idle is replaced before the next operation', async t => {
+  const h = harness(t, []);
+  const page = { broken: false };
+  const listing = h.invoke('gruplari-getir');
+  h.clients[0].pupPage = fakePage(page);
+  h.clients[0].emit('ready');
+  await listing;
+  assert.equal(h.invoke('durum-al').bagli, true);
+  page.broken = true;
+  await h.invoke('topla', true);
+  assert.equal(h.clients[0].destroyed, true);
+  assert.equal(h.clients.length, 2);
+  await h.invoke('durdur'); await h.settle();
+});
+test('a client whose page broke during an operation is closed instead of kept as ready', async t => {
+  const h = harness(t, []);
+  await h.invoke('topla', true);
+  h.clients[0].pupPage = fakePage({ broken: true });
+  h.clients[0].emit('ready');
+  await h.settle();
+  assert.equal(h.clients[0].destroyed, true);
+  assert.equal(h.invoke('durum-al').bagli, false);
+});
+test('a ready client with a responsive page is still reused', async t => {
+  const h = harness(t, []);
+  const listing = h.invoke('gruplari-getir');
+  h.clients[0].pupPage = fakePage();
+  h.clients[0].emit('ready');
+  await listing;
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(h.clients.length, 1);
+  assert.notEqual(h.clients[0].destroyed, true);
+  await h.invoke('durdur');
+});
+
+// ---- 1. adim: her grup kendi son toplama zamanindan baslar (eksiksiz toplama) ----
+async function toplaCalistir(t, durum, kur, secenek = {}) {
+  const indirilen = [], sorular = [], istekler = {}, olaylar = [];
+  const mesaj = (id, timestamp) => ({ timestamp, type: 'image', hasMedia: true, id: { _serialized: id },
+    downloadMedia: async () => { indirilen.push(id); olaylar.push('indir:' + id); return { mimetype: 'image/jpeg', data: Buffer.from('foto-' + id).toString('base64') }; } });
+  const sohbet = (ad, liste, sonEtkinlik = 0) => {
+    istekler[ad] = 0;
+    const sirali = [...liste].sort((a, b) => a.timestamp - b.timestamp);
+    return Object.assign(group(ad, async ({ limit }) => { istekler[ad]++; olaylar.push('tara:' + ad); return sirali.slice(-limit); }), { timestamp: sonEtkinlik });
+  };
+  const h = harness(t, kur(mesaj, sohbet), false, { dialog: async q => { sorular.push(q); return { response: 1 }; }, ...secenek });
+  if (durum) writeJson(path.join(h.dir, 'son-calisma.json'), durum);
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  return { h, indirilen, sorular, istekler, olaylar };
+}
+test('Topla starts from the group checkpoint and never asks about past days', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { g: now - 3600 } }, (mesaj, sohbet) => [
+    sohbet('g', [mesaj('dunku', now - 100000), mesaj('yeni', now - 600)])]);
+  assert.deepEqual(r.indirilen, ['yeni']);
+  assert.equal(r.sorular.length, 0);
+});
+test('a group without its own record gets the first-run day window even if other groups were collected recently', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { baska: now - 600 } }, (mesaj, sohbet) => [
+    sohbet('yeniGrup', [mesaj('ikiGunOnce', now - 2 * 86400), mesaj('yeni', now - 600)])]);
+  assert.deepEqual(r.indirilen, ['ikiGunOnce', 'yeni']);
+  assert.equal(r.sorular.length, 0);
+});
+test('a long gap since the last collection is covered fully, not cut to the first-run window', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { g: now - 10 * 86400 } }, (mesaj, sohbet) => [
+    sohbet('g', [mesaj('sekizGunOnce', now - 8 * 86400), mesaj('yeni', now - 600)])]);
+  assert.deepEqual(r.indirilen, ['sekizGunOnce', 'yeni']);
+});
+test('a group with no activity since its checkpoint is not scanned at all', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { sakin: now - 3600 } }, (mesaj, sohbet) => [
+    sohbet('sakin', [mesaj('eski', now - 5 * 3600)], now - 5 * 3600)]);
+  assert.equal(r.istekler.sakin, 0);
+  assert.deepEqual(r.indirilen, []);
+});
+test('old-format state with only a global last collection time is the start for every group', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 3600 }, (mesaj, sohbet) => [
+    sohbet('g', [mesaj('dunku', now - 100000), mesaj('yeni', now - 600)])]);
+  assert.deepEqual(r.indirilen, ['yeni']);
+  assert.equal(r.sorular.length, 0);
+});
+test('a message delivered late just before the checkpoint is still collected (2 hour overlap)', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { g: now - 3600 } }, (mesaj, sohbet) => [
+    sohbet('g', [mesaj('cokEski', now - 4 * 3600), mesaj('gecGelen', now - 2 * 3600), mesaj('yeni', now - 600)])]);
+  assert.deepEqual(r.indirilen, ['gecGelen', 'yeni']);
+});
+
+// ---- 2. adim: grup grup calisma ve en eski kayitli grup once ----
+test('each group is downloaded and checkpointed before the next group is scanned', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, null, (mesaj, sohbet) => [
+    sohbet('a', [mesaj('a1', now - 600)]), sohbet('b', [mesaj('b1', now - 500)])]);
+  assert.deepEqual(r.olaylar, ['tara:a', 'indir:a1', 'tara:b', 'indir:b1']);
+});
+// Kesinti: besinci grupta baglanti hatasi. Yarida kalan calismada biten gruplar korunmali.
+function yarimKalanGruplar(now, adlar) {
+  return (mesaj, sohbet) => {
+    const gruplar = adlar.map(ad => sohbet(ad, [mesaj('eski-' + ad, now - 4 * 86400), mesaj('foto-' + ad, now - 300)]));
+    gruplar[4].fetchMessages = async () => { throw new Error('baglanti koptu'); };
+    return gruplar;
+  };
+}
+test('when a run is interrupted, groups already finished keep their photos and checkpoints', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, null, yarimKalanGruplar(now, ['g1', 'g2', 'g3', 'g4', 'g5']));
+  assert.deepEqual(r.indirilen.filter(x => x.startsWith('foto-')), ['foto-g1', 'foto-g2', 'foto-g3', 'foto-g4']);
+  const durum = readJson(path.join(r.h.dir, 'son-calisma.json'), {});
+  for (const ad of ['g1', 'g2', 'g3', 'g4']) assert.ok(durum.sohbetler[ad] >= now - 1, ad + ' kaydi ilerlemedi');
+  assert.ok(durum.sohbetler.g5 <= now - 2 * 86400, 'yarida kalan grubun eski siniri korunmali');
+});
+test('the group that waited longest is processed first, groups without a record before all', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, { sonZaman: now - 60, sohbetler: { a: now - 1000, b: now - 5000, c: now - 3000 } }, (mesaj, sohbet) => [
+    sohbet('a', []), sohbet('b', []), sohbet('c', []), sohbet('d', [])]);
+  assert.deepEqual(r.olaylar.filter(x => x.startsWith('tara:')), ['tara:d', 'tara:b', 'tara:c', 'tara:a']);
+});
+
+// ---- 3. adim: alinamayan fotograf kuyrugu tikamaz, ama sessizce kaybolmaz ----
+const gecerliMedya = ad => ({ mimetype: 'image/jpeg', data: Buffer.from('foto-' + ad).toString('base64') });
+test('a photo that keeps coming back empty is given up after 3 attempts, then the group checkpoint advances and it is listed', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  let kotuDeneme = 0, iyiDeneme = 0;
+  const kotu = { timestamp: now - 900, type: 'image', hasMedia: true, id: { _serialized: 'kotu' }, downloadMedia: async () => { kotuDeneme++; return null; } };
+  const iyi = { timestamp: now - 600, type: 'image', hasMedia: true, id: { _serialized: 'iyi' }, downloadMedia: async () => { iyiDeneme++; return gecerliMedya('iyi'); } };
+  const h = harness(t, [group('g', async () => [kotu, iyi])]);
+  const durum = () => readJson(path.join(h.dir, 'son-calisma.json'), {});
+  const liste = () => readJson(path.join(h.dir, 'alinamayan-medya.json'), {});
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.equal(liste().kotu.deneme, 1);
+  assert.ok(durum().sohbetler.g <= now - 2 * 86400, 'ilk denemede kayit ilerlememeli');
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(liste().kotu.deneme, 2);
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(liste().kotu.vazgecildi, true);
+  assert.ok(durum().sohbetler.g >= now - 1, 'vazgecilince kayit ilerlemeli');
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(kotuDeneme, 3);
+  assert.equal(iyiDeneme, 1);
+  const rapor = readJson(path.join(h.dir, 'tarama-raporu.json'), {});
+  assert.ok(rapor.alinamayanMedya.some(m => m.mesajKimligi === 'kotu' && /vazgeçildi/.test(m.neden)));
+});
+test('photos already given up neither spend requests nor trigger the three-failures stop', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  let denemeler = 0, iyiDeneme = 0;
+  const kotu = (id, fark) => ({ timestamp: now - fark, type: 'image', hasMedia: true, id: { _serialized: id }, downloadMedia: async () => { denemeler++; return null; } });
+  const iyi = { timestamp: now - 100, type: 'image', hasMedia: true, id: { _serialized: 'iyi' }, downloadMedia: async () => { iyiDeneme++; return gecerliMedya('iyi'); } };
+  const h = harness(t, [group('g', async () => [kotu('k1', 900), kotu('k2', 890), kotu('k3', 880), iyi])]);
+  const vazgecilen = { deneme: 3, vazgecildi: true, grup: 'g', tur: 'image', zaman: now - 900, neden: 'bos' };
+  writeJson(path.join(h.dir, 'alinamayan-medya.json'), { k1: vazgecilen, k2: vazgecilen, k3: vazgecilen });
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.equal(denemeler, 0);
+  assert.equal(iyiDeneme, 1);
+});
+test('a photo that finally downloads is removed from the unavailable list', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  let calisir = false;
+  const foto = { timestamp: now - 600, type: 'image', hasMedia: true, id: { _serialized: 'x' }, downloadMedia: async () => calisir ? gecerliMedya('x') : null };
+  const h = harness(t, [group('g', async () => [foto])]);
+  const liste = () => readJson(path.join(h.dir, 'alinamayan-medya.json'), {});
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.equal(liste().x.deneme, 1);
+  calisir = true;
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(liste().x, undefined);
+});
+
+// ---- 4. adim: belge olarak gonderilen fotograflar da alinir ----
+test('document messages count as photos only when they are images by type or file name', () => {
+  const { eligibleMedia } = require('../collection-plan');
+  const belge = veri => ({ hasMedia: true, type: 'document', _data: veri });
+  assert.equal(eligibleMedia(belge({ mimetype: 'image/jpeg' })), true);
+  assert.equal(eligibleMedia(belge({ mimetype: 'image/heic', filename: 'x.heic' })), true);
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/octet-stream', filename: 'saha.JPG' })), true);
+  assert.equal(eligibleMedia(belge({ filename: 'saha.png' })), true);
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf', filename: 'rapor.pdf' })), false);
+  assert.equal(eligibleMedia(belge({})), false);
+  assert.equal(eligibleMedia({ hasMedia: false, type: 'document', _data: { mimetype: 'image/jpeg' } }), false);
+  assert.equal(eligibleMedia({ hasMedia: true, type: 'image' }), true);
+  assert.equal(eligibleMedia({ hasMedia: true, type: 'video' }), false);
+});
+test('photos sent as documents are collected and saved as images; other documents are ignored', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const indirilen = [];
+  const b64 = ad => Buffer.from('belge-' + ad).toString('base64');
+  const belge = (id, fark, veri, media) => ({ timestamp: now - fark, type: 'document', hasMedia: true, id: { _serialized: id }, _data: veri,
+    downloadMedia: async () => { indirilen.push(id); return { ...media, data: b64(id) }; } });
+  const h = harness(t, [group('g', async () => [
+    belge('resim', 900, { mimetype: 'image/jpeg', filename: 'saha-1.jpg' }, { mimetype: 'image/jpeg', filename: 'saha-1.jpg' }),
+    belge('pdf', 800, { mimetype: 'application/pdf', filename: 'rapor.pdf' }, { mimetype: 'application/pdf', filename: 'rapor.pdf' }),
+    belge('adsiz', 700, { mimetype: 'application/octet-stream', filename: 'saha-2.JPG' }, { mimetype: 'application/octet-stream', filename: 'saha-2.JPG' }),
+  ])]);
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.deepEqual(indirilen, ['resim', 'adsiz']);
+  const dosyalar = (await h.invoke('arsiv-al', 60)).flatMap(g => g.dosyalar.map(d => d.ad));
+  assert.equal(dosyalar.length, 2);
+  assert.ok(dosyalar.every(ad => /\.jpe?g$/i.test(ad)), 'uzantilar: ' + dosyalar.join(', '));
+});
+
+// ---- 5. adim: durust sonuc - yarida kalan gruplar raporda gorunur ----
+test('an interrupted run reports every group that is still waiting, and a complete run reports none', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const yarim = await toplaCalistir(t, null, yarimKalanGruplar(now, ['g1', 'g2', 'g3', 'g4', 'g5', 'g6']));
+  const rapor = readJson(path.join(yarim.h.dir, 'tarama-raporu.json'), {});
+  assert.equal(rapor.bekleyenGrupSayisi, 2);
+  assert.equal(rapor.gruplar.find(g => g.ad === 'g6').durum, 'Sırada');
+  assert.equal(rapor.gruplar.filter(g => g.ad === 'g6').length, 1);
+  assert.equal(rapor.gruplar.filter(g => g.ad === 'g5').length, 1);
+  const tam = await toplaCalistir(t, null, (mesaj, sohbet) => [sohbet('a', [mesaj('a1', now - 600)])]);
+  assert.equal(readJson(path.join(tam.h.dir, 'tarama-raporu.json'), {}).bekleyenGrupSayisi, 0);
+});
+
+// ---- Insan hizi: gecmisi sayfa sayfa, bekleyerek yukleme ----
+function sayfaliSohbet(toplam, sayfaBoyu, simdi, ilkYuklu = 0) {
+  const mesajlar = Array.from({ length: toplam }, (_, n) => ({ timestamp: simdi - n * 60, hasMedia: n % 10 === 0, type: 'image' }));
+  let yuklu = ilkYuklu;
+  const durum = () => ({ toplam: yuklu, enEski: yuklu ? mesajlar[yuklu - 1].timestamp : null });
+  const sohbet = {
+    yuklemeler: 0,
+    bak: async () => durum(),
+    yukle: async () => { sohbet.yuklemeler++; const once = yuklu; yuklu = Math.min(toplam, yuklu + sayfaBoyu); return { ...durum(), yeni: yuklu - once }; },
+    fetchMessages: async () => mesajlar.slice(0, yuklu).reverse(),
+  };
+  return sohbet;
+}
+test('paced scan loads page by page, waits before every load and stops as soon as the date is reached', async () => {
+  const now = Math.floor(Date.now() / 1000), sohbet = sayfaliSohbet(1000, 50, now);
+  let beklemeler = 0;
+  const r = await scanPaced(sohbet, now - 249 * 60, now, 20000, async () => { beklemeler++; }, () => {});
+  assert.equal(sohbet.yuklemeler, 5);
+  assert.equal(beklemeler, 5);
+  assert.equal(r.tamam, true);
+  assert.equal(r.erisim.durum, 'ulasildi');
+  assert.equal(r.erisim.mesaj, 250);
+  assert.equal(r.medyalar.length, 25);
+});
+test('paced scan loads nothing when the loaded messages already reach the date', async () => {
+  const now = Math.floor(Date.now() / 1000), sohbet = sayfaliSohbet(1000, 50, now, 300);
+  let beklemeler = 0;
+  const r = await scanPaced(sohbet, now - 100 * 60, now, 20000, async () => { beklemeler++; }, () => {});
+  assert.equal(sohbet.yuklemeler, 0);
+  assert.equal(beklemeler, 0);
+  assert.equal(r.erisim.durum, 'ulasildi');
+});
+test('paced scan reports access as uncertain when the history ends before the requested date', async () => {
+  const now = Math.floor(Date.now() / 1000), sohbet = sayfaliSohbet(120, 50, now);
+  const r = await scanPaced(sohbet, now - 99999 * 60, now, 20000, async () => {}, () => {});
+  assert.equal(sohbet.yuklemeler, 4);
+  assert.equal(r.tamam, true);
+  assert.equal(r.erisim.durum, 'erisim-belirsiz');
+  assert.equal(r.erisim.mesaj, 120);
+});
+test('paced scan stops at the safety ceiling and reports the limit', async () => {
+  const now = Math.floor(Date.now() / 1000), sohbet = sayfaliSohbet(1000, 50, now);
+  const r = await scanPaced(sohbet, now - 99999 * 60, now, 200, async () => {}, () => {});
+  assert.equal(sohbet.yuklemeler, 4);
+  assert.equal(r.tamam, false);
+  assert.equal(r.erisim.durum, 'sinir');
+  assert.equal(r.erisim.mesaj, 200);
+});
+test('paced scan stops between pages when the operation is cancelled', async () => {
+  const now = Math.floor(Date.now() / 1000), sohbet = sayfaliSohbet(1000, 50, now);
+  let cagri = 0;
+  await assert.rejects(scanPaced(sohbet, now - 99999 * 60, now, 20000, async () => {}, () => { if (++cagri > 3) throw new Error('iptal'); }), /iptal/);
+  assert.ok(sohbet.yuklemeler <= 2);
+});
+
+// ---- Insan hizi: main.js entegrasyonu ----
+function derinGecmisKur(t, secenek = {}) {
+  const now = Math.floor(Date.now() / 1000), toplam = 1500;
+  const mesajlar = Array.from({ length: toplam }, (_, n) => ({ timestamp: now - n * 60, type: n % 700 === 0 ? 'image' : 'chat', hasMedia: n % 700 === 0, id: { _serialized: 'm' + n } }));
+  const durum = { toplam, sayfa: 100, yuklu: 0, yuklemeler: 0 };
+  const sayfa = {
+    isClosed: () => false, mainFrame: () => ({ detached: false }),
+    evaluate: async (_fn, arg) => {
+      if (arg && typeof arg === 'object' && arg.islem === 'hazirlik') return { wwebjs: true, req: true, medya: true };
+      if (arg && typeof arg === 'object' && arg.islem) {
+        let yeni = 0;
+        if (arg.islem === 'yukle') { durum.yuklemeler++; const once = durum.yuklu; durum.yuklu = Math.min(toplam, once + durum.sayfa); yeni = durum.yuklu - once; }
+        return { toplam: durum.yuklu, enEski: durum.yuklu ? mesajlar[durum.yuklu - 1].timestamp : null, yeni };
+      }
+      if (typeof arg === 'string') return { mimetype: 'image/jpeg', filename: arg + '.jpg', data: Buffer.from('derin-' + arg).toString('base64') };
+      return undefined;
+    },
+  };
+  const h = harness(t, [group('g', async () => mesajlar.slice(0, durum.yuklu).reverse())], false, secenek);
+  return { h, durum, sayfa };
+}
+async function derinGecmisCalistir(t, secenek) {
+  const k = derinGecmisKur(t, secenek);
+  await k.h.invoke('topla', true); k.h.clients[0].pupPage = k.sayfa; k.h.clients[0].emit('ready'); await k.h.settle();
+  return k;
+}
+test('Topla loads history page by page and collects photos far beyond the old 500-message cap', async t => {
+  const { h, durum } = await derinGecmisCalistir(t);
+  const dosyalar = (await h.invoke('arsiv-al', 60)).flatMap(g => g.dosyalar.map(d => d.ad));
+  assert.equal(dosyalar.length, 3);
+  assert.equal(durum.yuklemeler, 16);
+  assert.equal(durum.yuklu, 1500);
+});
+test('a pause is taken before every history page, chosen inside the configured range', async t => {
+  const beklemeler = [];
+  const { durum } = await derinGecmisCalistir(t, { pace: { sayfa: [100, 100] }, beklemeler });
+  assert.equal(durum.yuklemeler, 16);
+  assert.equal(beklemeler.filter(ms => ms === 100).length, 16);
+});
+test('waits between downloads are random inside the configured range', async t => {
+  const now = Math.floor(Date.now() / 1000), beklemeler = [];
+  await toplaCalistir(t, null, (mesaj, sohbet) => [sohbet('g', Array.from({ length: 8 }, (_, n) => mesaj('f' + n, now - 600 + n)))], { pace: { indirme: [100, 400] }, beklemeler });
+  const araliktaki = beklemeler.filter(ms => ms >= 100 && ms <= 400);
+  assert.equal(araliktaki.length, 8);
+  assert.ok(new Set(araliktaki).size >= 2, 'beklemeler rastgele olmali');
+});
+test('a rest is taken after every configured number of downloads', async t => {
+  const now = Math.floor(Date.now() / 1000), beklemeler = [];
+  const r = await toplaCalistir(t, null, (mesaj, sohbet) => [sohbet('g', Array.from({ length: 5 }, (_, n) => mesaj('f' + n, now - 600 + n)))], { pace: { molaHer: 2, mola: [777, 777] }, beklemeler });
+  assert.equal(beklemeler.filter(ms => ms === 777).length, 2);
+  assert.equal(r.indirilen.length, 5);
+});
+test('there is no media or size cap: more than 100 photos are downloaded in one run', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const r = await toplaCalistir(t, null, (mesaj, sohbet) => [sohbet('g', Array.from({ length: 150 }, (_, n) => mesaj('f' + n, now - 3000 + n)))]);
+  assert.equal(r.indirilen.length, 150);
+});
+test('Stop works promptly even in the middle of a long rest', async t => {
+  const now = Math.floor(Date.now() / 1000), beklemeler = [];
+  const foto = (id, fark) => ({ timestamp: now - fark, type: 'image', hasMedia: true, id: { _serialized: id }, downloadMedia: async () => ({ mimetype: 'image/jpeg', data: Buffer.from('mola-' + id).toString('base64') }) });
+  const h = harness(t, [group('g', async () => [foto('a', 600), foto('b', 500), foto('c', 400)])], false, { pace: { molaHer: 1, mola: [36000000, 36000000] }, beklemeler });
+  await h.invoke('topla', true); h.clients[0].emit('ready');
+  for (let n = 0; n < 400 && beklemeler.filter(ms => ms === 1000).length < 5; n++) await new Promise(r => setTimeout(r, 5));
+  assert.ok(beklemeler.filter(ms => ms === 1000).length >= 5, 'mola baslamadi');
+  const basla = Date.now();
+  await h.invoke('durdur'); await h.settle();
+  assert.ok(Date.now() - basla < 3000, 'Durdur mola sirasinda gecikti');
+  assert.equal(readJson(path.join(h.dir, 'tarama-raporu.json'), {}).sonuc, 'iptal');
+});
+test('during a long rest the window gets a fresh status every 15 seconds so progress never looks frozen', async t => {
+  const now = Math.floor(Date.now() / 1000), olaylar = [];
+  const foto = (id, fark) => ({ timestamp: now - fark, type: 'image', hasMedia: true, id: { _serialized: id }, downloadMedia: async () => ({ mimetype: 'image/jpeg', data: Buffer.from('mola2-' + id).toString('base64') }) });
+  const h = harness(t, [group('g', async () => [foto('a', 600), foto('b', 500)])], false, { pace: { molaHer: 1, mola: [40000, 40000] } });
+  h.ctx.__gonder = (kanal, veri) => olaylar.push([kanal, veri]);
+  vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }', h.ctx);
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.ok(olaylar.filter(([k, v]) => k === 'durum' && v.metin === 'Dinleniyor').length >= 3);
+});
+// Dogrulama: sayfa ici yukleyici, sahte bir WhatsApp penceresinde gercek kaynak koduyla calistirilir (gercek WhatsApp degil).
+test('the in-page history loader reads cached messages, asks for one older page only when told, and skips notifications', async t => {
+  let yakalanan = null;
+  const sayfa = { isClosed: () => false, mainFrame: () => ({ detached: false }),
+    evaluate: async (fn, arg) => { if (arg && arg.islem === 'hazirlik') return { wwebjs: true, req: true, medya: true }; if (arg && typeof arg === 'object' && arg.islem) { yakalanan = yakalanan || fn; return { toplam: 1, enEski: 0, yeni: 0 }; } return undefined; } };
+  const h = harness(t, [group('g', async () => [])]);
+  await h.invoke('topla', true); h.clients[0].pupPage = sayfa; h.clients[0].emit('ready'); await h.settle();
+  assert.equal(typeof yakalanan, 'function');
+  const t0 = 1000000, eskiSayfa = [{ t: t0 - 300 }, { t: t0 - 200, isNotification: true }, { t: t0 - 100 }];
+  let bellek = [{ t: t0 }, { t: t0 + 10 }], yuklemeCagri = 0;
+  const pencere = {
+    WWebJS: { getChat: async (id, secenek) => { assert.equal(id, 'g'); assert.deepEqual(secenek, { getAsModel: false }); return { msgs: { getModelsArray: () => bellek } }; } },
+    require: ad => { assert.equal(ad, 'WAWebChatLoadMessages'); return { loadEarlierMsgs: async () => { yuklemeCagri++; bellek = [...eskiSayfa, ...bellek]; return eskiSayfa; } }; },
+  };
+  const calistir = new Function('window', 'return (' + yakalanan.toString() + ')')(pencere);
+  assert.deepEqual(await calistir({ sohbet: 'g', islem: 'bak' }), { toplam: 2, enEski: t0, yeni: 0 });
+  assert.equal(yuklemeCagri, 0);
+  assert.deepEqual(await calistir({ sohbet: 'g', islem: 'yukle' }), { toplam: 4, enEski: t0 - 300, yeni: 3 });
+  assert.equal(yuklemeCagri, 1);
+});
+
+// ---- Sayfa yenilenmesine dayaniklilik: WhatsApp Web sayfayi islem sirasinda kendiliginden yenileyebilir ----
+// Canli testte goruldu: yenilenince window.WWebJS ve sayfaya taktigimiz yamalar silindi, indirmeler
+// "resolveMediaBlob is not a function" ile dustu ve 3 hata ustuste olunca islem durdu.
+function yenilenenSayfaKur(secenek = {}) {
+  const durum = { yama: true, yenilemede: 0, indirmeSayisi: 0, yamaUygulama: 0, taramaHatasi: secenek.taramaHatasi || 0 };
+  const yenilenme = () => new Error('Execution context was destroyed, most likely because of a navigation.');
+  const sayfa = {
+    isClosed: () => false, mainFrame: () => ({ detached: false }),
+    evaluate: async (fn, arg) => {
+      if (arg && typeof arg === 'object' && arg.islem === 'hazirlik') {
+        if (durum.yenilemede > 0) { durum.yenilemede--; throw yenilenme(); }
+        return { wwebjs: true, req: true, medya: durum.yama };
+      }
+      if (arg && typeof arg === 'object' && arg.islem) {
+        if (durum.taramaHatasi > 0) { durum.taramaHatasi--; durum.yenilemede = 1; throw yenilenme(); }
+        return { toplam: 1, enEski: 0, yeni: 0 };
+      }
+      if (typeof arg === 'string') {
+        durum.indirmeSayisi++;
+        if (durum.indirmeSayisi === secenek.yenilemeIndirmesi) { durum.yama = false; durum.yenilemede = secenek.yenilemeSuresi ?? 3; throw yenilenme(); }
+        if (!durum.yama) throw new Error('window.WWebJS.resolveMediaBlob is not a function');
+        return { mimetype: 'image/jpeg', filename: arg + '.jpg', data: Buffer.from('yenile-' + arg).toString('base64') };
+      }
+      if (String(fn).includes('resolveMediaBlob =')) { durum.yama = true; durum.yamaUygulama++; }
+      return undefined;
+    },
+  };
+  return { durum, sayfa };
+}
+async function yenilenenCalistir(t, fotoSayisi, secenek) {
+  const now = Math.floor(Date.now() / 1000);
+  const mesajlar = Array.from({ length: fotoSayisi }, (_, n) => ({ timestamp: now - 600 + n, type: 'image', hasMedia: true, id: { _serialized: 'y' + n } }));
+  const k = yenilenenSayfaKur(secenek);
+  const h = harness(t, [group('g', async () => mesajlar)]);
+  await h.invoke('topla', true); h.clients[0].pupPage = k.sayfa; h.clients[0].emit('ready'); await h.settle();
+  const dosyalar = (await h.invoke('arsiv-al', 60)).flatMap(g => g.dosyalar.map(d => d.ad));
+  return { h, ...k, dosyalar, rapor: readJson(path.join(h.dir, 'tarama-raporu.json'), {}), liste: readJson(path.join(h.dir, 'alinamayan-medya.json'), {}) };
+}
+test('a page reload in the middle of downloads is waited out, the patch re-applied and the photo retried without counting as a failure', async t => {
+  const r = await yenilenenCalistir(t, 5, { yenilemeIndirmesi: 3, yenilemeSuresi: 3 });
+  assert.equal(r.dosyalar.length, 5);
+  assert.deepEqual(r.liste, {});
+  assert.equal(r.rapor.sonuc, 'bitti');
+  assert.ok(r.durum.yamaUygulama >= 2);
+});
+test('when the page never recovers after a reload, photos are not counted as failed attempts and the run ends with a clear error', async t => {
+  const r = await yenilenenCalistir(t, 3, { yenilemeIndirmesi: 2, yenilemeSuresi: 100000 });
+  assert.equal(r.dosyalar.length, 1);
+  assert.deepEqual(r.liste, {});
+  assert.match(r.rapor.neden, /yenilendi/);
+});
+test('a page reload during the history scan is waited out and the scan continues', async t => {
+  const r = await yenilenenCalistir(t, 2, { taramaHatasi: 1 });
+  assert.equal(r.dosyalar.length, 2);
+  assert.equal(r.rapor.sonuc, 'bitti');
+});
+
+// ---- Tani: alinamayan fotografin iletilmis mesaj olup olmadigi (icerik yok) ----
+test('failed photos record whether the message was forwarded, in the report and in the unavailable list', async t => {
+  const now = Math.floor(Date.now() / 1000);
+  const foto = (id, fark, iletildi) => ({ timestamp: now - fark, type: 'image', hasMedia: true, isForwarded: iletildi, id: { _serialized: id }, downloadMedia: async () => null });
+  const h = harness(t, [group('g', async () => [foto('a', 600, true), foto('b', 500, false)])]);
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  const rapor = readJson(path.join(h.dir, 'tarama-raporu.json'), {}), liste = readJson(path.join(h.dir, 'alinamayan-medya.json'), {});
+  assert.deepEqual(rapor.alinamayanMedya.map(m => [m.mesajKimligi, m.iletildi]), [['a', true], ['b', false]]);
+  assert.equal(liste.a.iletildi, true);
+  assert.equal(liste.b.iletildi, false);
+});
+
+// ---- Topla'lar arasi 30 dakika bekleme kurali kaldirildi (kullanici karari); yeni baglanti icin 1 dakika kurali surer ----
+test('there is no waiting period between runs: a second Topla right after a finished one starts', async t => {
+  const h = harness(t, [group('g', async () => [])]);
+  await h.invoke('topla', false); h.clients[0].emit('ready'); await h.settle();
+  const ikinci = await h.invoke('topla', false); await h.settle();
+  assert.equal(ikinci.hata, undefined);
+  assert.equal(h.clients.length, 1);
+});
+
+// ---- Cikis duzeltmesi (canli test): oturum zaten kapaliysa, zaman asimi, Durdur, kapanista temizlik, pencereye haber ----
+async function cikisAc(h) {
+  const sonuc = h.invoke('whatsapp-cikis');
+  for (let n = 0; n < 400 && h.clients.length < 1; n++) await new Promise(r => setTimeout(r, 5));
+  return { sonuc, istemci: h.clients[0] };
+}
+const eslesmeKayitli = h => writeJson(path.join(h.dir, 'eslesme-durumu.json'), { giris: true });
+test('when WhatsApp asks for a QR the session is already closed: local pairing is cleared and the connect button can open', async t => {
+  const h = harness(t, [], false, { dialog: async () => ({ response: 1 }) });
+  eslesmeKayitli(h); writeJson(path.join(h.dir, 'gruplar.json'), [{ ad: 'a', son: 1 }]);
+  const { sonuc, istemci } = await cikisAc(h);
+  istemci.emit('qr', 'secret');
+  const r = await sonuc;
+  assert.equal(r.cikildi, true); assert.equal(r.zatenCikilmis, true); assert.match(r.mesaj, /zaten/);
+  assert.equal(istemci.destroyed, true);
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, false);
+  assert.deepEqual(readJson(path.join(h.dir, 'gruplar.json'), null), []);
+  assert.equal(readJson(path.join(h.dir, 'senkronizasyon-onayi.json'), {}).tamam, false);
+  const d = h.invoke('durum-al'); assert.equal(d.eslesmeKayitli, false); assert.equal(d.calisiyor, false);
+});
+for (const neden of ['zaman asimi', 'eslesme dogrulanamadi']) for (const evet of [false, true]) {
+  test('an unverifiable logout (' + neden + ') offers to clear only the local pairing, and does so only on Yes (' + (evet ? 'Yes' : 'No') + ')', async t => {
+    const sorular = [];
+    const h = harness(t, [], false, { limits: { cikisZamanAsimi: 5 }, dialog: async c => { sorular.push(c.message); return { response: sorular.length === 1 ? 1 : (evet ? 1 : 0) }; } });
+    eslesmeKayitli(h);
+    const { sonuc, istemci } = await cikisAc(h);
+    if (neden === 'eslesme dogrulanamadi') istemci.emit('auth_failure', 'x');
+    const r = await sonuc;
+    assert.equal(sorular.length, 2);
+    assert.match(sorular[1], /doğrulanamadı/);
+    assert.equal(istemci.destroyed, true);
+    const giris = readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris;
+    if (evet) { assert.equal(r.cikildi, true); assert.equal(r.yerelTemizlendi, true); assert.equal(giris, false); }
+    else { assert.match(r.hata, /Yerel oturum silinmedi/); assert.equal(giris, true); }
+    assert.equal(h.invoke('durum-al').calisiyor, false);
+  });
+}
+test('Stop during a logout destroys the temporary client, asks nothing more and unlocks the app', async t => {
+  const sorular = [];
+  const h = harness(t, [], false, { dialog: async c => { sorular.push(c.message); return { response: 1 }; } });
+  eslesmeKayitli(h);
+  const { sonuc, istemci } = await cikisAc(h);
+  await h.invoke('durdur');
+  const r = await sonuc;
+  assert.equal(istemci.destroyed, true); assert.equal(r.cikildi, false); assert.equal(sorular.length, 1);
+  assert.equal(h.invoke('durum-al').calisiyor, false);
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, true);
+});
+test('quitting during a logout closes the temporary browser', async t => {
+  const h = harness(t, [], false, { dialog: async () => ({ response: 1 }) });
+  eslesmeKayitli(h);
+  const { sonuc, istemci } = await cikisAc(h);
+  let engellendi = false;
+  h.appOn['before-quit'][0]({ preventDefault: () => { engellendi = true; } });
+  await sonuc; await new Promise(r => setTimeout(r, 20));
+  assert.equal(engellendi, true); assert.equal(istemci.destroyed, true); assert.equal(h.quitSayisi(), 1);
+});
+test('the window is told when a logout ends, so a reopened window never keeps a stale in-progress panel', async t => {
+  const olaylar = [];
+  const h = harness(t, [], false, { dialog: async () => ({ response: 1 }) });
+  h.ctx.__gonder = (kanal, veri) => olaylar.push([kanal, veri]);
+  vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }', h.ctx);
+  eslesmeKayitli(h);
+  const { sonuc, istemci } = await cikisAc(h);
+  istemci.emit('qr', 'x'); await sonuc;
+  const bitti = olaylar.filter(([k]) => k === 'bitti');
+  assert.equal(bitti.length, 1); assert.match(bitti[0][1].mesaj, /zaten/);
+});
+
+// ---- Canli test: "hazir" gelmedi. Kutuphane READY'yi yalnizca change:hasSynced OLAYINDAN yayinlar; sayfa yenilenip bu islem
+// yarida kesilirse ya da olay kacirilirse WhatsApp "bagli ve senkron" dese bile hazir hic gelmez. Nobetci bunu yeniden tetikler. ----
+function bekciSayfasi(secenek = {}) {
+  const sayac = { tetik: 0, sorgu: 0 };
+  const sayfa = {
+    isClosed: () => false, mainFrame: () => ({ detached: false }),
+    evaluate: async (_fn, arg) => {
+      if (arg && arg.islem === 'hazirlik') return { wwebjs: true, req: true, medya: true };
+      if (arg && arg.islem === 'hazirlik-bekcisi') { sayac.sorgu++; return secenek.durum || { durum: 'CONNECTED', senkron: true, fn: 'function' }; }
+      if (arg && arg.islem === 'hazir-tetikle') { sayac.tetik++; if (secenek.tetikle) secenek.tetikle(sayac.tetik); return undefined; }
+      if (arg && (arg.islem === 'bak' || arg.islem === 'yukle')) return { toplam: 1, enEski: 0, yeni: 0 };
+      return undefined;
+    },
+  };
+  return { sayfa, sayac };
+}
+test('when WhatsApp reports connected and synced but ready never arrives, the app re-triggers the library ready handler once', async t => {
+  const h = harness(t, [group('g', async () => [])], false, { limits: { hazirBekciAraligi: 5 } });
+  await h.invoke('topla', true);
+  const istemci = h.clients[0];
+  const { sayfa, sayac } = bekciSayfasi({ tetikle: () => istemci.emit('ready') });
+  istemci.pupPage = sayfa;
+  for (let n = 0; n < 600 && sayac.tetik < 1; n++) await new Promise(r => setTimeout(r, 5));
+  assert.equal(sayac.tetik, 1);
+  await h.settle();
+  assert.equal(readJson(path.join(h.dir, 'tarama-raporu.json'), {}).sonuc, 'bitti');
+  await new Promise(r => setTimeout(r, 60));
+  assert.equal(sayac.tetik, 1, 'ready geldikten sonra tekrar tetiklenmemeli');
+});
+test('the ready watchdog does nothing while WhatsApp is not yet connected and synced', async t => {
+  const h = harness(t, [group('g', async () => [])], false, { limits: { hazirBekciAraligi: 5 } });
+  await h.invoke('topla', true);
+  const { sayfa, sayac } = bekciSayfasi({ durum: { durum: 'OPENING', senkron: false, fn: 'function' } });
+  h.clients[0].pupPage = sayfa;
+  for (let n = 0; n < 200 && sayac.sorgu < 6; n++) await new Promise(r => setTimeout(r, 5));
+  assert.ok(sayac.sorgu >= 6, 'bekci sorgulamali');
+  assert.equal(sayac.tetik, 0);
+  await h.invoke('durdur'); await h.settle();
+});
+test('the ready watchdog gives up after a limited number of triggers and stops with the run', async t => {
+  const h = harness(t, [group('g', async () => [])], false, { limits: { hazirBekciAraligi: 5 } });
+  await h.invoke('topla', true);
+  const { sayfa, sayac } = bekciSayfasi();
+  h.clients[0].pupPage = sayfa;
+  for (let n = 0; n < 800 && sayac.tetik < 5; n++) await new Promise(r => setTimeout(r, 5));
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal(sayac.tetik, 5);
+  await h.invoke('durdur'); await h.settle();
+  const sorgu = sayac.sorgu; await new Promise(r => setTimeout(r, 60));
+  assert.equal(sayac.sorgu, sorgu, 'islem bitince nobetci durmali');
 });

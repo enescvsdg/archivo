@@ -1,6 +1,6 @@
 # Archivo: programın işlevleri ve yapılan çalışmalar
 
-Bu belge Archivo 1.4.4 kaynak kodunun özelliklerini, son değişikliklerini ve doğrulama sınırlarını açıklar.
+Bu belge Archivo 2.0.0 kaynak kodunun özelliklerini, son değişikliklerini ve doğrulama sınırlarını açıklar.
 
 ## Program ne yapar?
 
@@ -8,7 +8,7 @@ Archivo, kullanıcının seçtiği WhatsApp gruplarındaki görselleri bilgisaya
 
 - QR ile telefon eşleştirmesi yapılır. Eşleşme akışında Web istemcisi hazır olduğunda grup adları alınarak Ayarlar listesine eklenir. Liste güncellenirken mevcut seçimler korunur.
 - Yeni eşleşmede senkronizasyon paneli işlem düğmelerini engeller. WhatsApp yüzde bildirirse gösterilir; kesin yüzde yoksa hareketli gösterge kullanılır. Telefonda senkronizasyon tamamlandığında kullanıcı Devam et ile onaylar. Telefonun tüm geçmiş medya senkronizasyonunun bittiği otomatik olarak kesin doğrulanamaz.
-- Ana sayfadaki Topla, yerel tarihe göre bugün 00:00 ile işlemin başladığı saat arasındaki görselleri toplar. Seçilen geçmiş aralığında erişilebilen eksikler varsa gün/adet bilgisiyle indirme onayı ister.
+- Ana sayfadaki Topla, her grubu o grubun son başarılı toplama zamanından başlayarak tarar; kaydı olmayan grup için Ayarlar’daki ilk çalışma gün sayısı kullanılır. Topla geçmiş günler için soru sormaz; son toplamadan sonraki tüm görseller (belge olarak gönderilen fotoğraflar dahil) indirilir. Ayrıntılar README’deki “2.0.0 eksiksiz toplama” bölümündedir.
 - Ayarlar’da 1–90 günlük geçmiş aralığı seçilir. Geçmişi Tara yalnızca erişim raporu üretir; Geçmişi İndir indirme işlemini başlatır.
 - Önizlemede tek görsel veya tarih kapsülündeki X ile o güne ait dosyalar onay sonrası yerel Çöp Kutusu’na taşınabilir. Dizin ve küçük resim kayıtları temizlenir. WhatsApp’taki görseller silinmez.
 - Daha önce yerel olarak silinmiş bir görsel yeniden bulunursa tekrar ekleme kararı sorulur. Hepsine uygula seçeneği mevcut işlemdeki sorulara uygulanır.
@@ -18,9 +18,9 @@ Archivo, kullanıcının seçtiği WhatsApp gruplarındaki görselleri bilgisaya
 
 ## Veri ve çalışma sınırları
 
-Fotoğraf arşivi yerel disktedir. Ayarlar, eşleşme ve tarama kayıtları kullanıcı veri klasöründedir. Mevcut sürüm ayrı `profiller/1.4.4` profili ve varsayılan `Pictures/Archivo 1.4.4 Arsivi` klasörü kullanır; eski sürüm verileri yeni profile kopyalanmaz. Eski kullanıcı verileri ve fotoğraf arşivi proje temizliğinde silinmedi. Önceki sürümlerin telefondaki bağlı cihaz kayıtları otomatik kaldırılmış sayılmaz.
+Fotoğraf arşivi yerel disktedir. Ayarlar, eşleşme ve tarama kayıtları kullanıcı veri klasöründedir. Her sürüm ayrı `profiller/<sürüm>` profili ve varsayılan `Pictures/Archivo <sürüm> Arsivi` klasörü kullanır (2.0.0 için `profiller/2.0.0`); eski sürüm verileri yeni profile kopyalanmaz, kendi klasöründe olduğu gibi kalır. Her yeni sürümde sürüm numarası artar. Eski kullanıcı verileri ve fotoğraf arşivi proje temizliğinde silinmedi. Önceki sürümlerin telefondaki bağlı cihaz kayıtları otomatik kaldırılmış sayılmaz.
 
-İşlemler sırayla yürür; grup başına en fazla 500 mesaj, çalışma başına 24 uygulama düzeyinde sohbet/mesaj bilgisi isteği, 100 medya, 100 MB kaydedilen veri ve 15 dakika sınırları bulunur. İstekler arasında en az 1,5 saniye beklenir; art arda üç medya hatasında işlem durur. Dosya boyutu indirmeden önce kesin bilinmeyebilir. Bu sınırlar WhatsApp hesabının kısıtlanmayacağını garanti etmez.
+İşlemler sırayla ve insan hızında yürür (README’deki “2.0.0 insan hızı” bölümü): geçmiş sayfa sayfa yüklenir, indirmeler arasında rastgele bekleme ve her 100 indirmede mola vardır. Sert tavanlar kaldırıldı; emniyet sınırları çalışma başına 60 dakika, art arda üç medya hatasında durma ve grup başına 20000 mesajdır. Dosya boyutu indirmeden önce kesin bilinmeyebilir. Bu sınırlar WhatsApp hesabının kısıtlanmayacağını garanti etmez.
 
 Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tarihe ulaşılamadığında erişim belirsizliği veya sınır bildirilir. Telefonda bulunan tüm geçmişin Web’de erişilebilir olduğu varsayılmaz.
 
@@ -33,13 +33,25 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 - Geçmiş tarama/indirme ayrımı, günlük toplama, eksik görsel onayı ve yerel silme akışları eklendi.
 - Ayarlar kapatma/onay davranışı, kart içindeki kaydırma çubuğu, gün tekerleği ve açıklamalı ikonlar düzenlendi.
 - 1.4.4’te grup isimlerinin senkronizasyon onayından önce listeye eklenmesi, eşleşme durumuna göre düğmeler ve yeniden açılış sonrası gerçek çıkış düzeltildi.
-- Eski proje paketleri, kaynak ZIP’leri ve geçici çıktılar temizlendi. Güncel paketler `dist/1.4.4` içindedir. Derleme bağımlılıkları korunur.
+- Eski proje paketleri, kaynak ZIP’leri ve geçici çıktılar temizlendi. `dist/1.4.4` önceki sürümün paketleridir; yalnızca Mac Apple Silicon 2.0.0 paketi derlendi, Intel Mac ve Windows 2.0.0 paketleri henüz derlenmedi. Derleme bağımlılıkları korunur.
 - Güncel kaynak ve gerekli proje dosyaları https://github.com/enescvsdg/archivo reposuna yüklendi. Kişisel oturum, fotoğraf arşivi ve kullanıcı kayıtları yüklenmedi.
 - GitHub’ın ilk Windows çalışmasında satır sonu dönüşümü CSP özet testini bozdu. Aynı hata CRLF ile yerelde üretildi. `.gitattributes` kaynak satır sonlarını LF olarak sabitler; güvenlik politikası ve test devre dışı bırakılmadı. Bu düzeltme uygulamanın iş akışını değiştirmez.
+- 2.0.0: Mac’te görülen “detached Frame” hatası giderildi. Hazır tutulan WhatsApp tarayıcısı kullanılmadan önce yoklanır, bozuksa kapatılıp yenisi açılır; hatayla biten işlemin bozuk tarayıcısı hazır diye saklanmaz. Tanı kaydına ana çerçeve kopması ve sayfa kapanması eklendi.
+- 2.0.0: Eksiksiz toplama. Her grup kendi son toplama zamanından taranır; çalışma grup grup ilerler ve kaydı en eski grup önce işlenir; alınamayan fotoğraf 3 denemeden sonra listeye yazılıp ilerlemeyi engellemez; belge olarak gönderilen fotoğraflar alınır; yarıda kalan gruplar raporda “Sırada” görünür. Topla geçmiş günler için soru sormaz.
+- 2.0.0: Sayfa yenilenmesine dayanıklılık. WhatsApp Web sayfayı işlem sırasında yenileyebilir; uygulama hazır olmasını bekler, silinen indirme yamasını yeniden uygular, isteği yeniden dener ve bunu fotoğraf için başarısız deneme saymaz. Alınamayan fotoğraf kaydına `iletildi` bilgisi eklendi. Topla’lar arası 30 dakika bekleme kuralı kaldırıldı (yeni bağlantı için 1 dakika kuralı sürer).
+- 2.0.0: Hazır nöbetçisi. Eşleşmeden sonra sayfa yenilenip kütüphanenin `ready` işlemi yarıda kesilirse WhatsApp bağlı ve senkron dese bile `ready` hiç gelmiyordu (grup listesi boş kalıyordu). Uygulama bunu algılayıp kütüphanenin hazır işlemini yeniden tetikler.
+- 2.0.0: Çıkış düzeltmesi. Oturum telefondan zaten kapatılmışsa uygulama içi çıkış artık bunu algılayıp yerel eşleşmeyi temizler ve bağlan düğmesini açar; doğrulanamayan çıkışta kullanıcı onayıyla yalnızca yerel eşleşme temizlenebilir; çıkış 90 saniye zaman aşımına, Durdur’a ve kapanışta temizliğe sahip; pencereye bitiş bildirilir ve sonuç mesajı görünür.
+- 2.0.0: Hazırlık beklemesi sınırı. Uygulama kapalıyken gelen mesajların WhatsApp sayacı %92’de takılınca senkronizasyon paneli sonsuza kadar açık kalıyordu; sayaç 45 saniye ilerlemezse ya da toplam bekleme 5 dakikayı aşarsa devam edilir ve neden tanıya yazılır.
+- 2.0.0: İnsan hızı modeli. İstek, medya ve MB tavanları ile grup başına 500 mesaj sınırı kaldırıldı; yerine sayfa sayfa geçmiş yükleme, rastgele bekleme, her 100 indirmede mola ve 60 dakikalık emniyet sınırı kondu.
+
+- 2.0.0: Arayüz yenilemesi. Önizleme cam arayüze uygun yeniden tasarlandı: filtre kartı (Tümü, Gruplar listesi, sürükle-bırak sıralı grup düğmeleri, arama), tarih filtresi (takvim, kısayollar, aralık; 60 gün sınırı kalktı), tam genişlikte açılıp kapanan gün kartları (yalnızca en yeni gün açık, kapalı günler çizilmez), grup görünümünde yalnızca o grubun fotoğrafları, Google tarzı sayfalama (marka yazı tipiyle ARCHIV + O), grup adı standardı (yalnızca görünüm) ve bütün düğmelerin ikon karosu + ad olarak yeniden çizimi. Vurgu rengi kehribardan kurumsal maviye çevrildi. Ayrıntı: README “2.0.0 arayüz”.
+- 2.0.0: Silme. Grup görünümünde gün silme yalnızca o grubun o günkü fotoğraflarını siler; Tümü’nde onay penceresi büyük harfli uyarı verir.
+- 2.0.0: Topla/Geçmiş sırasında oluşan hata yazıları yeni çalışmada silinir ve elle kapatılabilir; Ayarlar’daki eski sınır açıklaması insan hızı modeline göre düzeltildi.
+- 2.0.0: Sürüm. Önceki sürümlerin verisi taşınmaz; 2.0.0 temiz profille (`profiller/2.0.0`) ve `Pictures/Archivo 2.0.0 Arsivi` klasörüyle başlar, WhatsApp eşleşmesi sıfırdan yapılır.
 
 ## Doğrulama ve sınırlar
 
-1.4.4 için 62 yerel test geçti. Testler sahte WhatsApp istemcisi kullanır; gerçek hesap üzerinde otomatik bağlantı, QR, indirme veya çıkış denemesi yapılmadı. Paket içindeki kaynak dosyalarının güncel kaynakla aynı olduğu kontrol edildi.
+2.0.0 için 145 yerel test geçti (1.4.4’te 62; 23’ü gerçek Chrome ile arayüzü sürer). Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda derlenmedi.
 
 İlk GitHub çalışmasında iki Mac derlemesi başarılı, Windows test aşaması başarısızdı. Düzeltme sonrası GitHub çalışmasında Windows x64, Apple Silicon Mac ve Intel Mac test, paketleme ve artefakt yükleme adımları başarılı tamamlandı: https://github.com/enescvsdg/archivo/actions/runs/37087414373.
 
