@@ -1,6 +1,6 @@
 # Archivo 2.0.0 kurulumu
 
-Bu bilgisayarda Apple Silicon paketi derlenir (dist/2.0.0): Archivo-2.0.0-mac-arm64.dmg. Intel Mac ve Windows paketleri GitHub Actions ile derlenir (Actions sayfasındaki artefaktlar). Intel Mac: Archivo-2.0.0-mac-x64.dmg. Windows: Archivo-2.0.0-win-x64.exe. dist/1.4.4 önceki sürümdür.
+Bu bilgisayarda Apple Silicon paketi derlenir (dist/2.0.0): Archivo-2.0.0-mac-arm64.dmg. Intel Mac ve Windows paketleri GitHub Actions ile derlenir (Actions sayfasındaki çalışmanın artefaktları: Archivo-mac-arm64, Archivo-mac-x64, Archivo-windows-x64). Intel Mac: Archivo-2.0.0-mac-x64.dmg. Windows: Archivo-2.0.0-win-x64.exe.
 
 Mac’te uygulamayı DMG’den Applications klasörüne sürükleyin. Windows EXE kullanıcı yetkisiyle çalışır; kurumun çalıştırma politikaları geçerlidir. Paketler imzalı değildir.
 

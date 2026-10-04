@@ -32,7 +32,7 @@ pnpm exe
 pnpm kurulum-exe
 ```
 
-Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.0 paketleri derlendiğinde `dist/2.0.0/` içine yazılır (2.0.0 paketleri henüz derlenmedi; `dist/1.4.4/` önceki sürümdür). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
+Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.0 paketleri `dist/2.0.0/` içine yazılır (Mac Apple Silicon paketi bu bilgisayarda derlendi; Windows ve Intel Mac paketleri GitHub Actions ile derlenir). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
 
 ## Veri güvenilirliği
 
