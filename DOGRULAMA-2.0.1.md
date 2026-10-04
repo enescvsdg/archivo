@@ -1,0 +1,28 @@
+# Archivo 2.0.1 doğrulama
+
+172 yerel test geçti (2.0.0’da 145; bunların 33’ü gerçek Chrome for Testing ile arayüzü süren testlerdir, Chrome bulunamazsa atlanır). Testler sahte WhatsApp istemcisi ve sahte `window.api` kullanır; otomatik testlerde gerçek hesap kullanılmaz.
+
+## Canlı testte (2.0.0, gerçek hesap) bulunup 2.0.1’de düzeltilenler
+
+- **Senkron paneli takılıyordu.** Panel tek bir yüzde çubuğuna bağlıydı; sayaç %99’da donunca kapanmıyor, Devam et düğmesi sonradan gelen durum olaylarıyla gizleniyordu. Yeni panel üç aşamalıdır, ekranı kilitlemez, Devam et gizlenmez ve iş bitince ya da Durdur’la senkron, işlem ve QR pencereleri her zaman kapanır (Durdur ana süreç geç yanıt verse bile en geç yaklaşık 5 saniyede). Testler: aşamaların dolması, sonraki işlem için sıfırlanması, kapanma yolları, Durdur’un gecikmeli yanıtı.
+- **Hazırlık beklemesi çok uzundu.** Sayaç %99’da takılınca 46 saniye bekleniyordu. Sayaç %99+ ve WhatsApp `hasSynced=true` derse 10 saniye; %98 ve altı, `hasSynced` yok ya da `false` ise eski 45 saniye; sayaç ilerliyorsa bekleme sürer; 5 dakika tavan. Testler: 10 saniye (tam 10000 ms), `senkronTamam` yok/false, %98, önce ilerleyip sonra %99’da takılma (16 sn), 10 saniye dolmadan %100’e ulaşma ve sayfa içi kontrolün `hasSynced`’i yalnızca açıkça `true` ise bildirmesi (sahte WhatsApp nesnesiyle gerçek kod).
+- **Sonuç görünmüyordu.** İşlem bitince yalnızca alt çubuktaki küçük özet yazısı değişiyordu. Artık Topla çubuğunun yerini sonuç kartı alır (altı durum: başarılı, kısmi, yeni fotoğraf yok, tamamlanamadı, durduruldu, geçmiş taraması) ve pencere önde değilken işletim sistemi bildirimi gönderilir. Testler: tüm durumların başlık/ayrıntı/renk/düğme sonuçları, büyük harf ve noktalı İ, Klasörü aç yalnızca fotoğraf indiyse, Tamam ve yeni işlemin kartı kapatması, çıkış mesajında kart açılmaması, kartın gerçek Chrome’da konumu, camlığı, hizası ve taşmaması; bildirim metinleri ve pencere önde/odaklıyken gönderilmemesi.
+- **İşlem paneli büyük ve opaktı.** Küçük, cam, tek satırlık kapsül oldu; Durdur sağ köşede ve yazılarla aynı hizada. Gerçek Chrome’da yükseklik, genişlik, hizalar, cam (şeffaflık ve bulanıklık) ve son kartın panelin altında kalmaması ölçülür.
+- **Hata yazıları her sayfada çıkıyordu ve kalıcıydı.** Artık yalnızca Tümü’nde görünür, 30 saniye sonra kaybolur; süre görünürken işler (grup sayfasında gezerken dolmaz). Testler: gizlenme, grupta yeni gelenin de gizli kalması, Tümü’ne dönünce görünmesi, süre dolunca kaybolması, grupta gezerken sürenin durması ve kalan sürenin devam etmesi.
+- **Sayfalama.** 2.0.0’daki gün kartı içi sayfalama kaldırıldı; yerine güne göre genel sayfalama geldi (7/15/30 gün). Testler: 14 günlük sahte arşivde 7+7, ARCHIV + O, marka yazı tipi ve büyük harf, Önceki/Sonraki, tek sayfada numara olmaması, 7 günde gizli/8 günde görünür, kısa sayfada pencere dibine yaslanma (alt boşluk ~156 px), seçimin hatırlanması ve geçersiz kaydın 7’ye dönmesi, 250 fotoğraflı günün kartta tek seferde 250 fotoğraf göstermesi, büyük önizlemede sayfalar arası gezinti ve kapatınca doğru sayfanın/günün açılması.
+- **Telefon Eşlemesi satırı.** Başlık solda, rozet sağda, iki eşit cam kutulu düğme. Rozetin noktası gerçek Chrome’da hesaplanmış renkle sınanır: “Bağlı” yeşil (rgb 95,214,138), “Bağlı değil” gri (139,147,163), geçici durumlar mavi (143,181,242); düğmelerin etkin/pasif durumu, hata açıklaması, rozetin taşmaması ve işlem bitince gerçek duruma dönüş denendi. Aynı mantık sahte arayüzde (6 durum) ayrıca sınandı.
+- **Ayarlar başlıkları.** Tüm başlıkların her kelimesinin ilk harfinin büyük (bağlaçlar hariç) ve yazı ağırlığının ≥ 600, açıklamaların ≤ 400 olduğu gerçek Chrome’da hesaplanmış stilden doğrulandı (16 başlık).
+- **İndirme hızı.** Politika birim testi (Yavaş = `PACE`, Orta, Hızlı, bilinmeyen değer Yavaş, her seçenek bir öncekinden hızlı, değerler donmuş); ayarın kaydı ve geçersiz değerin Yavaş olması; kaydedilen hızın indirmeler arası beklemeyi ve mola sıklığını (Orta 150, Hızlı 200) değiştirmesi; Hızlı onay penceresinin Vazgeç varsayılanlı olması; arayüzde seçim, açıklama, uyarı rengi, onay reddedilirse değişmeme ve kayda girme (gerçek Chrome ve sahte arayüz). Bir hata testle yakalandı: uyarı yazısı başka bir stil kuralı yüzünden gri çıkıyordu, düzeltildi.
+
+Eski testlerde yapılan değişiklikler: sayfalama testleri güne göre sayfalamaya göre yeniden yazıldı (50/100/200 fotoğraf sayfalaması kalktı); “tüm düğmeler ikon üstte” testi yeni segment düğmelerini (`7·15·30`, `Yavaş·Orta·Hızlı`) yazı-segmenti olarak tanır; sahte arayüz çıkış testlerine `clearTimeout` ve `klasorAc`/`hizOnayi` eklendi.
+
+## Paketlenmiş uygulama ve CI
+
+Bu bölüm derleme ve GitHub Actions sonrasında doldurulur (aşağıya bakın).
+
+## Doğrulanmadı
+
+- Düzeltmelerin **gerçek WhatsApp hesabında** davranışı: aşamalı panel, %99’da 10 saniyelik geçiş (WhatsApp’ın `hasSynced` bilgisinin gerçekte hep doğru gelip gelmediği; gelmezse eski 45 saniyelik kural devreye girer), telefondan gelen mesaj sayacı (`Msg.length`, deneme amaçlı; gerçek WhatsApp’ta henüz okunmadı), işletim sistemi bildirimi (macOS izin davranışı ve bildirime tıklayınca pencerenin açılması otomatik sınanamadı).
+- **Orta ve Hızlı** indirme hızlarının gerçek WhatsApp’ta davranışı ve “bir çalışmada yaklaşık 400/600/800 fotoğraf” tahminleri (yalnızca Yavaş canlı ölçüldü); Hızlı’nın hesap riski. Hesabın kısıtlanmayacağı garanti edilmez.
+- Sayfalamanın gerçek bir arşivde (binlerce fotoğraf) hızı; testler 497 fotoğraflık sahte arşivle yapıldı. Dokunmatik kullanım denenmedi; sürükle-bırak yalnızca fareyle sınandı.
+- Windows ve Intel Mac paketlerinin gerçek kullanıcı açılışı (GitHub’da yalnızca test ve paketleme çalışır). Paketler imzasızdır.

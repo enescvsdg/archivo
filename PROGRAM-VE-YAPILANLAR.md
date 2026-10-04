@@ -1,6 +1,6 @@
 # Archivo: programın işlevleri ve yapılan çalışmalar
 
-Bu belge Archivo 2.0.0 kaynak kodunun özelliklerini, son değişikliklerini ve doğrulama sınırlarını açıklar.
+Bu belge Archivo 2.0.1 kaynak kodunun özelliklerini, son değişikliklerini ve doğrulama sınırlarını açıklar.
 
 ## Program ne yapar?
 
@@ -18,9 +18,9 @@ Archivo, kullanıcının seçtiği WhatsApp gruplarındaki görselleri bilgisaya
 
 ## Veri ve çalışma sınırları
 
-Fotoğraf arşivi yerel disktedir. Ayarlar, eşleşme ve tarama kayıtları kullanıcı veri klasöründedir. Her sürüm ayrı `profiller/<sürüm>` profili ve varsayılan `Pictures/Archivo <sürüm> Arsivi` klasörü kullanır (2.0.0 için `profiller/2.0.0`); eski sürüm verileri yeni profile kopyalanmaz, kendi klasöründe olduğu gibi kalır. Her yeni sürümde sürüm numarası artar. Eski kullanıcı verileri ve fotoğraf arşivi proje temizliğinde silinmedi. Önceki sürümlerin telefondaki bağlı cihaz kayıtları otomatik kaldırılmış sayılmaz.
+Fotoğraf arşivi yerel disktedir. Ayarlar, eşleşme ve tarama kayıtları kullanıcı veri klasöründedir. Her sürüm ayrı `profiller/<sürüm>` profili ve varsayılan `Pictures/Archivo <sürüm> Arsivi` klasörü kullanır (2.0.1 için `profiller/2.0.1`); eski sürüm verileri yeni profile kopyalanmaz, kendi klasöründe olduğu gibi kalır. Her yeni sürümde sürüm numarası artar. Eski kullanıcı verileri ve fotoğraf arşivi proje temizliğinde silinmedi. Önceki sürümlerin telefondaki bağlı cihaz kayıtları otomatik kaldırılmış sayılmaz.
 
-İşlemler sırayla ve insan hızında yürür (README’deki “2.0.0 insan hızı” bölümü): geçmiş sayfa sayfa yüklenir, indirmeler arasında rastgele bekleme ve her 100 indirmede mola vardır. Sert tavanlar kaldırıldı; emniyet sınırları çalışma başına 60 dakika, art arda üç medya hatasında durma ve grup başına 20000 mesajdır. Dosya boyutu indirmeden önce kesin bilinmeyebilir. Bu sınırlar WhatsApp hesabının kısıtlanmayacağını garanti etmez.
+İşlemler sırayla ve insan hızında yürür (README’deki “2.0.0 insan hızı” bölümü): geçmiş sayfa sayfa yüklenir, indirmeler arasında rastgele bekleme ve düzenli aralıklarla mola vardır (Ayarlar’daki İndirme Hızı: Yavaş varsayılan, Orta, Hızlı). Sert tavanlar kaldırıldı; emniyet sınırları çalışma başına 60 dakika, art arda üç medya hatasında durma ve grup başına 20000 mesajdır. Dosya boyutu indirmeden önce kesin bilinmeyebilir. Bu sınırlar WhatsApp hesabının kısıtlanmayacağını garanti etmez.
 
 Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tarihe ulaşılamadığında erişim belirsizliği veya sınır bildirilir. Telefonda bulunan tüm geçmişin Web’de erişilebilir olduğu varsayılmaz.
 
@@ -33,7 +33,7 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 - Geçmiş tarama/indirme ayrımı, günlük toplama, eksik görsel onayı ve yerel silme akışları eklendi.
 - Ayarlar kapatma/onay davranışı, kart içindeki kaydırma çubuğu, gün tekerleği ve açıklamalı ikonlar düzenlendi.
 - 1.4.4’te grup isimlerinin senkronizasyon onayından önce listeye eklenmesi, eşleşme durumuna göre düğmeler ve yeniden açılış sonrası gerçek çıkış düzeltildi.
-- Eski proje paketleri, kaynak ZIP’leri ve geçici çıktılar temizlendi. Eski sürümlerin derleme çıktıları (`dist/1.4.4`, `dist/1.4.5`) silindi; Mac Apple Silicon 2.0.0 paketi bu bilgisayarda, Intel Mac ve Windows paketleri GitHub Actions ile derlendi. Derleme bağımlılıkları korunur.
+- Eski proje paketleri, kaynak ZIP’leri ve geçici çıktılar temizlendi. Eski sürümlerin derleme çıktıları (`dist/1.4.4`, `dist/1.4.5`) silindi; Mac Apple Silicon paketleri bu bilgisayarda, Intel Mac ve Windows paketleri GitHub Actions ile derlendi. Derleme bağımlılıkları korunur.
 - Güncel kaynak ve gerekli proje dosyaları https://github.com/enescvsdg/archivo reposuna yüklendi. Kişisel oturum, fotoğraf arşivi ve kullanıcı kayıtları yüklenmedi.
 - GitHub’ın ilk Windows çalışmasında satır sonu dönüşümü CSP özet testini bozdu. Aynı hata CRLF ile yerelde üretildi. `.gitattributes` kaynak satır sonlarını LF olarak sabitler; güvenlik politikası ve test devre dışı bırakılmadı. Bu düzeltme uygulamanın iş akışını değiştirmez.
 - 2.0.0: Mac’te görülen “detached Frame” hatası giderildi. Hazır tutulan WhatsApp tarayıcısı kullanılmadan önce yoklanır, bozuksa kapatılıp yenisi açılır; hatayla biten işlemin bozuk tarayıcısı hazır diye saklanmaz. Tanı kaydına ana çerçeve kopması ve sayfa kapanması eklendi.
@@ -48,10 +48,16 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 - 2.0.0: Silme. Grup görünümünde gün silme yalnızca o grubun o günkü fotoğraflarını siler; Tümü’nde onay penceresi büyük harfli uyarı verir.
 - 2.0.0: Topla/Geçmiş sırasında oluşan hata yazıları yeni çalışmada silinir ve elle kapatılabilir; Ayarlar’daki eski sınır açıklaması insan hızı modeline göre düzeltildi.
 - 2.0.0: Sürüm. Önceki sürümlerin verisi taşınmaz; 2.0.0 temiz profille (`profiller/2.0.0`) ve `Pictures/Archivo 2.0.0 Arsivi` klasörüyle başlar, WhatsApp eşleşmesi sıfırdan yapılır.
+- 2.0.1: Sürüm. 2.0.0’ın verisi taşınmaz; 2.0.1 temiz profille (`profiller/2.0.1`) ve `Pictures/Archivo 2.0.1 Arsivi` klasörüyle başlar, WhatsApp eşleşmesi yeniden yapılır.
+- 2.0.1: Senkron paneli aşamalı oldu (bağlantı, grup listesi, telefondan mesajlar); Devam et her zaman görünür, işlem bitince tüm pencereler kapanır; telefondan gelen mesajların yerel sayısı deneme olarak izlenir.
+- 2.0.1: Alttaki Topla çubuğunun yerini çalışırken küçük cam işlem kapsülü (Durdur sağda), bitince sonuç kartı alır; pencere önde değilken işletim sistemi bildirimi gönderilir.
+- 2.0.1: Genel sayfalama güne göre (sayfa başına 7/15/30 gün, sayfanın en altında `ARCHIV`+O çubuğu); gün kartı içi sayfalama kaldırıldı. Hata bildirimleri yalnızca Tümü’nde görünür ve 30 saniye sonra kaybolur.
+- 2.0.1: Ayarlar: Telefon Eşlemesi satırı (durum rozeti ve iki eşit düğme), kalın ve baş harfleri büyük başlıklar, İndirme Hızı (Yavaş/Orta/Hızlı; Hızlı’da onay).
+- 2.0.1: Hazırlık beklemesi: sayaç %99+ takılıp WhatsApp “senkron tamam” derse 10 saniyede devam edilir (önceden 45).
 
 ## Doğrulama ve sınırlar
 
-2.0.0 için 145 yerel test geçti (1.4.4’te 62; 23’ü gerçek Chrome ile arayüzü sürer). Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda değil, GitHub Actions’ta derlendi.
+2.0.1 için 172 yerel test geçti (2.0.0’da 145, 1.4.4’te 62; 33’ü gerçek Chrome ile arayüzü sürer). 2.0.1 ayrıntıları DOGRULAMA-2.0.1.md içindedir. Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda değil, GitHub Actions’ta derlendi.
 
 2.0.0 için GitHub Actions (`v2.0.0` dalı, çalışma 37169528298) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde test (testler her sistemde geçti), paketleme ve artefakt yükleme adımlarını başarıyla tamamladı: https://github.com/enescvsdg/archivo/actions/runs/37169528298. Önceki sürümde Windows’taki CSP özet testini bozan satır sonu dönüşümü `.gitattributes` ile LF’ye sabitlenmişti.
 

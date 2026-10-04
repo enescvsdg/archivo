@@ -4,9 +4,9 @@ WhatsApp gruplarındaki fotoğrafları yerel diskte tarih ve grup klasörlerine 
 
 ## Paketler
 
-- Apple Silicon Mac: `Archivo-2.0.0-mac-arm64.dmg`
-- Intel Mac: `Archivo-2.0.0-mac-x64.dmg` (ayrı derleme)
-- Windows 10/11 x64: `Archivo-2.0.0-win-x64.exe` (taşınabilir, yönetici veya Node.js kurulumu gerektirmez)
+- Apple Silicon Mac: `Archivo-2.0.1-mac-arm64.dmg`
+- Intel Mac: `Archivo-2.0.1-mac-x64.dmg` (ayrı derleme)
+- Windows 10/11 x64: `Archivo-2.0.1-win-x64.exe` (taşınabilir, yönetici veya Node.js kurulumu gerektirmez)
 
 Windows taşınabilir uygulaması çalışırken kullanıcıya ait geçici klasöre açılır; ayarlar ve oturum kullanıcı veri klasörüne yazılır. Kurumun uygulama çalıştırma ve ağ kuralları yine geçerlidir. Eski çalışan EXE'yi yeni sürüm aynı iş bilgisayarında doğrulanana kadar saklayın. Mac üzerinden üretilen Windows paketinde EXE kaynak simgesi/sürüm düzenleme kapalıdır; Windows üzerinde derleme bunları korur.
 
@@ -32,7 +32,7 @@ pnpm exe
 pnpm kurulum-exe
 ```
 
-Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.0 paketleri `dist/2.0.0/` içine yazılır (Mac Apple Silicon paketi bu bilgisayarda derlendi; Windows ve Intel Mac paketleri GitHub Actions ile derlenir). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
+Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.1 paketleri `dist/2.0.1/` içine yazılır (Mac Apple Silicon paketi bu bilgisayarda derlendi; Windows ve Intel Mac paketleri GitHub Actions ile derlenir). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
 
 ## Veri güvenilirliği
 
@@ -42,7 +42,7 @@ Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; 
 - Eski son-calisma.json biçimi okunur ve ilk yeni taramada sohbet bazındaki kayıtlarla genişletilir.
 - Her grup için tarama güvenlik tavanı 20000 mesajdır; tavana ulaşıldığında erişim sınırı raporlanır (2.0.0’ten önce bu tavan 500’dü).
 - JSON yazımları geçici dosya ve yeniden adlandırma ile yapılır; önceki sürüm `.bak` dosyasında tutulur. Bozuk JSON sessizce sıfırlanmaz. Bu yedekler tam arşiv yedeği yerine geçmez.
-- Fotoğraflar: Pictures/Archivo <sürüm> Arsivi (2.0.0 için Archivo 2.0.0 Arsivi) veya seçtiğiniz klasör. Ayarlar/oturum: Electron'un kullanıcı veri klasörü; uygulamadaki “Veri klasörü” düğmesinden açılır.
+- Fotoğraflar: Pictures/Archivo <sürüm> Arsivi (2.0.1 için Archivo 2.0.1 Arsivi) veya seçtiğiniz klasör. Ayarlar/oturum: Electron'un kullanıcı veri klasörü; uygulamadaki “Veri klasörü” düğmesinden açılır.
 
 ## Gizlilik ve sınırlar
 
@@ -50,7 +50,7 @@ Oturum, arşiv, açıklamalar ve grup/kişi bilgileri kişisel veridir; GitHub'a
 
 whatsapp-web.js resmi WhatsApp API'si değildir. WhatsApp Web değişiklikleri bağlantıyı veya indirmeyi bozabilir; hesabın kısıtlanmayacağı garantisi verilemez. Oturum ve indirme işlemleri gerçek hesapla ayrıca doğrulanmalıdır.
 
-Mevcut ekran son 60 tarih bölümünü gösterir. Videolar indirilebilir ancak galeri fotoğraf odaklıdır. Grup seçimi hâlâ grup adıyla yapılır. Bunlar sonraki geliştirme aşamasındadır.
+Galeri günleri sayfa başına 7, 15 veya 30 gün olacak şekilde sayfalar (2.0.1). Videolar indirilebilir ancak galeri fotoğraf odaklıdır. Grup seçimi hâlâ grup adıyla yapılır.
 
 ## 1.4.0 toplama akışı
 
@@ -101,8 +101,8 @@ Amaç, indirilebilen hiçbir görselin sessizce eksik kalmamasıdır.
 Sert çalışma başı tavanlar (24 istek, 100 medya, 100 MB, grup başına 500 mesaj, 15 dakika) kaldırıldı; yerine insan gibi tempo kullanılır. Aralıklar her seferinde rastgele seçilir:
 
 - Geçmiş sayfa sayfa yüklenir: her sayfadan önce 1–3 saniye beklenir ve istenen tarihe ulaşılınca durulur (fazla yüklenmez). Kütüphanenin aralıksız arka arkaya yüklemesi kullanılmaz.
-- Her fotoğraf indirilmeden önce 2–5 saniye, gönderen ve alıntı sorgularından önce 0,5–1,5 saniye beklenir.
-- Her 100 indirmeden sonra 2–5 dakika mola verilir; molada arayüze her 15 saniyede durum gönderilir. Durdur molada da hemen çalışır.
+- Her fotoğraf indirilmeden önce (varsayılan Yavaş hızda) 2–5 saniye, gönderen ve alıntı sorgularından önce 0,5–1,5 saniye beklenir. 2.0.1’den itibaren Ayarlar’daki İndirme Hızı (Yavaş/Orta/Hızlı) bu bekleme ve mola değerlerini değiştirir.
+- Her 100 indirmeden sonra (Yavaş hızda) 2–5 dakika mola verilir; molada arayüze her 15 saniyede durum gönderilir. Durdur molada da hemen çalışır.
 - Emniyet sınırları: çalışma başına 60 dakika, art arda 3 medya hatasında durma ve grup başına 20000 mesaj tavanı. Süre dolarsa biten gruplar korunur, kalanlar “Sırada” görünür; Topla’ya yeniden basarak devam edilir. Topla’lar arası 30 dakika bekleme kuralı kaldırıldı; yeni bağlantı açmak için 1 dakika kuralı sürer.
 - Bu değerler önerilen tempodur; WhatsApp’ın gerçek eşiği bilinmez ve hesabın kısıtlanmayacağı garanti edilmez. Uygulama mesaj göndermez ve okundu işaretlemez.
 - Aralıklar `operation-policy.js` içindeki `PACE` ve `LIMITS` tablosundadır.
@@ -110,7 +110,7 @@ Sert çalışma başı tavanlar (24 istek, 100 medya, 100 MB, grup başına 500 
 - Alınamayan her fotoğrafın kaydına mesajın iletilmiş olup olmadığı (`iletildi`) ve türü yazılır; mesaj içeriği yazılmaz.
 - Hazır nöbetçisi (canlı testte eşleşmeden sonra “hazır” olayının hiç gelmediği, grup listesinin boş kaldığı denemelerden sonra): kütüphane `ready` olayını yalnızca WhatsApp Web’in `hasSynced` değerinin **değişmesinden** yayınlıyor. Sayfa yenilenip bu işlem yarıda kesilirse ya da olay kaçırılırsa, WhatsApp “bağlı ve senkron” dese bile `ready` gelmiyordu (telefon “Aktif, son mesajlar senkronize edildi” gösteriyordu). Uygulama artık yeni açtığı her bağlantıda beş saniyede bir sayfanın durumuna bakar; durum üst üste üç yoklamada `CONNECTED` ve `hasSynced=true` olduğu hâlde `ready` gelmemişse kütüphanenin kendi `ready` işlemini (`window.onAppStateHasSyncedEvent`) yeniden tetikler (en çok 5 kez, tanıda `hazir-tetiklendi`). Çıkış, Bağlan ve Topla akışlarının hepsinde etkindir.
 - Çıkış düzeltmesi (canlı testte telefondan çıkış yapılmış bir oturumda uygulama içi çıkış takılı kalmıştı): “WhatsApp’tan çıkış yap” artık (a) WhatsApp kayıtlı oturum için QR isterse (telefondan çıkış yapılmış demektir) bunu “zaten çıkılmış” sayıp yerel eşleşmeyi ve grup listesini temizler, böylece bağlan düğmesi açılır; (b) 90 saniyede yanıt gelmezse ya da eşleşme doğrulanamazsa, yalnızca kullanıcı **Evet** derse yerel eşleşmeyi temizler (WhatsApp’taki cihaz kaydı telefondan silinmelidir); (c) Durdur ile iptal edilebilir; (d) uygulama kapanırken çıkış için açılan tarayıcı da kapatılır; (e) bitince pencereye haber verir, böylece pencere yeniden açılsa bile “İşlem sürüyor” paneli açık kalmaz ve sonuç mesajı özet satırında görünür (önceden yükleme bittikten sonra mesajın üzerine yazılıyordu). Gerçek `logout()` başarılıysa davranış aynıdır.
-- Hazırlık beklemesi sınırı (canlı testte bulundu): her Topla’dan önce uygulama WhatsApp’ın senkronu bitirmesini, kapalıyken gelen mesajların teslimini (çevrimdışı teslim ilerlemesi) ve seçili grupların yerel listede görünmesini bekler; bu sırada “Senkronizasyon devam ediyor” paneli açılır. WhatsApp’ın kapalıyken gelen mesaj sayacı takılabiliyor: 2,5 saat kapalı kalan uygulamada sayaç 11/12 = %92’de kalıp hiç %100 olmadı, yönetici “COMPLETE” dediği hâlde. Önceki sürüm bu durumda sonsuza kadar bekliyordu. Artık sayaç 45 saniye hiç ilerlemezse ya da toplam bekleme 5 dakikayı aşarsa (hangi nedenle olursa olsun) devam edilir. Sayaç ilerlemeye devam ettiği sürece beklenir. Bekleme nedeni tanıda yazılır: `hazirlik-bekleniyor` (neden: `cevrimdisi`, `senkron` ya da `sohbet`) ve `hazirlik-bitti` (sonuç: `hazir`, `durgun` ya da `zaman-asimi`). Sonraki Topla son toplamadan 2 saat geri taradığı için gecikmeli gelen mesaj yine yakalanır. Sınırlar `LIMITS.hazirlikDurguSaniye` ve `LIMITS.hazirlikUstSaniye`’dedir.
+- Hazırlık beklemesi sınırı (canlı testte bulundu): her Topla’dan önce uygulama WhatsApp’ın senkronu bitirmesini, kapalıyken gelen mesajların teslimini (çevrimdışı teslim ilerlemesi) ve seçili grupların yerel listede görünmesini bekler; bu sırada “Senkronizasyon devam ediyor” paneli açılır. WhatsApp’ın kapalıyken gelen mesaj sayacı takılabiliyor: 2,5 saat kapalı kalan uygulamada sayaç 11/12 = %92’de kalıp hiç %100 olmadı, yönetici “COMPLETE” dediği hâlde. Önceki sürüm bu durumda sonsuza kadar bekliyordu. Artık sayaç 45 saniye hiç ilerlemezse ya da toplam bekleme 5 dakikayı aşarsa (hangi nedenle olursa olsun) devam edilir. Sayaç ilerlemeye devam ettiği sürece beklenir. Bekleme nedeni tanıda yazılır: `hazirlik-bekleniyor` (neden: `cevrimdisi`, `senkron` ya da `sohbet`) ve `hazirlik-bitti` (sonuç: `hazir`, `durgun` ya da `zaman-asimi`). Sonraki Topla son toplamadan 2 saat geri taradığı için gecikmeli gelen mesaj yine yakalanır. Sınırlar `LIMITS.hazirlikDurguSaniye` ve `LIMITS.hazirlikUstSaniye`’dedir. 2.0.1’de sayaç %99 ve üzerinde takılırsa ve WhatsApp açıkça “senkron tamam” (`hasSynced=true`) derse bekleme 45 yerine 10 saniyedir (`LIMITS.hazirlikKisaDurguSaniye`, `LIMITS.hazirlikKisaEsik`).
 - Bağlantı tanısı (`baglanti-tanisi.json`) WhatsApp’ın bildirdiği durum değişikliklerini (`durum-degisti`: CONNECTED, OPENING, TIMEOUT, CONFLICT, DEPRECATED_VERSION vb.), kopma nedenini, yükleme yüzdesini, WhatsApp Web sürüm numarasını (`waSurum`) ve beklerken sayfanın içindeki bağlantı durumunu (`sayfa-anlik`: durum, senkronizasyon bitti mi, sayfa yüklendi mi; yalnızca değişince kaydedilir) yazar. Yalnızca sabit kodlar, sayılar ve sürüm numarası saklanır; metin, adres, telefon veya mesaj içeriği saklanmaz. Canlı testte “hazır” olayının hiç gelmediği bir denemeden sonra eklendi.
 
 ## 2.0.0 arayüz
@@ -123,13 +123,27 @@ Sert çalışma başı tavanlar (24 istek, 100 medya, 100 MB, grup başına 500 
 - **Tarih filtresi (Tümü’nde ve gruplarda).** Takvim (fotoğraf olan günler noktalı, iki tıklamayla başlangıç–bitiş aralığı, aynı güne iki kez tıklayınca tek gün), `Bugün`, `Son 7 gün`, `Son 30 gün` kısayolları ve seçili aralığı temizleme düğmesi. Önceki 60 günlük sınır kalktı; takvimle istenen eski güne gidilir.
 - **Gün kartları.** Sayfa genişliğinde cam kart: tarih, o tarihteki (süzülmüş) fotoğraf sayısı ve sağ köşede çöp kutusu. Karta tıklayınca fotoğraflar kartın içine doğru kapanır, tekrar tıklayınca açılır. Bir gruba ya da Tümü’ne girince yalnızca en yeni gün açıktır; kapalı günlerin fotoğrafları çizilmez, bu yüzden arşiv büyüse de sayfa yavaşlamaz. Başlık kaydırırken filtre kartının altında yapışık kalır.
 - **Silme.** Grup görünümünde çöp kutusu yalnızca o grubun o tarihteki fotoğraflarını siler (onayda grup adı ve sayı yazar); Tümü’nde onay penceresi büyük harfle “bu tarihteki TÜM grupların fotoğrafları silinecek” uyarısını verir. Dosyalar Çöp Kutusu’na taşınır, WhatsApp değişmez.
-- **Sayfalama.** Bir günde 50’den fazla fotoğraf varsa kartın altında `Sayfa başına 50 · 100 · 200` (varsayılan 100, ortak ve hatırlanır) ve marka yazı tipiyle `ARCHIV` + sayfa sayısı kadar `O` çıkar: bulunulan sayfanın `O`’su vurgulu, numaralar altında, en çok 10 sayfa kayan pencere, `Önceki`/`Sonraki`. Büyük önizlemedeki oklar süzülmüş tüm fotoğraflar arasında gezer; önizleme kapanınca kart son bakılan fotoğrafın sayfasına geçer.
+- **Sayfalama.** 2.0.0’de gün kartı başına fotoğraf sayfalamasıydı (50/100/200); 2.0.1’de genel ve güne göre oldu, bkz. “2.0.1 değişiklikleri”.
 - **Düğmeler.** Yazıdan ibaret tüm düğmeler renkli cam ikon karosu + altında adı olarak yeniden çizildi (vurgu mavisi, nötr grafit, onay yeşili, tehlike kırmızısı). İkonlar [Tabler Icons](https://github.com/tabler/tabler-icons) (MIT, `Tabler-LISANS.txt`) setindendir ve dosyaya gömülüdür, internet gerekmez.
-- **Hata yazıları.** Topla sırasında oluşan uyarılar artık sayfada kalıcı değildir: yeni Topla/Geçmişi Tara/Geçmişi İndir başlayınca silinir ve her uyarı `Kapat` ile elle kapatılabilir.
+- **Hata yazıları.** Topla sırasında oluşan uyarılar sayfada kalıcı değildir: yeni Topla/Geçmişi Tara/Geçmişi İndir başlayınca silinir ve her uyarı `Kapat` ile elle kapatılabilir. 2.0.1’de ayrıca yalnızca Tümü görünümünde görünür ve 30 saniye sonra kaybolur.
 - **Hazırlık beklemesi.** Bkz. “Hazırlık beklemesi sınırı” maddesi: WhatsApp’ın kapalıyken gelen mesaj sayacı takılırsa Topla artık sonsuza kadar beklemez.
+
+## 2.0.1 değişiklikleri
+
+2.0.1, 2.0.0’ın canlı testinde bulunan eksikleri ve arayüz isteklerini kapsar. Telefon eşleşmesi ve veri 2.0.0’dan taşınmaz (bkz. “Sürüm ve veri kuralı”).
+
+- **Aşamalı senkron paneli.** Eşleşme sonrası panel üç aşamayı gösterir (WhatsApp’a bağlanma, grup listesi, telefondan mesajlar). Ekranı kilitlemez, Devam et düğmesi sonradan gelen durum olaylarıyla gizlenmez. Telefondan gelen mesajların yerel sayısı (yalnızca sayı, içerik değil) deneme olarak izlenir; sayı uzun süre değişmezse panel “büyük olasılıkla bitti” der, karar yine kullanıcıdadır. İş bitince ya da Durdur’la senkron, işlem ve QR pencereleri her zaman kapanır.
+- **İşlem kapsülü ve bildirim.** Çalışırken alt çubuğun yerini küçük, cam, tek satırlık bir kapsül alır (dönen gösterge, aşama ve ayrıntı, süre, sağ köşede Durdur). “Yeni ilerleme bilgisi alınamıyor” uyarısı yalnızca 30 saniye ilerleme olmazsa çıkar. Pencere önde değilken iş bitince işletim sistemi bildirimi gönderilir (“N fotoğraf indirildi”, “Yeni fotoğraf yok”, “İşlem durduruldu” vb.; grup adı veya içerik yazılmaz); tıklayınca pencere açılır.
+- **Bitiş kartı.** Bir işlem bitince Topla çubuğunun yerini cam bir sonuç kartı alır; Tamam’a ya da yeni bir işleme kadar kalır. Başlık büyük harfle yazılır: İNDİRME TAMAMLANDI (alınamayan varsa kırmızımsı ayrıntıyla), YENİ FOTOĞRAF YOK, İŞLEM TAMAMLANAMADI, İŞLEM DURDURULDU, GEÇMİŞ TARAMASI TAMAMLANDI. Ayrıntı satırında indirilen, yinelenen ve alınamayan sayıları ile süre yazar; Klasörü aç düğmesi yalnızca fotoğraf indiyse görünür.
+- **Genel sayfalama (güne göre).** Gün kartları sayfa başına 7, 15 veya 30 gün olacak şekilde bölünür (varsayılan 7; Tümü ve gruplarda ortak, hatırlanır). Sayfanın en altında marka yazı tipiyle `ARCHIV` + sayfa sayısı kadar `O`, sayfa numaraları, `Önceki`/`Sonraki` ve `Sayfa başına gün 7 · 15 · 30` seçimi bulunur; liste kısaysa çubuk pencerenin dibine yaslanır. Toplam gün sayısı 7 veya azsa gizlenir. Bir gün kartı artık tüm fotoğraflarını tek seferde gösterir (kart içi 50/100/200 sayfalaması kaldırıldı). Her sayfada yalnızca en yeni gün açıktır. Büyük önizlemedeki oklar tüm sayfalardaki fotoğraflar arasında gezer; kapatınca fotoğrafın günü hangi sayfadaysa o sayfa açılır.
+- **Hata bildirimleri.** Yalnızca Tümü görünümünde görünür, 30 saniye sonra kendiliğinden kaybolur (süre yalnızca görünürken işler; grup sayfasında gezerken dolmaz), Kapat ile kapanır, yeni çalışmada silinir.
+- **Telefon eşlemesi.** Ayarlar’da başlık ve açıklama solda, durum rozeti sağ köşede (yeşil nokta yalnızca “Bağlı”, gri “Bağlı değil”, mavi “WhatsApp açılıyor / QR bekleniyor / Senkronize ediliyor”), altında iki eşit cam kutulu düğme (QR kod göster / WhatsApp’tan çıkış yap). Eşleşme kayıtlıysa rozet “Bağlı” gösterir; tarayıcı kapalıysa açıklamada “Eşleşme kayıtlı; WhatsApp Topla ile açılır” yazar.
+- **Ayarlar başlıkları.** Ayarlar’daki tüm başlıkların her kelimesinin ilk harfi büyük ve yazı kalındır; açıklama yazıları normaldir.
+- **Hazırlık beklemesi kısaltması.** Çevrimdışı teslim sayacı %99 ve üzerinde takılırsa ve WhatsApp “senkron tamam” derse 10 saniye beklenir (önceden 45); %98 ve altı ile bilgi yokluğunda eski 45 saniye kuralı geçerlidir.
+- **İndirme hızı.** Ayarlar’da Yavaş (varsayılan, 2.0.0’daki değerler), Orta (indirmeden önce 1–3 sn, her 150 indirmede 1–3 dk mola) ve Hızlı (0,5–1,5 sn, her 200 indirmede 1–2 dk mola). Sayfa ve sorgu beklemeleri değişmez. Orta ve Hızlı’da risk uyarısı gösterilir; Hızlı seçilirken ana süreç bir kez onay sorar (varsayılan Vazgeç). “Bir çalışmada yaklaşık 400/600/800 fotoğraf” rakamları tahmindir; yalnızca Yavaş canlı ölçüldü. Daha hızlı seçenekler hesabın kısıtlanma riskini artırabilir, garanti verilemez. Seçim `indirmeHizi` ayarında saklanır; geçersiz değer Yavaş sayılır. Değerler `operation-policy.js` içindeki `HIZ_SECENEKLERI`’dedir.
 
 ## Sürüm ve veri kuralı
 
-Her yeni sürümde sürüm numarası artar (örneğin 1.4.4 → 2.0.0). Yeni sürüm `profiller/<sürüm>` altında boş bir profille ve `Pictures/Archivo <sürüm> Arsivi` klasörüyle başlar; eski sürümün profili ve fotoğraf arşivi kendi klasöründe olduğu gibi kalır, silinmez. Bu nedenle her yeni sürümde WhatsApp eşleşmesi yeniden yapılır ve ilk çalışmada Ayarlar’daki gün sayısı kadar geriye bakılır. Telefondaki eski bağlı cihaz kayıtları otomatik silinmez; WhatsApp en fazla 4 bağlı cihaza izin verir, gerekirse telefonun Bağlı Cihazlar ekranından eskileri kaldırın. 2.0.0, 1.4.x sürümlerinin verisini hiç getirmez: temiz bir profille açılır ve WhatsApp eşleşmesi sıfırdan yapılır.
+Her yeni sürümde sürüm numarası artar (örneğin 1.4.4 → 2.0.0 → 2.0.1). Yeni sürüm `profiller/<sürüm>` altında boş bir profille ve `Pictures/Archivo <sürüm> Arsivi` klasörüyle başlar; eski sürümün profili ve fotoğraf arşivi kendi klasöründe olduğu gibi kalır, silinmez. Bu nedenle her yeni sürümde WhatsApp eşleşmesi yeniden yapılır ve ilk çalışmada Ayarlar’daki gün sayısı kadar geriye bakılır. Telefondaki eski bağlı cihaz kayıtları otomatik silinmez; WhatsApp en fazla 4 bağlı cihaza izin verir, gerekirse telefonun Bağlı Cihazlar ekranından eskileri kaldırın. 2.0.1, 2.0.0 ve 1.4.x sürümlerinin verisini hiç getirmez: temiz bir profille (`profiller/2.0.1`) açılır ve WhatsApp eşleşmesi sıfırdan yapılır.
 
 Programın işlevleri, yapılan çalışmalar ve doğrulama sınırları: [PROGRAM-VE-YAPILANLAR.md](PROGRAM-VE-YAPILANLAR.md).
