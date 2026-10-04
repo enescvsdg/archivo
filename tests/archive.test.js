@@ -509,6 +509,36 @@ test('offline delivery counter that keeps moving is waited for until it complete
  assert.equal(k.records[k.records.length-1].kod,'hazir');
 });
 
+test('counter stuck at 99+ after WhatsApp says synced passes in 10 seconds; anything else keeps the 45 second rule',async()=>{
+ const ornek=async(sayac)=>{const k=hazirlikKur();let reads=0;await k.ctx.sohbetHazirliginiBekle({pupPage:{evaluate:async()=>{reads++;return sayac(reads);}}},{iptal:false},['g'],k.kayit);return {k,reads};};
+ // %99 + senkron tamam: 10 sn
+ let r=await ornek(()=>({bekle:true,neden:'cevrimdisi',ilerleme:99,senkronTamam:true}));
+ assert.equal(r.k.toplamSure(),10000);assert.equal(r.reads,6);
+ assert.deepEqual(r.k.records,[{asama:'hazirlik-bekleniyor',kod:'cevrimdisi',ilerleme:99},{asama:'hazirlik-bitti',kod:'durgun',ilerleme:99}]);
+ // %99 ama senkron tamam bilgisi yok / false: eski 45 sn kurali
+ for(const senkronTamam of [undefined,false]){r=await ornek(()=>({bekle:true,neden:'cevrimdisi',ilerleme:99,senkronTamam}));assert.ok(r.k.toplamSure()>=45000&&r.k.toplamSure()<=50000,'senkronTamam='+senkronTamam+' '+r.k.toplamSure());}
+ // %98 ve altinda: senkron tamam olsa da 45 sn
+ r=await ornek(()=>({bekle:true,neden:'cevrimdisi',ilerleme:98,senkronTamam:true}));assert.ok(r.k.toplamSure()>=45000&&r.k.toplamSure()<=50000,'%98 '+r.k.toplamSure());
+ // once ilerleyip sonra %99da takilirsa sayac %99a gelince 10 sn beklenir
+ r=await ornek((n)=>({bekle:true,neden:'cevrimdisi',ilerleme:n<=3?90:99,senkronTamam:true}));
+ assert.equal(r.k.toplamSure(),16000,'3 okuma %90 (+4 bekleme sonra 4. okumada %99) sonra 10 sn: '+r.k.toplamSure());
+ // 10 sn dolmadan sayac 100e ulasirsa beklemeden devam eder
+ r=await ornek((n)=>n<4?{bekle:true,neden:'cevrimdisi',ilerleme:99,senkronTamam:true}:{bekle:false});
+ assert.equal(r.reads,4);assert.equal(r.k.records[r.k.records.length-1].kod,'hazir');
+});
+
+test('the in-page readiness check reports hasSynced only when WhatsApp explicitly says true',async()=>{
+ const sayfa=(ctx,hasSynced)=>({evaluate:async(fn,arg)=>{
+  ctx.window={require:()=>({Chat:{getModelsArray:()=>[{formattedTitle:'g'}]}}),AuthStore:{AppState:hasSynced===undefined?{}:{hasSynced},OfflineMessageHandler:{getOfflineDeliveryProgress:()=>99}}};
+  return fn(arg);}});
+ for(const [hasSynced,sure] of [[true,10000],[undefined,null],[false,300000]]){
+  const k=hazirlikKur();await k.ctx.sohbetHazirliginiBekle({pupPage:sayfa(k.ctx,hasSynced)},{iptal:false},['g'],k.kayit);
+  if(sure===10000)assert.equal(k.toplamSure(),10000,'hasSynced=true: '+k.toplamSure());
+  else if(sure===null)assert.ok(k.toplamSure()>=45000&&k.toplamSure()<=50000,'bilinmiyor: '+k.toplamSure());
+  else{assert.ok(k.toplamSure()>=298000&&k.toplamSure()<=302000,'senkron tamam degil: '+k.toplamSure());assert.equal(k.records[0].kod,'senkron');}
+ }
+});
+
 test('ready wait has a five minute ceiling for every reason and names the reason',async()=>{
  for(const neden of ['sohbet','senkron']){
   const k=hazirlikKur();
@@ -519,7 +549,7 @@ test('ready wait has a five minute ceiling for every reason and names the reason
 });
 
 test('ready wait limits are configurable and the real call sites pass the diagnostic recorder',()=>{
- const {LIMITS}=require('../operation-policy');assert.equal(LIMITS.hazirlikDurguSaniye,45);assert.equal(LIMITS.hazirlikUstSaniye,300);
+ const {LIMITS}=require('../operation-policy');assert.equal(LIMITS.hazirlikDurguSaniye,45);assert.equal(LIMITS.hazirlikUstSaniye,300);assert.equal(LIMITS.hazirlikKisaDurguSaniye,10);assert.equal(LIMITS.hazirlikKisaEsik,99);
  const source=fs.readFileSync(path.join(__dirname,'../main.js'),'utf8');
  assert.equal((source.match(/sohbetHazirliginiBekle\([^)]*tani\.record\)/g)||[]).length,2);
 });

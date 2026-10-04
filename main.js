@@ -494,6 +494,7 @@ async function sohbetHazirliginiBekle(client, i, secili = [], kayit = () => {}) 
   if (!client.pupPage) return;
   const adim = 2000;
   const durguTur = Math.ceil(LIMITS.hazirlikDurguSaniye * 1000 / adim);
+  const kisaDurguTur = Math.ceil(LIMITS.hazirlikKisaDurguSaniye * 1000 / adim);
   const ustTur = Math.ceil(LIMITS.hazirlikUstSaniye * 1000 / adim);
   let tur = 0, durgun = 0, son = null, beklendi = false, sonuc = 'hazir';
   while (true) {
@@ -503,7 +504,7 @@ async function sohbetHazirliginiBekle(client, i, secili = [], kayit = () => {}) 
       const socket = window.AuthStore?.AppState;
       const progress = window.AuthStore?.OfflineMessageHandler?.getOfflineDeliveryProgress?.();
       if (socket?.hasSynced === false) return { bekle: true, neden: 'senkron' };
-      if (Number.isFinite(progress) && progress > 0 && progress < 100) return { bekle: true, neden: 'cevrimdisi', ilerleme: progress };
+      if (Number.isFinite(progress) && progress > 0 && progress < 100) return { bekle: true, neden: 'cevrimdisi', ilerleme: progress, senkronTamam: socket?.hasSynced === true };
       const hazir = !!chats.length && secim.every(ad => chats.some(chat => (chat.formattedTitle || chat.name || '') === ad));
       return hazir ? { bekle: false } : { bekle: true, neden: 'sohbet' };
     }, secili);
@@ -514,7 +515,9 @@ async function sohbetHazirliginiBekle(client, i, secili = [], kayit = () => {}) 
     durgun = cevrimdisi && d.ilerleme === son ? durgun + 1 : 0;
     son = cevrimdisi ? d.ilerleme : null;
     if (!beklendi) { beklendi = true; kayit('hazirlik-bekleniyor', { kod: d.neden, ...(cevrimdisi ? { ilerleme: d.ilerleme } : {}) }); }
-    if (durgun >= durguTur) { sonuc = 'durgun'; break; }
+    // Sayac %99 ve uzerinde takili kalip WhatsApp "senkron tamam" demisse sayac bitmistir (WhatsApp'in bilinen davranisi): kisa bekleme yeter.
+    const kisa = cevrimdisi && d.senkronTamam === true && d.ilerleme >= LIMITS.hazirlikKisaEsik;
+    if (durgun >= (kisa ? kisaDurguTur : durguTur)) { sonuc = 'durgun'; break; }
     if (tur >= ustTur) { sonuc = 'zaman-asimi'; break; }
     const ayrinti = cevrimdisi ? 'Kapalıyken gelen mesajlar alınıyor: %' + d.ilerleme
       : d.neden === 'senkron' ? 'WhatsApp senkronizasyonu bekleniyor'
