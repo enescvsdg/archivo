@@ -24,7 +24,7 @@ Eski testlerde yapılan değişiklikler: sayfalama testleri güne göre sayfalam
 
 Paketlenmiş Mac arm64 uygulaması (gerçek Electron + gerçek `main.js`/`preload.js`) sahte 497 fotoğraflık arşivle açıldı: sürüm 2.0.1, 31 API işlevi (`hizOnayi`, `onSenkron` dahil); ilk sayfada 7 gün kartı, sayfalama çubuğu görünür (2 sayfa, sayfa başına gün 7 seçili), 2. sayfada kalan 7 gün; Ayarlar’da Telefon Eşlemesi rozeti “Bağlı değil” (gri nokta, QR düğmesi etkin, çıkış pasif); İndirme Hızı varsayılan Yavaş, Orta seçilince açıklama ve uyarı çıkar, “Bitti” ile gerçek ana süreç `ayarlar.json`’a `indirmeHizi: orta` yazar, `durum-al` aynı değeri döndürür, geçersiz değer gerçek `ayar-kaydet` ile Yavaş’a çevrilir; konsolda hata yok. Bu denemeyle uzun klasör yolu hatası bulundu ve düzeltildi (yukarıya bakın); düzeltilmiş pakette yolun satıra sarıldığı gözle de doğrulandı.
 
-GitHub Actions (`v2.0.1` dalı) sonucu gönderildikten sonra eklenecek.
+Üç sistemde otomatik doğrulama: GitHub Actions çalışması https://github.com/enescvsdg/archivo/actions/runs/37235694150 (`v2.0.1` dalı, `daca05b`) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde `pnpm test`, paketleme ve artefakt yükleme adımlarını başarıyla tamamladı (Windows: `Archivo-2.0.1-win-x64.exe`, Mac: `.dmg`/`.zip`). Gerçek Chrome ile çalışan arayüz testleri GitHub’da Chrome for Testing bulunmadığı için atlanır; bunlar yalnızca Mac arm64 üzerinde çalıştırıldı.
 
 ## Doğrulanmadı
 
