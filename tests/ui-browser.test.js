@@ -24,7 +24,7 @@ async function ac(t, secenek = {}) {
   sayfa.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/favicon|Download the Font/i.test(m.text())) hatalar.push(m.type() + ': ' + m.text()); });
   await sayfa.setViewport({ width: secenek.genislik || 1180, height: secenek.yukseklik || 860 });
   const veri = secenek.veri || veriKur(gecici);
-  await sayfa.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch (e) {} });
+  await sayfa.evaluateOnNewDocument((depo) => { try { localStorage.clear(); for (const [k, v] of Object.entries(depo)) localStorage.setItem(k, v); } catch (e) {} }, secenek.depo || {});
   await sayfa.evaluateOnNewDocument(SAHTE_API(veri));
   await sayfa.goto('file://' + path.join(__dirname, '../index.html'));
   await sayfa.waitForSelector('#suzgec:not([hidden])', { timeout: 8000 }).catch(() => {});
@@ -95,7 +95,8 @@ test('grup secince yalniz o grubun fotograflari kalir; gun sayilari filtrelidir;
   await grupSec(h.sayfa, '3.Bölge Şoför ve Operatör');
   const beklenen = h.veri.map((g) => ({ gun: g.gun, n: g.dosyalar.filter((d) => d.grup === '3.Bölge Şoför ve Operatör').length })).filter((g) => g.n > 0);
   const k = await kartlar(h.sayfa);
-  assert.deepEqual(k.map((x) => x.gun), beklenen.map((x) => x.gun));
+  assert.ok(beklenen.length > 7, 'bu grup 7 günden fazlada fotoğraf içermeli (sayfalama denenir)');
+  assert.deepEqual(k.map((x) => x.gun), beklenen.slice(0, 7).map((x) => x.gun), 'ilk sayfada en yeni 7 gün');
   for (const x of k) assert.equal(x.adet, beklenen.find((b) => b.gun === x.gun).n + ' foto');
   assert.equal(k.filter((x) => x.acik).length, 1);
   const baska = await h.sayfa.$$eval('.kare', (l) => l.filter((e) => e._veri.grup !== '3.Bölge Şoför ve Operatör').length);
@@ -103,7 +104,7 @@ test('grup secince yalniz o grubun fotograflari kalir; gun sayilari filtrelidir;
   assert.equal((await h.sayfa.$$('.kare.solgun')).length, 0);
   await foto(h, '03-grup-gorunumu');
   await cipTikla(h.sayfa, 'Tümü');
-  assert.equal((await kartlar(h.sayfa)).length, h.veri.length);
+  assert.equal((await kartlar(h.sayfa)).length, 7);
 });
 
 test('gun karti tiklaninca kapanir ve acilir; kapaninca fotograflar bosaltilir, acinca yeniden cizilir', { skip: ATLA }, async (t) => {
@@ -121,43 +122,77 @@ test('gun karti tiklaninca kapanir ve acilir; kapaninca fotograflar bosaltilir, 
   assert.equal(await h.sayfa.$eval('.bolum:nth-of-type(2) .gun-ac', (e) => e.getAttribute('aria-expanded')), 'true');
 });
 
-test('sayfalama: 250 fotografli gun 100luk sayfada 3 sayfa; ARCHIV + O, marka yazi tipi; Onceki/Sonraki; boyut degisince 5 sayfa', { skip: ATLA }, async (t) => {
+test('genel sayfalama: bir sayfada 7 gun; ARCHIV + O sayfanin en altinda; Sonraki/Onceki; 7-15-30 secimi hatirlanir', { skip: ATLA }, async (t) => {
   const h = await ac(t);
-  await grupSec(h.sayfa, 'Acil Müdahale Ekibi');
-  let k = await kartlar(h.sayfa);
-  assert.equal(k.find((x) => x.gun === '2026-10-02').adet, '250 foto');
-  await h.sayfa.evaluate(() => [...document.querySelectorAll('.bolum')].find((b) => b.dataset.gun === '2026-10-02').querySelector('.gun-ac').click());
-  await bekle(150);
-  const gun = '.bolum[data-gun="2026-10-02"]';
-  assert.equal(await h.sayfa.$$eval(gun + ' .kare', (l) => l.length), 100);
-  assert.equal(await h.sayfa.$$eval(gun + ' .sy', (l) => l.length), 3);
-  assert.equal(await h.sayfa.$eval(gun + ' .sy[aria-current="page"] b', (e) => e.textContent), '1');
-  assert.equal(await h.sayfa.$eval(gun + ' .marka-sayfa .kok', (e) => e.textContent), 'Archiv');
-  assert.match(await h.sayfa.$eval(gun + ' .marka-sayfa', (e) => getComputedStyle(e).fontFamily), /Iceberg/);
-  assert.equal(await h.sayfa.$eval(gun + ' .marka-sayfa', (e) => getComputedStyle(e).textTransform), 'uppercase');
-  assert.equal(await h.sayfa.$(gun + ' [data-git="-1"]'), null, '1. sayfada Önceki olmamalı');
-  assert.ok(await h.sayfa.$(gun + ' [data-git="1"]'));
-  const ilkYol = await h.sayfa.$eval(gun + ' .kare', (e) => e._veri.yol);
-  await h.sayfa.evaluate(() => document.querySelector('.bolum[data-gun="2026-10-02"] .sayfalama').scrollIntoView({ block: 'center' })); await bekle(120);
+  const gunler = h.veri.map((g) => g.gun);
+  assert.equal(gunler.length, 14);
+  assert.deepEqual((await kartlar(h.sayfa)).map((x) => x.gun), gunler.slice(0, 7));
+  assert.equal(await h.sayfa.$eval('#sayfalama', (e) => e.hidden), false);
+  assert.equal(await h.sayfa.$$eval('#sayfalama .sy', (l) => l.length), 2);
+  assert.equal(await h.sayfa.$eval('#sayfalama .sy[aria-current="page"] b', (e) => e.textContent), '1');
+  assert.equal(await h.sayfa.$eval('#sayfalama .marka-sayfa .kok', (e) => e.textContent), 'Archiv');
+  assert.match(await h.sayfa.$eval('#sayfalama .marka-sayfa', (e) => getComputedStyle(e).fontFamily), /Iceberg/);
+  assert.equal(await h.sayfa.$eval('#sayfalama .marka-sayfa', (e) => getComputedStyle(e).textTransform), 'uppercase');
+  assert.deepEqual(await h.sayfa.$$eval('#sayfalama [data-boy]', (l) => l.map((e) => e.dataset.boy + ':' + e.getAttribute('aria-pressed'))), ['7:true', '15:false', '30:false']);
+  assert.equal(await h.sayfa.$('#sayfalama [data-git="-1"]'), null, '1. sayfada Önceki olmamalı');
+  assert.ok(await h.sayfa.$('#sayfalama [data-git="1"]'));
+  assert.equal(await h.sayfa.$('.bolum .sayfalama'), null, 'gün kartı içinde sayfalama kalmamalı');
+  // pager, son kartin altinda (sayfanin sonunda) ve ekran iceriginin icinde
+  const yer = await h.sayfa.evaluate(() => { const son = [...document.querySelectorAll('.bolum')].pop().getBoundingClientRect(); const p = document.getElementById('sayfalama').getBoundingClientRect(); return { pAlt: p.top - son.bottom }; });
+  assert.ok(yer.pAlt >= 0, 'sayfalama son kartın altında olmalı');
+  await h.sayfa.evaluate(() => document.getElementById('sayfalama').scrollIntoView({ block: 'center' })); await bekle(120);
   await foto(h, '04-sayfalama-1');
-  await tikla(h.sayfa, gun + ' [data-git="1"]');
-  assert.equal(await h.sayfa.$eval(gun + ' .sy[aria-current="page"] b', (e) => e.textContent), '2');
-  assert.notEqual(await h.sayfa.$eval(gun + ' .kare', (e) => e._veri.yol), ilkYol);
-  assert.ok(await h.sayfa.$(gun + ' [data-git="-1"]'));
-  await tikla(h.sayfa, gun + ' .sy[data-sayfa="3"]');
-  assert.equal(await h.sayfa.$$eval(gun + ' .kare', (l) => l.length), 50, 'son sayfada 50 fotoğraf');
-  assert.equal(await h.sayfa.$(gun + ' [data-git="1"]'), null, 'son sayfada Sonraki olmamalı');
-  await h.sayfa.evaluate(() => document.querySelector('.bolum[data-gun="2026-10-02"] .sayfalama').scrollIntoView({ block: 'center' })); await bekle(120);
-  await foto(h, '05-sayfalama-3');
-  await tikla(h.sayfa, gun + ' [data-boy="50"]');
-  assert.equal(await h.sayfa.$$eval(gun + ' .sy', (l) => l.length), 5);
-  assert.equal(await h.sayfa.$eval(gun + ' .sy[aria-current="page"] b', (e) => e.textContent), '1');
-  assert.equal(await h.sayfa.evaluate(() => localStorage.getItem('archivo.sayfaBoyu')), '50');
+  await tikla(h.sayfa, '#sayfalama [data-git="1"]');
+  assert.deepEqual((await kartlar(h.sayfa)).map((x) => x.gun), gunler.slice(7), '2. sayfada kalan günler');
+  assert.equal((await kartlar(h.sayfa)).filter((x) => x.acik).length, 1, 'her sayfada yalnız en yeni gün açık');
+  assert.equal(await h.sayfa.$eval('#sayfa', (e) => e.scrollTop), 0, 'sayfa değişince liste başa döner');
+  assert.equal(await h.sayfa.$eval('#sayfalama .sy[aria-current="page"] b', (e) => e.textContent), '2');
+  assert.equal(await h.sayfa.$('#sayfalama [data-git="1"]'), null, 'son sayfada Sonraki olmamalı');
+  assert.ok(await h.sayfa.$('#sayfalama [data-git="-1"]'));
+  await foto(h, '05-sayfalama-2');
+  await tikla(h.sayfa, '#sayfalama .sy[data-sayfa="1"]');
+  assert.deepEqual((await kartlar(h.sayfa)).map((x) => x.gun), gunler.slice(0, 7));
+  // 15: iki sayfa tek sayfaya sigar; secim her zaman gorunur kalir
+  await tikla(h.sayfa, '#sayfalama [data-boy="15"]');
+  assert.equal((await kartlar(h.sayfa)).length, 14);
+  assert.equal(await h.sayfa.$eval('#sayfalama', (e) => e.hidden), false, 'gün sayısı 7den fazlaysa seçim görünür kalmalı');
+  assert.equal(await h.sayfa.$$eval('#sayfalama .sy', (l) => l.length), 0, 'tek sayfada numara yok');
+  assert.equal(await h.sayfa.evaluate(() => localStorage.getItem('archivo.gunBoyu')), '15');
+  await tikla(h.sayfa, '#sayfalama [data-boy="7"]');
+  assert.equal((await kartlar(h.sayfa)).length, 7);
+  assert.equal(await h.sayfa.$$eval('#sayfalama .sy', (l) => l.length), 2);
 });
 
-test('50den az fotografli gunde sayfalama gorunmez', { skip: ATLA }, async (t) => {
+test('genel sayfalama: secilen gun boyu yeniden acilista hatirlanir; gecersiz kayit 7ye doner', { skip: ATLA }, async (t) => {
+  const on = await ac(t, { depo: { 'archivo.gunBoyu': '15' } });
+  assert.equal((await kartlar(on.sayfa)).length, 14);
+  assert.equal(await on.sayfa.$eval('#sayfalama [data-boy="15"]', (e) => e.getAttribute('aria-pressed')), 'true');
+  const otuz = await ac(t, { depo: { 'archivo.gunBoyu': '30' } });
+  assert.equal((await kartlar(otuz.sayfa)).length, 14);
+  const bozuk = await ac(t, { depo: { 'archivo.gunBoyu': '99' } });
+  assert.equal((await kartlar(bozuk.sayfa)).length, 7);
+  assert.equal(await bozuk.sayfa.$eval('#sayfalama [data-boy="7"]', (e) => e.getAttribute('aria-pressed')), 'true');
+});
+
+test('genel sayfalama: 7 gun ve altinda gorunmez, 8 gunde gorunur; kisa sayfada pencerenin dibine yaslanir; gun karti tum fotograflarini tek seferde gosterir', { skip: ATLA }, async (t) => {
+  const veri = veriKur(gecici);
+  const yedi = await ac(t, { veri: veri.slice(0, 7) });
+  assert.equal(await yedi.sayfa.$eval('#sayfalama', (e) => e.hidden), true);
+  assert.equal((await kartlar(yedi.sayfa)).length, 7);
+  const sekiz = await ac(t, { veri: veri.slice(0, 8), yukseklik: 1300 });
+  assert.equal(await sekiz.sayfa.$eval('#sayfalama', (e) => e.hidden), false);
+  await tikla(sekiz.sayfa, '#sayfalama [data-git="1"]');
+  assert.equal((await kartlar(sekiz.sayfa)).length, 1);
+  const alt = await sekiz.sayfa.evaluate(() => { const s = document.getElementById('sayfa'); const p = document.getElementById('sayfalama').getBoundingClientRect(); const r = s.getBoundingClientRect(); return { bosluk: r.bottom - p.bottom, kart: document.querySelector('.bolum').getBoundingClientRect().bottom < p.top }; });
+  assert.ok(Math.abs(alt.bosluk - 156) <= 4, 'kısa sayfada sayfalama pencerenin dibine yaslanmalı (alt bar payı ~156px): ' + alt.bosluk);
+  assert.equal(alt.kart, true);
+  await foto(sekiz, '04b-sayfalama-kisa');
+  // 250 fotografli gun: kart icinde sayfalama yok, hepsi tek seferde
   const h = await ac(t);
-  assert.equal(await h.sayfa.$eval('.bolum .sayfalama', (e) => e.hidden), true);
+  await grupSec(h.sayfa, 'Acil Müdahale Ekibi');
+  await h.sayfa.evaluate(() => [...document.querySelectorAll('.bolum')].find((b) => b.dataset.gun === '2026-10-02').querySelector('.gun-ac').click());
+  await bekle(200);
+  assert.equal(await h.sayfa.$$eval('.bolum[data-gun="2026-10-02"] .kare', (l) => l.length), 250);
 });
 
 test('takvim: fotografli gunler isaretli, iki tikla aralik secilir, tek gun, kisayollar ve temizleme', { skip: ATLA }, async (t) => {
@@ -178,7 +213,7 @@ test('takvim: fotografli gunler isaretli, iki tikla aralik secilir, tek gun, kis
   assert.equal(await h.sayfa.$eval('#tarihSatiri .cp.temizle .ad', (e) => e.textContent), '01.10.2026 – 03.10.2026');
   await foto(h, '07-aralik');
   await tikla(h.sayfa, '#tarihSatiri .cp.temizle');
-  assert.equal((await kartlar(h.sayfa)).length, h.veri.length);
+  assert.equal((await kartlar(h.sayfa)).length, 7);
   await cipTikla(h.sayfa, 'Son 7 gün');
   assert.deepEqual((await kartlar(h.sayfa)).map((x) => x.gun), ['2026-10-03', '2026-10-02', '2026-10-01', '2026-09-30', '2026-09-29', '2026-09-28', '2026-09-27'].filter((g) => h.veri.some((d) => d.gun === g)));
   await cipTikla(h.sayfa, 'Bugün');
@@ -209,7 +244,7 @@ test('arama: eslesmeyen gizlenir, hic eslesme yoksa bos mesaji ve Filtreleri tem
   assert.equal(await h.sayfa.$eval('#bosFiltre', (e) => e.hidden), false);
   await tikla(h.sayfa, '#filtreTemizle');
   assert.equal(await h.sayfa.$eval('#arama', (e) => e.value), '');
-  assert.equal((await kartlar(h.sayfa)).length, h.veri.length);
+  assert.equal((await kartlar(h.sayfa)).length, 7);
 });
 
 test('silme: grup gorunumunde (gun, grup), Tumu gorunumunde (gun, null) gonderilir ve liste yenilenir', { skip: ATLA }, async (t) => {
@@ -242,7 +277,7 @@ test('surukle-birak: grup duğmeleri yer degistirir, sira kaydedilir; duğmeden 
   assert.equal(sonra[2], once[0], 'ilk grup üçüncü sıraya taşınmalı');
   assert.deepEqual(JSON.parse(await h.sayfa.evaluate(() => localStorage.getItem('archivo.grupSirasi'))).slice(0, sonra.length), sonra);
   assert.equal(await h.sayfa.$$eval('#sabitCipler .cp.on, #sabitCipler .cp[aria-pressed="true"]', (l) => l.length), 1, 'sürükleme grup seçmemeli');
-  assert.equal((await kartlar(h.sayfa)).length, h.veri.length);
+  assert.equal((await kartlar(h.sayfa)).length, 7);
   // karttan listeye: son gorunur grubu listeye birak
   const gorunurOnce = (await sira()).length;
   await cipTikla(h.sayfa, 'Gruplar'); await bekle(150);
@@ -280,25 +315,25 @@ test('Gruplar listesi: aranabilir, listeden grup secilir ve Gruplar dugmesi seci
   assert.equal(await h.sayfa.$$eval('.kare', (l, g) => l.filter((e) => e._veri.grup !== g).length, secilen.g), 0);
 });
 
-test('buyuk onizleme: gorunumdeki fotograflar arasinda gezer; kapatinca kart o fotografin sayfasina gecer', { skip: ATLA }, async (t) => {
+test('buyuk onizleme: gorunumdeki tum sayfalardaki fotograflar arasinda gezer; kapatinca liste o fotografin gunune (sayfasina) gecer', { skip: ATLA }, async (t) => {
   const h = await ac(t);
-  await grupSec(h.sayfa, 'Acil Müdahale Ekibi');
-  await h.sayfa.evaluate(() => [...document.querySelectorAll('.bolum')].find((b) => b.dataset.gun === '2026-10-02').querySelector('.gun-ac').click()); await bekle(150);
-  const gun = '.bolum[data-gun="2026-10-02"]';
-  await tikla(h.sayfa, gun + ' .sy[data-sayfa="2"]');
-  const yol = await h.sayfa.$eval(gun + ' .kare', (e) => e._veri.yol);
-  await tikla(h.sayfa, gun + ' .kare');
+  const ilkSayfaFoto = h.veri.slice(0, 7).reduce((n, g) => n + g.dosyalar.length, 0);
+  const sekizinci = h.veri[7];
+  await tikla(h.sayfa, '.bolum .kare');
   assert.equal(await h.sayfa.$eval('#buyukKatman', (e) => e.hidden), false);
-  assert.match(await h.sayfa.$eval('#buyukBilgi', (e) => e.textContent), /Acil Müdahale Ekibi/);
-  assert.match(await h.sayfa.$eval('#buyukBilgi span', (e) => e.textContent), /2 Ekim 2026/);
-  assert.equal((await h.sayfa.$eval('#buyukResim', (e) => e.src)).includes(encodeURIComponent(path.basename(yol))), true);
+  assert.match(await h.sayfa.$eval('#buyukBilgi span', (e) => e.textContent), /3 Ekim 2026/);
+  assert.match(await h.sayfa.$eval('#buyukBilgi span', (e) => e.textContent), new RegExp('1/' + h.veri.reduce((n, g) => n + g.dosyalar.length, 0)), 'oklar yalnız sayfadakileri değil görünümdeki tüm fotoğrafları gezer');
   await foto(h, '10-buyuk-onizleme');
-  for (let n = 0; n < 120; n++) await h.sayfa.keyboard.press('ArrowRight');
+  await h.sayfa.evaluate((n) => { for (let i = 0; i < n; i++) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); }, ilkSayfaFoto);
   await bekle(100);
+  assert.match(await h.sayfa.$eval('#buyukBilgi span', (e) => e.textContent), new RegExp(sekizinci.gun.split('-').reverse()[0].replace(/^0/, '') + ' '), 'sıra 2. sayfanın ilk gününe geçmiş olmalı');
   await h.sayfa.keyboard.press('Escape'); await bekle(250);
   assert.equal(await h.sayfa.$eval('#buyukKatman', (e) => e.hidden), true);
-  const sayfa = await h.sayfa.$eval(gun + ' .sy[aria-current="page"] b', (e) => e.textContent);
-  assert.equal(sayfa, '3', '2. sayfanın ilk fotoğrafından (sıra 100) 120 ilerleyince sıra 220 = 3. sayfa');
+  assert.equal(await h.sayfa.$eval('#sayfalama .sy[aria-current="page"] b', (e) => e.textContent), '2', 'kapatınca fotoğrafın günü hangi sayfadaysa o sayfa açılmalı');
+  const k = await kartlar(h.sayfa);
+  assert.equal(k[0].gun, sekizinci.gun);
+  assert.equal(k.find((x) => x.gun === sekizinci.gun).acik, true, 'o günün kartı açık gelmeli');
+  assert.ok(k.find((x) => x.gun === sekizinci.gun).kare > 0);
 });
 
 test('canli indirme: yeni fotograf dogru kartin basina eklenir, sayaclar ve takvim guncellenir', { skip: ATLA }, async (t) => {
@@ -329,7 +364,7 @@ test('tum dugmeler ikon ustte ad altta: ikon karosu ve etiket var; ayarlar panel
   const eksik = await h.sayfa.evaluate(() => [...document.querySelectorAll('button.dg')].filter((b) => !b.querySelector('.tl svg use') || !b.querySelector('span:last-child').textContent.trim()).map((b) => b.id || b.className));
   assert.deepEqual(eksik, []);
   assert.ok(await h.sayfa.evaluate(() => document.querySelectorAll('button.dg').length) >= 15);
-  const metinDugmeleri = await h.sayfa.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !b.classList.contains('dg') && !b.querySelector('svg') && !b.classList.contains('anahtar') && !b.classList.contains('cp') && !b.classList.contains('tk-gun') && !b.classList.contains('tk-ok') && !b.classList.contains('sy') && !b.classList.contains('snb') && !b.classList.contains('gun-ac') && !b.classList.contains('kare') && !b.classList.contains('gun-secenek') && !b.classList.contains('grupsatir') && !b.id.match(/^(topla|yol)$/)).map((b) => b.id || b.className));
+  const metinDugmeleri = await h.sayfa.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !b.classList.contains('dg') && !b.querySelector('svg') && !b.classList.contains('anahtar') && !b.classList.contains('cp') && !b.classList.contains('tk-gun') && !b.classList.contains('tk-ok') && !b.classList.contains('sy') && !b.classList.contains('snb') && !b.dataset.boy && !b.classList.contains('gun-ac') && !b.classList.contains('kare') && !b.classList.contains('gun-secenek') && !b.classList.contains('grupsatir') && !b.id.match(/^(topla|yol)$/)).map((b) => b.id || b.className));
   assert.deepEqual(metinDugmeleri, [], 'yalnızca yazıdan oluşan düğme kalmamalı');
   await tikla(h.sayfa, '#ayarAc'); await bekle(300);
   assert.equal(await h.sayfa.$eval('#ayarKatman', (e) => e.hidden), false);
@@ -374,6 +409,48 @@ test('hata yazilari: yeni calisma baslayinca silinir, Kapat ile elle kapatilir, 
   assert.equal(await say(), 0);
 });
 
+test('hata yazilari yalniz Tumu gorunumunde gorunur, grup sayfalarinda gizlenir ve sure orada islemez', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  const gorunur = () => h.sayfa.$$eval('#sayfa .uyari', (l) => l.filter((e) => !e.hidden && e.offsetParent !== null).length);
+  const var_ = () => h.sayfa.$$eval('#sayfa .uyari', (l) => l.length);
+  await h.sayfa.evaluate(() => window.__cb.onHata('Grup sayfasında görünmemeli'));
+  assert.equal(await gorunur(), 1, 'Tümü sayfasında görünür');
+  await grupSec(h.sayfa, '3.Bölge Şoför ve Operatör');
+  assert.equal(await var_(), 1, 'grup sayfasında silinmez, yalnız gizlenir');
+  assert.equal(await gorunur(), 0, 'grup sayfasında görünmemeli');
+  await h.sayfa.evaluate(() => window.__cb.onHata('Grupta gelen hata'));
+  assert.equal(await gorunur(), 0, 'grup sayfasında yeni gelen de görünmemeli');
+  await cipTikla(h.sayfa, 'Tümü');
+  assert.equal(await gorunur(), 2, 'Tümü sayfasına dönünce ikisi de görünür');
+  await foto(h, '12-hata-yazilari');
+});
+
+test('hata yazilari belirli sure sonra kendiliginden kaybolur; sure grup sayfasinda gezerken dolmaz', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  const say = () => h.sayfa.$$eval('#sayfa .uyari', (l) => l.length);
+  assert.equal(await h.sayfa.evaluate(() => uyariSuresi), 30000, 'varsayılan süre 30 saniye');
+  await h.sayfa.evaluate(() => { uyariSuresi = 700; });
+  await h.sayfa.evaluate(() => window.__cb.onHata('Kısa ömürlü'));
+  assert.equal(await say(), 1);
+  await bekle(250);
+  assert.equal(await say(), 1, 'süre dolmadan kaybolmamalı');
+  await bekle(800);
+  assert.equal(await say(), 0, 'süre dolunca kaybolmalı');
+  // grupta gezerken sayac durur
+  await h.sayfa.evaluate(() => window.__cb.onHata('Beklemede'));
+  await bekle(250);
+  await grupSec(h.sayfa, '3.Bölge Şoför ve Operatör');
+  await bekle(1000);
+  assert.equal(await say(), 1, 'grup sayfasındayken süre işlememeli');
+  await cipTikla(h.sayfa, 'Tümü');
+  assert.equal(await h.sayfa.$$eval('#sayfa .uyari', (l) => l.filter((e) => !e.hidden).length), 1);
+  await bekle(200);
+  assert.equal(await say(), 1, 'kalan süre (~450 ms) dolmadan kaybolmamalı');
+  await bekle(600);
+  assert.equal(await say(), 0, 'kalan süre dolunca kaybolmalı');
+  assert.deepEqual(h.hatalar, []);
+});
+
 test('kapali acilir pencereler gercekten gorunmez (hidden niteligi CSS ile ezilmemeli)', { skip: ATLA }, async (t) => {
   const h = await ac(t);
   const goruntu = await h.sayfa.evaluate(() => ['grupPopover', 'takvimPopover', 'bosFiltre', 'fotoMenu', 'buyukKatman', 'ayarKatman', 'qrKatman', 'syncKatman', 'islemPanel'].map((id) => [id, getComputedStyle(document.getElementById(id)).display]));
@@ -397,9 +474,7 @@ test('gun basligi yapiskan: kaydirinca filtre kartinin hemen altinda kalir, doga
 
 test('sayfalama yazisi markadaki gibi noktasiz I ile yazilir (Turkce buyuk harf kurali uygulanmaz)', { skip: ATLA }, async (t) => {
   const h = await ac(t);
-  await grupSec(h.sayfa, 'Acil Müdahale Ekibi');
-  await tikla(h.sayfa, '.bolum[data-gun="2026-10-02"] .gun-ac');
-  const buyuk = await h.sayfa.$eval('.bolum[data-gun="2026-10-02"] .marka-sayfa .kok', (e) => { const r = document.createRange(); r.selectNodeContents(e); return e.innerText; });
+  const buyuk = await h.sayfa.$eval('#sayfalama .marka-sayfa .kok', (e) => e.innerText);
   assert.equal(buyuk, 'ARCHIV');
 });
 

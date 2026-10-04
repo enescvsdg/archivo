@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-Tab48EfbPf0/6vxqTkyZf5lVqsp02g9ZLg0kSETEfXo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-vYZ1xyQCZdwYvXzkgrPqrGtp6F+gKaUFWUNs6XqSIS4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -243,7 +243,11 @@
     padding-bottom: 150px;
     /* ust bosluk seridin ve suzgecin gercek yuksekligine gore hesaplanir */
     padding-top: calc(12px + var(--tepe-yuk, 50px) + var(--suzgec-yuk, 0px) + 18px);
+    /* kisa listede sayfalama cubugu pencerenin dibine yaslanir (margin-top:auto), uzun listede listenin sonunda durur */
+    display: flex;
+    flex-direction: column;
   }
+  #sayfa > * { flex: none; }
 
   #sayfa::-webkit-scrollbar { width: 10px; }
   #sayfa::-webkit-scrollbar-thumb {
@@ -839,6 +843,7 @@
   .izgara { margin-top: 12px; }
 
   .uyari { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .uyari[hidden] { display: none; }
   .uyari-metin { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .uyari .dg { flex: none; color: var(--yazi); }
 
@@ -882,7 +887,7 @@
 
   /* ================= sayfalama: ARCHIV + O ================= */
 
-  .sayfalama { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 14px 0 6px; padding: 12px 18px; border-radius: 24px; }
+  .sayfalama { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: auto 0 6px; padding: 12px 18px; border-radius: 24px; }
   .sayfalama[hidden] { display: none; }
   .sb { display: flex; align-items: center; gap: 9px; padding-top: 14px; font-size: 12px; color: var(--yazi-yumusak); }
   .seg { display: inline-flex; padding: 3px; border-radius: 12px; background: rgba(0,0,0,0.36); box-shadow: inset 0 1px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.08); }
@@ -989,6 +994,7 @@
 <div id="takvimPopover" class="acilir" hidden role="dialog" aria-label="Tarih seç"></div>
 
 <main id="sayfa">
+  <div id="uyariAlani"></div>
   <div class="bos" id="bos">
     <svg class="amblem amblem-buyuk" viewBox="0 0 64 64" aria-hidden="true">
       <defs>
@@ -1012,6 +1018,7 @@
     Topla dediğinde gruplara düşen fotoğraflar inecek ve geldiği günün klasörüne yerleşecek.
   </div>
   <div class="bos-filtre cam" id="bosFiltre" hidden><span>Bu filtreyle eşleşen fotoğraf yok.</span><button class="dg" id="filtreTemizle"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-filter-off"/></svg></span><span>Filtreleri temizle</span></button></div>
+  <nav class="sayfalama cam" id="sayfalama" aria-label="Sayfalama" hidden></nav>
 </main>
 
 <div id="alt" class="cam">
@@ -1232,7 +1239,7 @@
 
   const kacis = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ikon = (ad, sinif = 'ik k') => '<svg class="' + sinif + '" aria-hidden="true"><use href="#i-' + ad + '"/></svg>';
-  const SAYFA_BOYLARI = [50, 100, 200];
+  const GUN_BOYLARI = [7, 15, 30];
   const BAGLAC = new Set(['ve', 'ile', 'veya', 'de', 'da', 'ki', 'mi', 'mı', 'mu', 'mü']);
   const SURUKLE_ESIK = 6;
 
@@ -1241,7 +1248,9 @@
     try { const v = JSON.parse(localStorage.getItem('archivo.' + ad)); return v == null ? varsayilan : v; } catch (e) { return varsayilan; }
   }
   function tercihYaz(ad, deger) { try { localStorage.setItem('archivo.' + ad, JSON.stringify(deger)); } catch (e) {} }
-  let sayfaBoyu = (() => { const v = Number(tercihOku('sayfaBoyu', 100)); return SAYFA_BOYLARI.includes(v) ? v : 100; })();
+  // Genel sayfalama GUNE gore: bir sayfada gunBoyu kadar gun karti (varsayilan 7); secim Tumu ve gruplarda ortaktir, hatirlanir.
+  let gunBoyu = (() => { const v = Number(tercihOku('gunBoyu', 7)); return GUN_BOYLARI.includes(v) ? v : 7; })();
+  let genelSayfa = 1;
   let grupSirasi = (() => { const v = tercihOku('grupSirasi', []); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; })();
 
   // WhatsApp'ta buyuk/kucuk karisik yazilan grup adlarini tek bir standarda getirir (yalniz gorunum; diskteki adlar degismez):
@@ -1608,11 +1617,22 @@
   window.addEventListener('resize', () => { clearTimeout(yenidenZamani); yenidenZamani = setTimeout(() => { if (toplamFoto()) suzgeciKur(); }, 120); });
 
   // ---- gun kartlari ----
-  // Kullanici bir gruba/Tumu'ye girince yalniz en yeni gun acik gelir (aramada ilk 3 gun).
-  function varsayilanAcilis(gunler = gorunumGunleri()) {
+  // Genel sayfalama: gorunumdeki gunler gunBoyu'luk sayfalara bolunur; yalniz bulunulan sayfanin kartlari cizilir.
+  const sayfaSayisiOlc = (gunSayisi) => Math.max(1, Math.ceil(gunSayisi / gunBoyu));
+  function sayfaGunleri(gunler = gorunumGunleri()) {
+    genelSayfa = Math.min(Math.max(1, genelSayfa), sayfaSayisiOlc(gunler.length));
+    return gunler.slice((genelSayfa - 1) * gunBoyu, genelSayfa * gunBoyu);
+  }
+  // Sayfadaki yalniz en yeni gun acik gelir (aramada ilk 3 gun).
+  function sayfaAcilisiKur(gunler = gorunumGunleri()) {
     kartDurum.clear();
     const kac = gorunum.arama.trim() ? 3 : 1;
-    gunler.forEach((g, i) => kartDurum.set(g.gun, { acik: i < kac, sayfa: 1 }));
+    sayfaGunleri(gunler).forEach((g, i) => kartDurum.set(g.gun, { acik: i < kac }));
+  }
+  // Kullanici bir gruba/Tumu'ye girince, filtre ya da arama degisince 1. sayfadan baslanir.
+  function varsayilanAcilis(gunler = gorunumGunleri()) {
+    genelSayfa = 1;
+    sayfaAcilisiKur(gunler);
   }
   function kareKur(d, gun) {
     const kare = document.createElement('button');
@@ -1641,37 +1661,42 @@
     });
     return kare;
   }
-  function sayfalamaCiz(k, toplam, sayfaSayisi, sayfa) {
-    const el = k.sayfalama;
-    if (toplam <= SAYFA_BOYLARI[0]) { el.hidden = true; el.innerHTML = ''; return; }
+  // Sayfanin en altindaki genel sayfalama: toplam gun sayisi en kucuk secenegi (7) asmiyorsa gorunmez; asinca secim her zaman gorunur.
+  function sayfalamaCiz(toplamGun) {
+    const el = $('sayfalama');
+    if (toplamGun <= GUN_BOYLARI[0]) { el.hidden = true; el.innerHTML = ''; return; }
+    const sayfaSayisi = sayfaSayisiOlc(toplamGun);
     el.hidden = false;
-    let html = '<div class="sb">Sayfa başına <span class="seg">' + SAYFA_BOYLARI.map((n) => '<button data-boy="' + n + '" aria-pressed="' + (n === sayfaBoyu) + '">' + n + '</button>').join('') + '</span></div>';
+    let html = '<div class="sb">Sayfa başına gün <span class="seg">' + GUN_BOYLARI.map((n) => '<button data-boy="' + n + '" aria-pressed="' + (n === gunBoyu) + '">' + n + '</button>').join('') + '</span></div>';
     if (sayfaSayisi > 1) {
       html += '<div class="marka-sayfa" lang="en" role="navigation" aria-label="Sayfalar"><span class="kok">Archiv</span>' +
-        sayfaNumaralari(sayfa, sayfaSayisi).map((n) => '<button class="sy" data-sayfa="' + n + '" aria-label="Sayfa ' + n + '"' + (n === sayfa ? ' aria-current="page"' : '') + '><span>o</span><b>' + n + '</b></button>').join('') + '</div>';
-      html += '<div class="sn">' + (sayfa > 1 ? '<button class="snb" data-git="-1">' + ikon('chevron-left', 'ik') + 'Önceki</button>' : '') + (sayfa < sayfaSayisi ? '<button class="snb" data-git="1">Sonraki' + ikon('chevron-right', 'ik') + '</button>' : '') + '</div>';
+        sayfaNumaralari(genelSayfa, sayfaSayisi).map((n) => '<button class="sy" data-sayfa="' + n + '" aria-label="Sayfa ' + n + '"' + (n === genelSayfa ? ' aria-current="page"' : '') + '><span>o</span><b>' + n + '</b></button>').join('') + '</div>';
+      html += '<div class="sn">' + (genelSayfa > 1 ? '<button class="snb" data-git="-1">' + ikon('chevron-left', 'ik') + 'Önceki</button>' : '') + (genelSayfa < sayfaSayisi ? '<button class="snb" data-git="1">Sonraki' + ikon('chevron-right', 'ik') + '</button>' : '') + '</div>';
     }
     el.innerHTML = html;
   }
+  $('sayfalama').addEventListener('click', (e) => {
+    const t = e.target.closest ? e.target.closest('[data-boy],[data-sayfa],[data-git]') : null;
+    if (!t) return;
+    if (t.dataset.boy) boyDegistir(Number(t.dataset.boy));
+    else if (t.dataset.sayfa) sayfayaGit(Number(t.dataset.sayfa));
+    else if (t.dataset.git) sayfayaGit(genelSayfa + Number(t.dataset.git));
+  });
   function govdeCiz(k) {
-    const d = kartDurum.get(k.gun);
-    const toplam = k.dosyalar.length;
-    const sayfaSayisi = Math.max(1, Math.ceil(toplam / sayfaBoyu));
-    d.sayfa = Math.min(Math.max(1, d.sayfa), sayfaSayisi);
     for (const c of k.izgara.children || []) gozcu.unobserve(c);
     k.izgara.innerHTML = '';
-    for (const v of k.dosyalar.slice((d.sayfa - 1) * sayfaBoyu, d.sayfa * sayfaBoyu)) k.izgara.append(kareKur(v, k.gun));
+    for (const v of k.dosyalar) k.izgara.append(kareKur(v, k.gun));
     k.cizildi = true;
-    sayfalamaCiz(k, toplam, sayfaSayisi, d.sayfa);
   }
-  function sayfayaGit(k, n) {
-    kartDurum.get(k.gun).sayfa = n;
-    govdeCiz(k);
-    if (k.bolum.scrollIntoView) k.bolum.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  function sayfayaGit(n) {
+    genelSayfa = n;
+    sayfaAcilisiKur();
+    kartlariCiz();
+    $('sayfa').scrollTop = 0;
   }
   function boyDegistir(n) {
-    sayfaBoyu = n; tercihYaz('sayfaBoyu', n);
-    for (const [gun, k] of kartlar) { const d = kartDurum.get(gun); d.sayfa = 1; if (d.acik) govdeCiz(k); }
+    gunBoyu = n; tercihYaz('gunBoyu', n);
+    sayfayaGit(1);
   }
   function kartAcKapat(k, ac) {
     const d = kartDurum.get(k.gun);
@@ -1688,7 +1713,7 @@
       k.bosaltmaZamani = setTimeout(() => {
         if (kartDurum.get(k.gun).acik) return;
         for (const c of k.izgara.children || []) gozcu.unobserve(c);
-        k.izgara.innerHTML = ''; k.sayfalama.innerHTML = ''; k.cizildi = false;
+        k.izgara.innerHTML = ''; k.cizildi = false;
       }, 380);
     }
   }
@@ -1705,22 +1730,14 @@
     const govde = document.createElement('div'); govde.className = 'govde';
     const ic = document.createElement('div'); ic.className = 'ic';
     const izgara = document.createElement('div'); izgara.className = 'izgara';
-    const sayfalama = document.createElement('div'); sayfalama.className = 'sayfalama cam'; sayfalama.hidden = true;
-    ic.append(izgara, sayfalama); govde.append(ic); bolum.append(bas, govde);
+    ic.append(izgara); govde.append(ic); bolum.append(bas, govde);
     const [ac, sil] = [...bas.children];
-    const k = { gun: g.gun, bolum, ac, izgara, sayfalama, adet: ac.children[2], dosyalar: g.dosyalar, cizildi: false, bosaltmaZamani: 0 };
+    const k = { gun: g.gun, bolum, ac, izgara, adet: ac.children[2], dosyalar: g.dosyalar, cizildi: false, bosaltmaZamani: 0 };
     ac.addEventListener('click', () => kartAcKapat(k));
     sil.addEventListener('click', async () => {
       if (calisiyor) return;
       try { const sonuc = await window.api.gunSil(g.gun, gorunum.grup); if (sonuc.silindi) await arsiviYenile({ konumuKoru: true }); }
       catch (e) { await arsiviYenile({ konumuKoru: true }); $('ozet').textContent = e.message; }
-    });
-    sayfalama.addEventListener('click', (e) => {
-      const t = e.target.closest ? e.target.closest('[data-boy],[data-sayfa],[data-git]') : null;
-      if (!t) return;
-      if (t.dataset.boy) boyDegistir(Number(t.dataset.boy));
-      else if (t.dataset.sayfa) sayfayaGit(k, Number(t.dataset.sayfa));
-      else if (t.dataset.git) sayfayaGit(k, kartDurum.get(k.gun).sayfa + Number(t.dataset.git));
     });
     if (durum.acik) govdeCiz(k);
     return k;
@@ -1728,16 +1745,19 @@
   function kartlariCiz() {
     for (const k of kartlar.values()) k.bolum.remove();
     kartlar.clear();
-    const gunler = gorunumGunleri();
+    const tumGunler = gorunumGunleri();
+    const gunler = sayfaGunleri(tumGunler);
     const var_ = toplamFoto() > 0;
     $('bos').style.display = var_ ? 'none' : '';
-    $('bosFiltre').hidden = !(var_ && gunler.length === 0);
+    $('bosFiltre').hidden = !(var_ && tumGunler.length === 0);
     for (const g of gunler) {
-      if (!kartDurum.has(g.gun)) kartDurum.set(g.gun, { acik: false, sayfa: 1 });
+      if (!kartDurum.has(g.gun)) kartDurum.set(g.gun, { acik: false });
       const k = kartKur(g);
       kartlar.set(g.gun, k);
-      $('sayfa').append(k.bolum);
+      $('sayfalama').before(k.bolum);
     }
+    sayfalamaCiz(tumGunler.length);
+    uyarilariDuzenle();
   }
 
   // ---- veri: listeleme, yenileme, canli ekleme ----
@@ -1757,7 +1777,7 @@
     suzgeciKur();
     const onceki = new Map(kartDurum);
     kartDurum.clear();
-    gorunumGunleri().forEach((g, i) => kartDurum.set(g.gun, onceki.get(g.gun) || { acik: i === 0, sayfa: 1 }));
+    sayfaGunleri().forEach((g, i) => kartDurum.set(g.gun, onceki.get(g.gun) || { acik: i === 0 }));
     kartlariCiz();
     $('sayfa').scrollTop = konumuKoru ? konum : 0;
   }
@@ -1772,7 +1792,7 @@
     const g = gunler.find((x) => x.gun === d.gun);
     const k = kartlar.get(d.gun);
     if (!k) {
-      if (!kartDurum.has(d.gun)) kartDurum.set(d.gun, { acik: gunler[0] && gunler[0].gun === d.gun, sayfa: 1 });
+      if (!kartDurum.has(d.gun)) kartDurum.set(d.gun, { acik: gunler[0] && gunler[0].gun === d.gun });
       kartlariCiz();
       return;
     }
@@ -1800,17 +1820,26 @@
     buyukCiz();
     $('buyukKatman').hidden = false;
   }
-  // Kapatinca kart, son bakilan fotografin sayfasina gecer.
+  // Kapatinca liste, son bakilan fotografin gunune gecer: o gun baska bir sayfadaysa o sayfa acilir, gun karti acik gelir.
   function buyukKapat() {
     $('buyukKatman').hidden = true;
     const v = buyukSira[buyukIndeks];
-    const k = v && kartlar.get(v.gun);
-    if (!k) return;
-    const i = k.dosyalar.findIndex((d) => d.yol === v.yol);
+    if (!v) return;
+    const gunler = gorunumGunleri();
+    const i = gunler.findIndex((g) => g.gun === v.gun);
     if (i < 0) return;
-    const d = kartDurum.get(v.gun);
-    d.sayfa = Math.floor(i / sayfaBoyu) + 1;
-    if (d.acik) govdeCiz(k); else kartAcKapat(k, true);
+    const hedef = Math.floor(i / gunBoyu) + 1;
+    if (hedef !== genelSayfa) {
+      genelSayfa = hedef;
+      kartDurum.clear();
+      sayfaGunleri(gunler).forEach((g) => kartDurum.set(g.gun, { acik: g.gun === v.gun }));
+      kartlariCiz();
+      const kart = kartlar.get(v.gun);
+      if (kart && kart.bolum.scrollIntoView) kart.bolum.scrollIntoView({ block: 'start' });
+      return;
+    }
+    const k = kartlar.get(v.gun);
+    if (k && !kartDurum.get(v.gun).acik) kartAcKapat(k, true);
   }
 
   function buyukCiz() {
@@ -1945,15 +1974,30 @@
     $('islemAsama').textContent = 'Durduruluyor';
     await durdurVeKapat();
   });
-  // Hata yazilari yeni bir calisma baslayinca silinir ya da Kapat ile elle kapatilir.
-  function uyarilariTemizle() { for (const u of [...$('sayfa').querySelectorAll('.uyari')]) u.remove(); }
+  // Hata yazilari yalniz Tumu gorunumunde acilir (grup sayfalarinda gizlenir), uyariSuresi sonra kendiliginden kaybolur,
+  // yeni bir calisma baslayinca silinir ya da Kapat ile elle kapatilir. Sure yalniz yazi gorunurken isler: grupta gezerken dolmaz.
+  let uyariSuresi = 30000;
+  const uyarilar = new Set();
+  function uyariKaldir(u) { clearTimeout(u.zaman); u.el.remove(); uyarilar.delete(u); }
+  function uyarilariTemizle() { for (const u of [...uyarilar]) uyariKaldir(u); }
+  function uyarilariDuzenle() {
+    const gorunur = !gorunum.grup;
+    for (const u of [...uyarilar]) {
+      u.el.hidden = !gorunur;
+      if (gorunur && u.zaman === null) { u.baslangic = Date.now(); u.zaman = setTimeout(() => uyariKaldir(u), Math.max(0, u.kalan)); }
+      else if (!gorunur && u.zaman !== null) { clearTimeout(u.zaman); u.zaman = null; u.kalan -= Date.now() - u.baslangic; }
+    }
+  }
   function uyariEkle(metin) {
-    const u = document.createElement('div');
-    u.className = 'uyari cam';
-    u.setAttribute('role', 'alert');
-    u.innerHTML = '<span class="uyari-metin">' + kacis(metin) + '</span><button class="dg" data-kapat="1" aria-label="Uyarıyı kapat"><span class="tl k t-grafit">' + ikon('x', 'ik') + '</span><span>Kapat</span></button>';
-    u.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-kapat]')) u.remove(); });
-    $('sayfa').prepend(u);
+    const el = document.createElement('div');
+    el.className = 'uyari cam';
+    el.setAttribute('role', 'alert');
+    el.innerHTML = '<span class="uyari-metin">' + kacis(metin) + '</span><button class="dg" data-kapat="1" aria-label="Uyarıyı kapat"><span class="tl k t-grafit">' + ikon('x', 'ik') + '</span><span>Kapat</span></button>';
+    const u = { el, kalan: uyariSuresi, baslangic: 0, zaman: null };
+    el.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-kapat]')) uyariKaldir(u); });
+    uyarilar.add(u);
+    $('uyariAlani').prepend(el);
+    uyarilariDuzenle();
   }
   function calismaModu(acik) {
     if (acik !== calisiyor) senkronSifirla();
