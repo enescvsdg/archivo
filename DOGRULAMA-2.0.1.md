@@ -20,7 +20,11 @@ Eski testlerde yapılan değişiklikler: sayfalama testleri güne göre sayfalam
 
 ## Paketlenmiş uygulama ve CI
 
-Bu bölüm derleme ve GitHub Actions sonrasında doldurulur (aşağıya bakın).
+Üç paket bu bilgisayarda internetsiz derlendi (Mac Apple Silicon: DMG+ZIP, Mac Intel: DMG+ZIP, Windows x64: taşınabilir EXE; hepsi imzasız). Mac arm64 ve Intel uygulamalarının çalıştırılabilir dosyalarının mimarisi doğrulandı (arm64 / x86_64); Windows paketi PE32 olarak tanındı.
+
+Paketlenmiş Mac arm64 uygulaması (gerçek Electron + gerçek `main.js`/`preload.js`) sahte 497 fotoğraflık arşivle açıldı: sürüm 2.0.1, 31 API işlevi (`hizOnayi`, `onSenkron` dahil); ilk sayfada 7 gün kartı, sayfalama çubuğu görünür (2 sayfa, sayfa başına gün 7 seçili), 2. sayfada kalan 7 gün; Ayarlar’da Telefon Eşlemesi rozeti “Bağlı değil” (gri nokta, QR düğmesi etkin, çıkış pasif); İndirme Hızı varsayılan Yavaş, Orta seçilince açıklama ve uyarı çıkar, “Bitti” ile gerçek ana süreç `ayarlar.json`’a `indirmeHizi: orta` yazar, `durum-al` aynı değeri döndürür, geçersiz değer gerçek `ayar-kaydet` ile Yavaş’a çevrilir; konsolda hata yok. Bu denemeyle uzun klasör yolu hatası bulundu ve düzeltildi (yukarıya bakın); düzeltilmiş pakette yolun satıra sarıldığı gözle de doğrulandı.
+
+GitHub Actions (`v2.0.1` dalı) sonucu gönderildikten sonra eklenecek.
 
 ## Doğrulanmadı
 
