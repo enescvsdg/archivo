@@ -10,9 +10,9 @@ async function renderer() {
  for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,element());
  const callbacks={},calls=[],ticks=[];
  const state={ayar:{hedefKlasor:'/tmp/test',ilkCalismaGunSayisi:3,sadeceSuGruplar:[]},calisiyor:false,baglantiDurumu:'Bağlantı kapalı',rapor:null};
- const api={durumAl:async()=>state,whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},senkronizasyonOnayla:async()=>{calls.push(['onay']);return true;},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
+ const api={durumAl:async()=>state,klasorAc:async()=>{calls.push(['klasorAc']);},whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},senkronizasyonOnayla:async()=>{calls.push(['onay']);return true;},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
  for(const name of ['onGruplar','onQr','onDurum','onDosya','onYinelenen','onBitti','onHata','onSenkron'])api[name]=fn=>callbacks[name]=fn;
- const context={window:{api,addEventListener(){},matchMedia:()=>({matches:true})},document:{getElementById:id=>{assert.ok(elements.has(id),'Unknown element '+id);return elements.get(id);},documentElement:element(),createElement:element,addEventListener(){}},IntersectionObserver:class{observe(){}unobserve(){}},setInterval:fn=>ticks.push(fn),setTimeout:()=>0,console};
+ const context={window:{api,addEventListener(){},matchMedia:()=>({matches:true})},document:{getElementById:id=>{assert.ok(elements.has(id),'Unknown element '+id);return elements.get(id);},documentElement:element(),createElement:element,addEventListener(){}},IntersectionObserver:class{observe(){}unobserve(){}},setInterval:fn=>ticks.push(fn),setTimeout:()=>0,clearTimeout(){},console};
  vm.createContext(context);vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
  for(let n=0;n<8;n++)await Promise.resolve();
  return {elements,callbacks,calls,ticks,state};
@@ -142,4 +142,36 @@ test('stages start over for the next run and show waiting state before the conne
  h.callbacks.onSenkron({baglandi:true});assert.equal(e.get('syncAdim2').attrs['data-durum'],'surer');assert.match(e.get('syncAdim2Yazi').textContent,/alınıyor/);
  await h.callbacks.onBitti({indirilen:1});
  await e.get('topla').events.click();assert.equal(e.get('syncAdim1').attrs['data-durum'],'surer');assert.match(e.get('syncAdim1Yazi').textContent,/bağlanılıyor/);
+});
+
+test('completion card: uppercase title, outcome texts, folder button only when photos arrived, Tamam and a new run close it',async()=>{
+ const h=await renderer();const e=h.elements;const txt=()=>[e.get('bitisBaslik').textContent,e.get('bitisAyrinti').textContent+e.get('bitisEksik').textContent+e.get('bitisSure').textContent];
+ // basarili + gecen sure (ilerleme baslangicindan)
+ h.callbacks.onDurum({metin:'Fotoğraflar indiriliyor',baslangic:Date.now()-860000});
+ await h.callbacks.onBitti({indirilen:100,yinelenen:12,atlanan:0,hata:0,rapor:{sonuc:'bitti'}});
+ assert.equal(e.get('bitisKart').hidden,false);
+ assert.deepEqual(txt(),['İNDİRME TAMAMLANDI','100 fotoğraf indirildi · 12 yinelenen atlandı · 14 dk 20 sn']);
+ assert.equal(e.get('bitisKlasor').hidden,false);
+ assert.equal(e.get('bitisIkon').className,'tl t-yesil');
+ // kismi
+ await h.callbacks.onBitti({indirilen:98,atlanan:2,hata:0,rapor:{sonuc:'eksik'}});
+ assert.equal(e.get('bitisBaslik').textContent,'İNDİRME TAMAMLANDI');
+ assert.match(e.get('bitisAyrinti').textContent+e.get('bitisEksik').textContent,/98 fotoğraf indirildi · 2 alınamadı, sonraki Topla’da yeniden denenecek/);
+ // yeni foto yok / gecmis taramasi / basarisiz / durduruldu
+ await h.callbacks.onBitti({indirilen:0,rapor:{sonuc:'bitti'}});
+ assert.equal(e.get('bitisBaslik').textContent,'YENİ FOTOĞRAF YOK');assert.equal(e.get('bitisKlasor').hidden,true);assert.equal(e.get('bitisSure').textContent,'','süre bilinmiyorsa yazılmaz');
+ await h.callbacks.onBitti({indirilen:0,rapor:{sonuc:'bitti',sadeceTara:true}});
+ assert.equal(e.get('bitisBaslik').textContent,'GEÇMİŞ TARAMASI TAMAMLANDI');
+ await h.callbacks.onBitti({indirilen:0,hata:2,rapor:{sonuc:'eksik'}});
+ assert.equal(e.get('bitisBaslik').textContent,'İŞLEM TAMAMLANAMADI');assert.equal(e.get('bitisIkon').className,'tl t-kirmizi');assert.equal(e.get('bitisKlasor').hidden,true);
+ await h.callbacks.onBitti({indirilen:12,rapor:{sonuc:'iptal'}});
+ assert.equal(e.get('bitisBaslik').textContent,'İŞLEM DURDURULDU');assert.equal(e.get('bitisAyrinti').textContent,'12 fotoğraf indirildi');assert.equal(e.get('bitisKlasor').hidden,false);
+ await e.get('bitisKlasor').events.click();assert.deepEqual(h.calls.filter(c=>c[0]==='klasorAc').length,1);
+ // Tamam kapatir
+ await e.get('bitisTamam').events.click();assert.equal(e.get('bitisKart').hidden,true);
+ // yeni calisma kapatir
+ await h.callbacks.onBitti({indirilen:1,rapor:{sonuc:'bitti'}});assert.equal(e.get('bitisKart').hidden,false);
+ await e.get('topla').events.click();assert.equal(e.get('bitisKart').hidden,true);
+ // cikis mesaji kart acmaz
+ await h.callbacks.onBitti({mesaj:'WhatsApp bu oturumu zaten kapatmış'});assert.equal(e.get('bitisKart').hidden,true);
 });

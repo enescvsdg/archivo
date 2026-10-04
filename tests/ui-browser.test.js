@@ -594,3 +594,50 @@ test('islem kapsulu: tek satir, kucuk, cam; Durdur sag koseda yazilarla ayni hiz
   assert.notEqual(await h.sayfa.$eval('#alt', (e) => getComputedStyle(e).display), 'none', 'iş bitince Topla çubuğu geri gelir');
   assert.equal(await h.sayfa.$eval('#islemPanel', (e) => getComputedStyle(e).display), 'none');
 });
+
+test('bitis karti: Topla cubugunun yerini alir, baslik BUYUK HARF (Turkce I), cam, sag koseden duzgun; Tamam kapatinca Topla geri gelir', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#topla');
+  await h.sayfa.evaluate(() => window.__cb.onDurum({ metin: 'Fotoğraflar indiriliyor', baslangic: Date.now() - 860000 }));
+  await h.sayfa.evaluate(() => window.__cb.onBitti({ indirilen: 98, yinelenen: 12, atlanan: 2, hata: 0, rapor: { sonuc: 'eksik' } }));
+  await bekle(450);
+  const o = await h.sayfa.evaluate(() => {
+    const R = (e) => e.getBoundingClientRect(), k = document.getElementById('bitisKart'), kr = R(k), cs = getComputedStyle(k);
+    const m = R(document.querySelector('.bitis-metin')), tamam = R(document.getElementById('bitisTamam')), klasor = R(document.getElementById('bitisKlasor'));
+    return {
+      goster: cs.display, alt: getComputedStyle(document.getElementById('alt')).display, islem: getComputedStyle(document.getElementById('islemPanel')).display,
+      baslik: document.getElementById('bitisBaslik').textContent, ayrinti: document.getElementById('bitisAyrinti').textContent + '|' + document.getElementById('bitisEksik').textContent + '|' + document.getElementById('bitisSure').textContent,
+      eksikRenk: getComputedStyle(document.getElementById('bitisEksik')).color, ayrintiRenk: getComputedStyle(document.getElementById('bitisAyrinti')).color,
+      altBosluk: innerHeight - kr.bottom, genislik: kr.width, yukseklik: kr.height, solSag: [kr.left, innerWidth - kr.right],
+      tamamMerkez: (tamam.top + tamam.bottom) / 2, metinMerkez: (m.top + m.bottom) / 2, sagBosluk: kr.right - tamam.right,
+      klasorSol: klasor.right <= tamam.left, klasorGorunur: !document.getElementById('bitisKlasor').hidden,
+      arkaPlan: cs.backgroundColor, bulaniklik: cs.backdropFilter || cs.webkitBackdropFilter, tasma: k.scrollWidth > k.clientWidth + 1,
+    };
+  });
+  assert.equal(o.goster, 'grid'); assert.equal(o.alt, 'none', 'kart çıkınca Topla çubuğu kaybolur'); assert.equal(o.islem, 'none');
+  assert.equal(o.baslik, 'İNDİRME TAMAMLANDI', 'başlık büyük harf ve noktalı İ ile');
+  assert.equal(o.ayrinti, '98 fotoğraf indirildi · 12 yinelenen atlandı|' + ' · 2 alınamadı, sonraki Topla’da yeniden denenecek' + '| · 14 dk 20 sn');
+  assert.notEqual(o.eksikRenk, o.ayrintiRenk, 'alınamayan kısım ayrı renkte');
+  assert.ok(o.altBosluk >= 14 && o.altBosluk <= 28, 'kart Topla çubuğunun yerinde, alttan ~20px: ' + o.altBosluk);
+  assert.ok(o.genislik <= 640 && o.yukseklik < 110, 'küçük kapsül: ' + o.genislik + 'x' + o.yukseklik);
+  assert.ok(Math.abs(o.solSag[0] - o.solSag[1]) < 2, 'yatayda ortalı');
+  assert.ok(Math.abs(o.tamamMerkez - o.metinMerkez) < 8, 'düğmeler yazılarla aynı hizada');
+  assert.ok(o.sagBosluk >= 8 && o.sagBosluk < 32 && o.klasorSol && o.klasorGorunur, 'Klasörü aç solda, Tamam sağ köşede');
+  const alfa = Number((o.arkaPlan.match(/rgba?\([^)]*?,\s*([\d.]+)\)$/) || [0, 1])[1]);
+  assert.ok(alfa < 0.35, 'cam yüzey: ' + o.arkaPlan); assert.match(o.bulaniklik, /blur/); assert.equal(o.tasma, false);
+  await foto(h, '16-bitis-karti');
+  await tikla(h.sayfa, '#bitisKlasor');
+  assert.equal((await cagrilar(h.sayfa)).filter((x) => x[0] === 'klasorAc').length, 1);
+  await tikla(h.sayfa, '#bitisTamam'); await bekle(200);
+  assert.equal(await h.sayfa.$eval('#bitisKart', (e) => getComputedStyle(e).display), 'none');
+  assert.notEqual(await h.sayfa.$eval('#alt', (e) => getComputedStyle(e).display), 'none', 'Tamam’dan sonra Topla çubuğu geri gelir');
+  assert.deepEqual(h.hatalar, []);
+  // basarisiz sonuc: kirmizi karo, klasor dugmesi yok, ayri screenshot
+  await tikla(h.sayfa, '#topla');
+  await h.sayfa.evaluate(() => window.__cb.onBitti({ indirilen: 0, hata: 3, atlanan: 0, rapor: { sonuc: 'eksik' } }));
+  await bekle(400);
+  assert.equal(await h.sayfa.$eval('#bitisBaslik', (e) => e.textContent), 'İŞLEM TAMAMLANAMADI');
+  assert.equal(await h.sayfa.$eval('#bitisKlasor', (e) => getComputedStyle(e).display), 'none');
+  assert.equal(await h.sayfa.$eval('#bitisIkon', (e) => e.className), 'tl t-kirmizi');
+  await foto(h, '16b-bitis-karti-hata');
+});

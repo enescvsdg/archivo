@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-vYZ1xyQCZdwYvXzkgrPqrGtp6F+gKaUFWUNs6XqSIS4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-4XkoEL5mr1J2oBFHlpm0th7mgBmkpSYgxkEFNCNaba8='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -859,7 +859,22 @@
   .islem-metin strong { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
   .islem-metin small { color: var(--yazi-yumusak); font-size: 12px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   #islemAyrinti:not(:empty) + #islemSure:not(:empty)::before { content: ' · '; }
-  html.islem-acik #alt { display: none; }
+  html.islem-acik #alt, html.bitis-acik #alt { display: none; }
+
+  /* is sonu karti: calisma bitince Topla cubugunun yerini alir; Tamam'a ya da yeni bir calismaya kadar kalir */
+  .bitis-kapsul {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(640px, 94vw); z-index: 30;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px;
+    padding: 12px 18px; border-radius: 30px; animation: yuksel 240ms cubic-bezier(.2,.8,.3,1);
+  }
+  .bitis-kapsul[hidden] { display: none; }
+  .bitis-kapsul .tl { width: 50px; height: 50px; border-radius: 16px; }
+  .bitis-kapsul .tl .ik { width: 25px; height: 25px; }
+  .bitis-metin { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .bitis-metin strong { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+  .bitis-metin small { color: var(--yazi-yumusak); font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere; }
+  .bitis-metin small em { font-style: normal; color: var(--uyari); }
+  .bitis-dugmeler { display: flex; gap: 16px; }
 
   .sync-kapsul {
     position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%);
@@ -1031,6 +1046,14 @@
   <span class="donen" aria-hidden="true"></span>
   <div class="islem-metin"><strong id="islemAsama">Hazırlanıyor</strong><small><span id="islemAyrinti"></span><span id="islemSure"></span></small></div>
   <button class="dg" id="islemDurdur"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button>
+</section>
+<section id="bitisKart" class="bitis-kapsul cam" hidden role="status" aria-live="polite" aria-label="İşlem sonucu">
+  <span class="tl t-yesil" id="bitisIkon"><svg class="ik" aria-hidden="true"><use id="bitisIkonKullan" href="#i-circle-check"/></svg></span>
+  <div class="bitis-metin"><strong id="bitisBaslik"></strong><small><span id="bitisAyrinti"></span><em id="bitisEksik"></em><span id="bitisSure"></span></small></div>
+  <div class="bitis-dugmeler">
+    <button class="dg" id="bitisKlasor"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-folder-open"/></svg></span><span>Klasörü aç</span></button>
+    <button class="dg" id="bitisTamam"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-check"/></svg></span><span>Tamam</span></button>
+  </div>
 </section>
 <section id="syncKatman" class="sync-kapsul cam" hidden role="status" aria-live="polite" aria-labelledby="syncBaslik">
  <h2 id="syncBaslik">Senkronizasyon devam ediyor</h2>
@@ -1953,7 +1976,40 @@
     if (rapor.eksikGunler?.length) $('erisimRaporu').textContent += '\n\nErişilebilen geçmişteki eksikler:\n' + rapor.eksikGunler.map(x => x.gun + ': ' + x.adet + ' görsel').join('\n');
     if (eksikler.length) $('erisimRaporu').textContent += '\n\nAlınamayan medya (' + eksikler.length + '):\n' + eksikler.map(m => grupAdiGoster(m.grup) + ' · ' + m.tur + ' · ' + tarihYaz(m.zaman) + '\n' + m.neden).join('\n\n');
   }
-  function islemPaneliAyarla(goster) { $('islemPanel').hidden = !goster; document.documentElement.classList.toggle('islem-acik', !!goster); }
+  function islemPaneliAyarla(goster) { if (goster) bitisKartiKapat(); $('islemPanel').hidden = !goster; document.documentElement.classList.toggle('islem-acik', !!goster); }
+  // Is sonu karti: sonuc basligi BUYUK HARFLE; Topla cubugunun yerini alir, Tamam'a ya da yeni bir calismaya kadar kalir.
+  const sureMetni = (sn) => (sn >= 60 ? Math.floor(sn / 60) + ' dk ' + (sn % 60) + ' sn' : sn + ' sn');
+  function bitisKartiKapat() { $('bitisKart').hidden = true; document.documentElement.classList.remove('bitis-acik'); }
+  function bitisSonucu(s) {
+    const rapor = s.rapor || {};
+    const indirilen = s.indirilen || 0;
+    const eksik = (s.atlanan || 0) + (s.hata || 0) > 0;
+    const yinelenen = s.yinelenen ? ' · ' + s.yinelenen + ' yinelenen atlandı' : '';
+    if (rapor.sonuc === 'iptal') return { ton: 't-grafit', ikon: 'player-stop', baslik: 'İşlem durduruldu', ayrinti: indirilen ? indirilen + ' fotoğraf indirildi' : 'Fotoğraf indirilmedi', klasor: indirilen > 0 };
+    if (eksik && !indirilen) return { ton: 't-kirmizi', ikon: 'x', baslik: 'İşlem tamamlanamadı', ayrinti: s.hata ? 'Tamamlanmayan gruplar sonraki Topla’da yeniden taranacak' : s.atlanan + ' fotoğraf alınamadı; sonraki Topla’da yeniden denenecek', klasor: false };
+    if (rapor.sadeceTara) return { ton: 't-vurgu', ikon: 'history', baslik: 'Geçmiş taraması tamamlandı', ayrinti: 'İndirme yapılmadı', klasor: false };
+    if (indirilen) {
+      const parcalar = [];
+      if (s.atlanan) parcalar.push(s.atlanan + ' alınamadı');
+      if (s.hata) parcalar.push(s.hata + ' hata');
+      return { ton: 't-yesil', ikon: 'circle-check', baslik: 'İndirme tamamlandı', ayrinti: indirilen + ' fotoğraf indirildi' + yinelenen, eksik: parcalar.length ? parcalar.join(', ') + ', sonraki Topla’da yeniden denenecek' : '', klasor: true };
+    }
+    return { ton: 't-vurgu', ikon: 'photo', baslik: 'Yeni fotoğraf yok', ayrinti: (rapor.gecmis ? 'Seçilen günlerde yeni fotoğraf bulunamadı' : 'Son toplamadan beri gruplara yeni fotoğraf gelmemiş') + yinelenen, klasor: false };
+  }
+  function bitisKartiGoster(s, gecenSn) {
+    const r = bitisSonucu(s);
+    $('bitisIkon').className = 'tl ' + r.ton;
+    $('bitisIkonKullan').setAttribute('href', '#i-' + r.ikon);
+    $('bitisBaslik').textContent = r.baslik.toLocaleUpperCase('tr');
+    $('bitisAyrinti').textContent = r.ayrinti;
+    $('bitisEksik').textContent = r.eksik ? ' · ' + r.eksik : '';
+    $('bitisSure').textContent = gecenSn == null ? '' : ' · ' + sureMetni(gecenSn);
+    $('bitisKlasor').hidden = !r.klasor;
+    $('bitisKart').hidden = false;
+    document.documentElement.classList.add('bitis-acik');
+  }
+  $('bitisTamam').addEventListener('click', bitisKartiKapat);
+  $('bitisKlasor').addEventListener('click', () => window.api.klasorAc());
   function ilerlemeGoster(d) {
     ilerleme = { ...d, baslangic: d.baslangic || ilerleme?.baslangic || Date.now(), sonIlerleme: d.sonIlerleme || Date.now() };
     islemPaneliAyarla($('syncKatman').hidden);   // senkron paneli aciksa iki panel ust uste binmesin
@@ -2000,6 +2056,7 @@
     uyarilariDuzenle();
   }
   function calismaModu(acik) {
+    if (acik) bitisKartiKapat();
     if (acik !== calisiyor) senkronSifirla();
     calisiyor = acik;
     $('topla').disabled = acik;
@@ -2096,6 +2153,7 @@
   window.api.onHata((m) => uyariEkle(m));
 
   window.api.onBitti(async (s) => {
+    const gecenSn = ilerleme ? Math.max(0, Math.round((Date.now() - ilerleme.baslangic) / 1000)) : null;
     calismaModu(false);
     await durumuYukle();
     if (s.mesaj) { $('ozet').textContent = s.mesaj; return; }
@@ -2105,6 +2163,7 @@
     if (s.atlanan) parcalar.push(s.atlanan + ' alınamadı');
     if (s.hata) parcalar.push(s.hata + ' hata');
     $('ozet').textContent = s.rapor?.sadeceTara ? 'Geçmiş erişimi kontrol edildi; indirme yapılmadı' : parcalar.length ? parcalar.join(' · ') : 'Yeni foto yok';
+    bitisKartiGoster(s, gecenSn);
 
     if (s.hata && !s.indirilen) uyariEkle('Bazı işlemler tamamlanamadı. Yukarıdaki hata mesajlarını kontrol edin; tamamlanmayan gruplar sonraki toplamada yeniden taranacak.');
     await arsiviYenile({ konumuKoru: true });
