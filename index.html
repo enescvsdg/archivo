@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-BoU0FFvDZggB/Wby8+MkB1i8NM5/dZrFdmjzMU106Zg='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-Tab48EfbPf0/6vxqTkyZf5lVqsp02g9ZLg0kSETEfXo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -240,7 +240,7 @@
     overflow-y: auto;
     padding-left: 18px;
     padding-right: 18px;
-    padding-bottom: 120px;
+    padding-bottom: 150px;
     /* ust bosluk seridin ve suzgecin gercek yuksekligine gore hesaplanir */
     padding-top: calc(12px + var(--tepe-yuk, 50px) + var(--suzgec-yuk, 0px) + 18px);
   }
@@ -597,9 +597,6 @@
 
   #buyukBilgi span { color: var(--yazi-yumusak); }
 
-  #islemPanel { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:min(620px,92vw); z-index:30; padding:18px; border-radius:22px; background:#141a2aee; }
-  #islemPanel[hidden] { display:none; }
-  #islemPanel small { display:block; margin:8px 0; color:var(--yazi-yumusak); }
   .donen { display:inline-block; width:16px; height:16px; border:2px solid #ffffff40; border-top-color:var(--vurgu); border-radius:50%; animation:don 1s linear infinite; margin-right:10px; }
   @keyframes don { to { transform:rotate(360deg); } }
   #qrKatman { z-index:45; }
@@ -845,6 +842,20 @@
   .uyari-metin { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .uyari .dg { flex: none; color: var(--yazi); }
 
+  /* islem kapsulu: calisirken alt cubugun (Topla) yerini alir; cam yuzey, Durdur sagda yazilarla ayni hizada */
+  .islem-kapsul {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(580px, 94vw); z-index: 30;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px;
+    padding: 10px 16px 10px 20px; border-radius: 30px; animation: yuksel 240ms cubic-bezier(.2,.8,.3,1);
+  }
+  .islem-kapsul[hidden] { display: none; }
+  .islem-kapsul .donen { margin: 0; width: 20px; height: 20px; }
+  .islem-metin { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .islem-metin strong { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+  .islem-metin small { color: var(--yazi-yumusak); font-size: 12px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #islemAyrinti:not(:empty) + #islemSure:not(:empty)::before { content: ' · '; }
+  html.islem-acik #alt { display: none; }
+
   .sync-kapsul {
     position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%);
     width: min(580px, 94vw); z-index: 18; padding: 16px 20px; border-radius: 26px;
@@ -1009,10 +1020,10 @@
 </div>
 
 <div id="fotoMenu" role="menu" hidden><button id="fotoSil" class="menu-oge" role="menuitem"><svg class="ik" aria-hidden="true"><use href="#i-trash"/></svg>Sil</button></div>
-<section id="islemPanel" class="cam" hidden aria-label="İşlem ilerlemesi" aria-live="polite">
-  <strong><span class="donen" aria-hidden="true"></span><span id="islemAsama">Hazırlanıyor</span></strong>
-  <small id="islemAyrinti"></small><small id="islemSure"></small>
-  <button class="dg islem-dugme" id="islemDurdur"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button>
+<section id="islemPanel" class="islem-kapsul cam" hidden aria-label="İşlem ilerlemesi" aria-live="polite">
+  <span class="donen" aria-hidden="true"></span>
+  <div class="islem-metin"><strong id="islemAsama">Hazırlanıyor</strong><small><span id="islemAyrinti"></span><span id="islemSure"></span></small></div>
+  <button class="dg" id="islemDurdur"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button>
 </section>
 <section id="syncKatman" class="sync-kapsul cam" hidden role="status" aria-live="polite" aria-labelledby="syncBaslik">
  <h2 id="syncBaslik">Senkronizasyon devam ediyor</h2>
@@ -1913,9 +1924,10 @@
     if (rapor.eksikGunler?.length) $('erisimRaporu').textContent += '\n\nErişilebilen geçmişteki eksikler:\n' + rapor.eksikGunler.map(x => x.gun + ': ' + x.adet + ' görsel').join('\n');
     if (eksikler.length) $('erisimRaporu').textContent += '\n\nAlınamayan medya (' + eksikler.length + '):\n' + eksikler.map(m => grupAdiGoster(m.grup) + ' · ' + m.tur + ' · ' + tarihYaz(m.zaman) + '\n' + m.neden).join('\n\n');
   }
+  function islemPaneliAyarla(goster) { $('islemPanel').hidden = !goster; document.documentElement.classList.toggle('islem-acik', !!goster); }
   function ilerlemeGoster(d) {
     ilerleme = { ...d, baslangic: d.baslangic || ilerleme?.baslangic || Date.now(), sonIlerleme: d.sonIlerleme || Date.now() };
-    $('islemPanel').hidden = !$('syncKatman').hidden;   // senkron paneli aciksa iki panel ust uste binmesin
+    islemPaneliAyarla($('syncKatman').hidden);   // senkron paneli aciksa iki panel ust uste binmesin
     $('islemAsama').textContent = d.metin;
     const parcalar = [d.ayrinti];
     if (d.toplamGrup) parcalar.push('Grup ' + d.grup + ' / ' + d.toplamGrup);
@@ -1927,7 +1939,7 @@
     if (!ilerleme) return;
     const gecen = Math.floor((Date.now() - ilerleme.baslangic) / 1000);
     const sessiz = Math.floor((Date.now() - ilerleme.sonIlerleme) / 1000);
-    $('islemSure').textContent = 'Geçen süre: ' + gecen + ' sn · Son ilerleme: ' + sessiz + ' sn önce' + (sessiz >= 30 ? ' · Yeni ilerleme bilgisi alınamıyor; tamamlandığı varsayılmıyor.' : '');
+    $('islemSure').textContent = (gecen >= 60 ? Math.floor(gecen / 60) + ' dk ' + (gecen % 60) + ' sn' : gecen + ' sn') + (sessiz >= 30 ? ' · Yeni ilerleme bilgisi alınamıyor (' + sessiz + ' sn); tamamlandığı varsayılmıyor.' : '');
   }, 1000);
   $('islemDurdur').addEventListener('click', async () => {
     $('islemAsama').textContent = 'Durduruluyor';
@@ -1949,7 +1961,7 @@
     $('topla').disabled = acik;
     for (const id of ['baglanDugme','gecmisTara','gecmisIndir','gruplariYenile','gecmisSifirla','esleşmeSifirla']) $(id).disabled = acik;
     if (!acik) { $('baglanDugme').disabled = oturumKayitli; $('esleşmeSifirla').disabled = !oturumKayitli; }
-    if (!acik) { $('syncKatman').hidden = true; $('islemPanel').hidden = true; $('qrKatman').hidden = true; ilerleme = null; }
+    if (!acik) { $('syncKatman').hidden = true; islemPaneliAyarla(false); $('qrKatman').hidden = true; ilerleme = null; }
     if (!acik) { $('toplaYazi').textContent = 'Topla'; $('dolgu').style.width = '0%'; }
   }
 

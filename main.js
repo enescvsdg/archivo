@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, Notification } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -819,6 +819,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     }
     try { jsonYaz(raporYolu(), rapor); } catch (e) { hataYaz('rapor', e); }
     yolla('bitti', { ...sayac, rapor });
+    bildirimGonder(bitisBildirimMetni(sayac, rapor, i.iptal));
     if (SESSIZ && !pencere) app.quit();
   };
   const baslatmaHatasi = async (err) => {
@@ -1535,6 +1536,25 @@ ipcMain.handle('gruplari-getir', () => baglanVeListele(false));
 ipcMain.handle('baglan', () => baglanVeListele(true));
 
 // ---------------- pencere / tepsi ----------------
+
+// Pencere onde degilken (kapali, arka planda ya da kucultulmus) sonucu Mac/Windows bildirim merkezine de yazar;
+// tiklaninca pencere acilir. Pencere onundeyse bitis zaten ekranda gorundugu icin bildirim gonderilmez.
+function bildirimGonder(govde) {
+  try {
+    if (!Notification || !Notification.isSupported?.()) return;
+    if (pencere && !pencere.isDestroyed() && pencere.isVisible() && pencere.isFocused()) return;
+    const n = new Notification({ title: 'Archivo', body: govde });
+    n.on('click', () => pencereAc());
+    n.show();
+  } catch (e) { /* bildirim izni yoksa sessizce atlanir */ }
+}
+function bitisBildirimMetni(sayac, rapor, iptal) {
+  const eksik = !!(sayac.hata || sayac.atlanan);
+  if (iptal) return 'İşlem durduruldu';
+  if (sayac.indirilen) return sayac.indirilen + ' fotoğraf indirildi' + (eksik ? ' (bazıları alınamadı)' : '');
+  if (eksik) return 'İşlem tamamlanamadı; ayrıntı için Archivo’yu açın';
+  return rapor.sadeceTara ? 'Geçmiş taraması tamamlandı' : 'Yeni fotoğraf yok';
+}
 
 function pencereAc() {
   if (pencere && !pencere.isDestroyed()) { pencere.show(); return; }

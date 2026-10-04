@@ -52,7 +52,8 @@ function harness(t, chats, failure = false, options = {}) {
     async getWWebVersion() { return 'test'; }
   }
   const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: () => {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
-  const electron = { app, dialog: { showMessageBox: async (_window, config) => { if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)) }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) } };
+  const bildirimler = [];
+  const electron = { app, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)) }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) } };
   // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
   const gercekPolitika = require('../operation-policy');
   const politika = { ...gercekPolitika, LIMITS: { ...gercekPolitika.LIMITS, ...(options.limits || {}) }, PACE: { sayfa: [0, 0], indirme: [0, 0], arama: [0, 0], molaHer: 100, mola: [0, 0], ...(options.pace || {}) } };
@@ -68,7 +69,7 @@ function harness(t, chats, failure = false, options = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8'), context);
   const invoke = (name, ...args) => handlers.get(name)(null, ...args);
   const settle = async () => { for (let n = 0; n < 1500 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
-  return { dir, clients, invoke, settle, ctx: context, appOn, quitSayisi: () => quitSayisi };
+  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, quitSayisi: () => quitSayisi };
 }
 const group = (id, fetchMessages) => ({ id: { _serialized: id }, name: id, isGroup: true, timestamp: 0, fetchMessages });
 test('failed media keeps its group checkpoint while successful group advances', async t => {
@@ -587,6 +588,37 @@ test('collection also reports connection and group-list stages before asking for
  assert.equal(sen.filter(v=>v.mesajSayisi).length,0,'sayfa yokken sayaç çalışmaz');
 });
 
+test('when no window is in front the result also goes to the notification center with a plain summary',async t=>{
+ const now=Math.floor(Date.now()/1000);
+ const foto=(id,fark)=>({timestamp:now-fark,type:'image',hasMedia:true,id:{_serialized:id},downloadMedia:async()=>({mimetype:'image/jpeg',data:Buffer.from('bildirim-'+id).toString('base64')})});
+ const h=harness(t,[group('g',async()=>[foto('a',600),foto('b',500)])]);
+ await h.invoke('topla',true);h.clients[0].emit('ready');await h.settle();
+ assert.equal(h.bildirimler.length,1);assert.equal(h.bildirimler[0].o.title,'Archivo');assert.equal(h.bildirimler[0].o.body,'2 fotoğraf indirildi');assert.equal(h.bildirimler[0].gosterildi,true);
+ assert.equal(typeof h.bildirimler[0].dinleyici.click,'function','tıklanınca pencere açılmalı');
+ assert.equal(JSON.stringify(h.bildirimler[0].o).includes('Bölge'),false,'bildirimde grup adı ya da içerik olmaz');
+});
+test('no notification while the Archivo window is in front and focused, and none when notifications are unsupported',async t=>{
+ const now=Math.floor(Date.now()/1000);
+ const foto=(id)=>({timestamp:now-100,type:'image',hasMedia:true,id:{_serialized:id},downloadMedia:async()=>({mimetype:'image/jpeg',data:Buffer.from('on-'+id).toString('base64')})});
+ const h=harness(t,[group('g',async()=>[foto('a')])]);
+ vm.runInContext('pencere = { isDestroyed: () => false, isVisible: () => true, isFocused: () => true, webContents: { send() {} } }',h.ctx);
+ await h.invoke('topla',true);h.clients[0].emit('ready');await h.settle();assert.equal(h.bildirimler.length,0);
+ const g=harness(t,[group('g',async()=>[foto('b')])],false,{bildirimYok:true});
+ await g.invoke('topla',true);g.clients[0].emit('ready');await g.settle();assert.equal(g.bildirimler.length,0);
+ vm.runInContext('pencere = { isDestroyed: () => false, isVisible: () => true, isFocused: () => false, webContents: { send() {} } }',h.ctx);
+ const k=harness(t,[group('g',async()=>[foto('c')])]);
+ vm.runInContext('pencere = { isDestroyed: () => false, isVisible: () => true, isFocused: () => false, webContents: { send() {} } }',k.ctx);
+ await k.invoke('topla',true);k.clients[0].emit('ready');await k.settle();assert.equal(k.bildirimler.length,1,'pencere arka plandaysa bildirim gider');
+});
+test('notification text covers finished, partial, failed, nothing new, history scan and stopped runs',async t=>{
+ const h=harness(t,[]);const m=(sayac,rapor,iptal)=>vm.runInContext('bitisBildirimMetni('+JSON.stringify(sayac)+','+JSON.stringify(rapor)+','+!!iptal+')',h.ctx);
+ assert.equal(m({indirilen:3},{}),'3 fotoğraf indirildi');
+ assert.equal(m({indirilen:3,hata:1},{}),'3 fotoğraf indirildi (bazıları alınamadı)');
+ assert.equal(m({indirilen:0,atlanan:2},{}),'İşlem tamamlanamadı; ayrıntı için Archivo’yu açın');
+ assert.equal(m({indirilen:0},{}),'Yeni fotoğraf yok');
+ assert.equal(m({indirilen:0},{sadeceTara:true}),'Geçmiş taraması tamamlandı');
+ assert.equal(m({indirilen:5},{},true),'İşlem durduruldu');
+});
 test('real logout requires an existing connected client',async t=>{
  const h=harness(t,[]);assert.match((await h.invoke('whatsapp-cikis')).hata,/Gerçek çıkış/);
  assert.equal(h.clients.length,0);

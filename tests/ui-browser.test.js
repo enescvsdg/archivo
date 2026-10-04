@@ -488,3 +488,34 @@ test('Durdur ve is sonu: ana surec gec cevap verse bile uc gecici pencere de kap
   await tikla(h5.sayfa, '#syncIptal'); await bekle(5800);
   assert.deepEqual(await kapali(h5.sayfa), ['none', 'none', 'none'], '5 sn sonra paneller zorla kapanmalı');
 });
+
+test('islem kapsulu: tek satir, kucuk, cam; Durdur sag koseda yazilarla ayni hizada; alt cubugun yerini alir ve icerigi kapatmaz', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#topla');
+  await h.sayfa.evaluate(() => window.__cb.onDurum({ metin: 'Fotoğraflar indiriliyor', ayrinti: '3. Bölge at kaç', toplamGrup: 1, grup: 1, indirilen: 65 }));
+  await bekle(350);
+  const o = await h.sayfa.evaluate(() => {
+    const R = (e) => e.getBoundingClientRect(), p = document.getElementById('islemPanel'), pr = R(p), d = R(document.getElementById('islemDurdur')), m = R(document.querySelector('.islem-metin')), sp = R(document.querySelector('#islemPanel .donen'));
+    const cs = getComputedStyle(p), son = [...document.querySelectorAll('.bolum')].pop(), sayfa = document.getElementById('sayfa');
+    return {
+      goster: cs.display, alt: getComputedStyle(document.getElementById('alt')).display, sync: getComputedStyle(document.getElementById('syncKatman')).display,
+      yukseklik: pr.height, genislik: pr.width, sagBosluk: pr.right - d.right, durdurMerkez: (d.top + d.bottom) / 2, metinMerkez: (m.top + m.bottom) / 2, panelMerkez: (pr.top + pr.bottom) / 2,
+      durdurMetnin_sagi: d.left >= m.right - 1, donenSol: sp.right <= m.left + 1,
+      arkaPlan: cs.backgroundColor, bulaniklik: cs.backdropFilter || cs.webkitBackdropFilter, kenar: cs.borderTopColor, golge: cs.boxShadow.includes('inset'),
+      altBosluk: parseFloat(getComputedStyle(sayfa).paddingBottom), pencere: innerHeight, alt_ust: pr.top,
+      metin: document.getElementById('islemAsama').textContent + '|' + document.getElementById('islemAyrinti').textContent,
+    };
+  });
+  assert.equal(o.goster, 'grid'); assert.equal(o.alt, 'none', 'çalışırken alt çubuk (Topla) gizlenir, panel onun yerini alır'); assert.equal(o.sync, 'none');
+  assert.ok(o.yukseklik < 90, 'tek satırlık kapsül küçük olmalı: ' + o.yukseklik); assert.ok(o.genislik <= 580);
+  assert.ok(Math.abs(o.durdurMerkez - o.metinMerkez) < 6, 'Durdur yazılarla aynı hizada: ' + o.durdurMerkez + ' / ' + o.metinMerkez); assert.ok(o.durdurMetnin_sagi, 'Durdur yazıların sağında'); assert.ok(o.sagBosluk >= 8 && o.sagBosluk < 30, 'Durdur sağ köşede: ' + o.sagBosluk); assert.ok(o.donenSol);
+  const alfa = Number((o.arkaPlan.match(/rgba?\([^)]*?,\s*([\d.]+)\)$/) || [0, 1])[1]);
+  assert.ok(alfa < 0.35, 'cam yüzey yarı saydam olmalı, opak değil: ' + o.arkaPlan); assert.match(o.bulaniklik, /blur/); assert.ok(o.golge, 'üstte parlak iç çizgi');
+  assert.ok(o.altBosluk >= o.pencere - o.alt_ust, 'sayfanın alt boşluğu panelin kapladığı yükseklikten az olmamalı (son kart panelin altında kalmasın)');
+  assert.equal(o.metin, 'Fotoğraflar indiriliyor|3. Bölge at kaç · Grup 1 / 1 · 65 fotoğraf kaydedildi');
+  await foto(h, '15-islem-kapsulu');
+  // durdurunca alt cubuk geri gelir
+  await tikla(h.sayfa, '#islemDurdur'); await bekle(600);
+  assert.notEqual(await h.sayfa.$eval('#alt', (e) => getComputedStyle(e).display), 'none', 'iş bitince Topla çubuğu geri gelir');
+  assert.equal(await h.sayfa.$eval('#islemPanel', (e) => getComputedStyle(e).display), 'none');
+});
