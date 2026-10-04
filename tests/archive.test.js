@@ -1274,3 +1274,60 @@ test('the ready watchdog gives up after a limited number of triggers and stops w
   const sorgu = sayac.sorgu; await new Promise(r => setTimeout(r, 60));
   assert.equal(sayac.sorgu, sorgu, 'islem bitince nobetci durmali');
 });
+
+test('download speed profiles: Yavas is the default PACE values, Orta and Hizli are faster, unknown values fall back to Yavas, page and lookup waits never change',()=>{
+ const {PACE,HIZ_SECENEKLERI,hizProfili}=require('../operation-policy');
+ assert.deepEqual(hizProfili('yavas'),{indirme:PACE.indirme,molaHer:100,mola:PACE.mola});
+ assert.deepEqual(hizProfili(undefined),hizProfili('yavas'));assert.deepEqual(hizProfili('bilinmeyen'),hizProfili('yavas'));
+ assert.deepEqual(hizProfili('orta'),{indirme:[1000,3000],molaHer:150,mola:[60000,180000]});
+ assert.deepEqual(hizProfili('hizli'),{indirme:[500,1500],molaHer:200,mola:[60000,120000]});
+ // test duzeninde PACE degistirilirse Yavas onu izler
+ assert.deepEqual(hizProfili('yavas',{indirme:[0,0],molaHer:7,mola:[1,1]}),{indirme:[0,0],molaHer:7,mola:[1,1]});
+ // her secenek bir oncekinden hizlidir: ortalama bekleme ve mola sikligi
+ const ort=(a)=>(a[0]+a[1])/2;
+ assert.ok(ort(hizProfili('orta').indirme)<ort(hizProfili('yavas').indirme)&&ort(hizProfili('hizli').indirme)<ort(hizProfili('orta').indirme));
+ assert.ok(hizProfili('orta').molaHer>hizProfili('yavas').molaHer&&hizProfili('hizli').molaHer>hizProfili('orta').molaHer);
+ assert.deepEqual(Object.keys(HIZ_SECENEKLERI),['orta','hizli']);
+ assert.equal(PACE.sayfa[0],1000);assert.equal(PACE.arama[1],1500);
+ for(const ad of ['orta','hizli'])assert.ok(Object.isFrozen(HIZ_SECENEKLERI[ad]),ad+' dondurulmus olmali');
+});
+
+test('speed setting is saved, defaults to Yavas and invalid values are replaced',async t=>{
+ const h=harness(t,[],false,{});
+ assert.equal(h.invoke('durum-al').ayar.indirmeHizi,'yavas');
+ assert.equal(h.invoke('ayar-kaydet',{indirmeHizi:'orta'}).indirmeHizi,'orta');
+ assert.equal(readJson(path.join(h.dir,'ayarlar.json'),{}).indirmeHizi,'orta');
+ assert.equal(h.invoke('ayar-kaydet',{indirmeHizi:'hizli'}).indirmeHizi,'hizli');
+ assert.equal(h.invoke('ayar-kaydet',{indirmeHizi:'cok-hizli'}).indirmeHizi,'yavas');
+ assert.equal(h.invoke('ayar-kaydet',{indirmeHizi:{x:1}}).indirmeHizi,'yavas');
+ assert.equal(h.invoke('ayar-kaydet',{ilkCalismaGunSayisi:5}).indirmeHizi,'yavas');
+});
+
+test('the saved speed decides the wait between downloads and the rest interval',async t=>{
+ const now=Math.floor(Date.now()/1000);
+ const foto=(id,fark)=>({timestamp:now-fark,type:'image',hasMedia:true,id:{_serialized:id},downloadMedia:async()=>({mimetype:'image/jpeg',data:Buffer.from('hiz-'+id).toString('base64')})});
+ const calistir=async(hiz,adet)=>{
+  const olaylar=[],beklemeler=[];
+  const h=harness(t,[group('g',async()=>Array.from({length:adet},(_,n)=>foto('f'+n,3000-n)))],false,{beklemeler});
+  writeJson(path.join(h.dir,'ayarlar.json'),{indirmeHizi:hiz});
+  h.ctx.__gonder=(k,v)=>olaylar.push([k,v]);
+  vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }',h.ctx);
+  await h.invoke('topla',true);h.clients[0].emit('ready');await h.settle();
+  return {mola:olaylar.filter(([k,v])=>k==='durum'&&v.metin==='Dinleniyor').length,beklemeler};
+ };
+ // Yavas (test duzeninde bekleme 0): bekleme yok; Hizli: her indirmeden once 500-1500 ms araliginda bekleme
+ const yavas=await calistir('yavas',6);assert.equal(yavas.beklemeler.filter(ms=>ms>=500&&ms<=1000).length,0);
+ const hizli=await calistir('hizli',6);assert.ok(hizli.beklemeler.filter(ms=>ms>=500&&ms<=1000).length>=6,'hizli bekleme '+hizli.beklemeler.length);
+ // mola sikligi: Orta 150de, Hizli 200de
+ assert.equal((await calistir('orta',149)).mola,0);assert.ok((await calistir('orta',151)).mola>=1);
+ assert.equal((await calistir('hizli',151)).mola,0);assert.equal((await calistir('hizli',199)).mola,0);
+});
+
+test('Hizli asks for confirmation in the main process with Vazgec as the default answer',async t=>{
+ const sorular=[];
+ const h=harness(t,[],false,{dialog:async q=>{sorular.push(q);return {response:sorular.length===1?0:1};}});
+ assert.equal(await h.invoke('hiz-onayi'),false);
+ assert.equal(await h.invoke('hiz-onayi'),true);
+ assert.deepEqual([...sorular[0].buttons],['Vazgeç','Hızlı yap']);assert.equal(sorular[0].defaultId,0);assert.equal(sorular[0].cancelId,0);assert.equal(sorular[0].type,'warning');
+ assert.match(sorular[0].message,/kısıtlanma riskini artırabilir/);assert.match(sorular[0].detail,/garantisi verilemez/);
+});

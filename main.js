@@ -8,7 +8,7 @@ const { readJson, writeJson, scanMessages, scanPaced } = require('./archive-stat
 const { observeConnection, errorText } = require('./connection-diagnostics');
 const { connectionConfig } = require('./connection-config');
 const { dayStart, eligibleMedia, belgeResmi, missingDays } = require('./collection-plan');
-const { LIMITS, PACE, days, withTimeout, budget } = require('./operation-policy');
+const { LIMITS, PACE, hizProfili, days, withTimeout, budget } = require('./operation-policy');
 let canliDurum = null;
 let baglantiDurumu = 'Bağlantı kapalı';
 let islem = null;
@@ -111,6 +111,7 @@ const VARSAYILAN_AYAR = {
   yakinMesajlariAl: true,
   notPenceresiSaniye: 150,
   otomatikCalistir: false,
+  indirmeHizi: 'yavas',
   waSurum: '',
 };
 
@@ -754,6 +755,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
 
   const ayar = { ...ayarOku(), ...taslak };
   const gunSayisi = days(ayar.ilkCalismaGunSayisi);
+  const hiz = hizProfili(ayar.indirmeHizi, PACE);
   const simdi = Math.floor(Date.now() / 1000);
   const sonZaman = sonZamanOku();
 
@@ -996,12 +998,12 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           if (sadeceTara) continue;
           if (!notHaritasi) notHaritasi = ayar.yakinMesajlariAl ? await notlariEslestir(paket.medyalar, paket.tum, ayar.notPenceresiSaniye, i) : new Map();
           i.butce.media();
-          // Insan hizi: her PACE.molaHer indirmede uzun mola, her indirmeden once rastgele bekleme.
-          if (indirmeSayaci > 0 && indirmeSayaci % PACE.molaHer === 0) {
-            await insanBekle(PACE.mola, i, kalan => yolla('durum', { metin: 'Dinleniyor', ayrinti: 'Hesabı yormamak için mola veriliyor · yaklaşık ' + Math.max(1, Math.ceil(kalan / 60000)) + ' dk kaldı', grup: islenen, toplamGrup: hedefler.length, indirilen: sayac.indirilen }));
+          // Insan hizi: secili hiza gore her hiz.molaHer indirmede uzun mola, her indirmeden once rastgele bekleme.
+          if (indirmeSayaci > 0 && indirmeSayaci % hiz.molaHer === 0) {
+            await insanBekle(hiz.mola, i, kalan => yolla('durum', { metin: 'Dinleniyor', ayrinti: 'Hesabı yormamak için mola veriliyor · yaklaşık ' + Math.max(1, Math.ceil(kalan / 60000)) + ' dk kaldı', grup: islenen, toplamGrup: hedefler.length, indirilen: sayac.indirilen }));
           }
           indirmeSayaci++;
-          await insanBekle(PACE.indirme, i);
+          await insanBekle(hiz.indirme, i);
           yolla('durum', { metin: 'Fotoğraflar indiriliyor', ayrinti: chat.name, grup: islenen, toplamGrup: hedefler.length, indirilen: sayac.indirilen, medya: paket.medyalar.length });
           let media = null;
           let indirmeHatasi = null;
@@ -1186,9 +1188,14 @@ ipcMain.handle('durdur', async () => {
 });
 
 ipcMain.handle('degisiklik-sor', async () => (await dialog.showMessageBox(pencere, { type: 'question', message: 'Değişiklikler kaydedilsin mi?', buttons: ['Evet', 'Hayır'], defaultId: 0, cancelId: 1 })).response === 0);
+// Hizli indirme secilirken bir kez sorulur; varsayilan dugme Vazgec'tir.
+ipcMain.handle('hiz-onayi', async () => (await dialog.showMessageBox(pencere, { type: 'warning', buttons: ['Vazgeç', 'Hızlı yap'], defaultId: 0, cancelId: 0,
+  message: 'Hızlı indirme, hesabın WhatsApp tarafından kısıtlanma riskini artırabilir. Yine de Hızlı açılsın mı?',
+  detail: 'Yalnızca eski fotoğrafları bir kerelik toplarken kullanmanızı öneririz. Kısıtlanmayacağınızın garantisi verilemez.' })).response === 1);
 ipcMain.handle('ayar-kaydet', (_e, yeni) => {
   const b = { ...ayarOku(), ...yeni };
   b.ilkCalismaGunSayisi = days(b.ilkCalismaGunSayisi);
+  b.indirmeHizi = ['yavas', 'orta', 'hizli'].includes(b.indirmeHizi) ? b.indirmeHizi : 'yavas';
   ayarYaz(b);
   if (typeof yeni.otomatikCalistir === 'boolean') {
     app.setLoginItemSettings({

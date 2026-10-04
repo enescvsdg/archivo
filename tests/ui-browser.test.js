@@ -364,7 +364,7 @@ test('tum dugmeler ikon ustte ad altta: ikon karosu ve etiket var; ayarlar panel
   const eksik = await h.sayfa.evaluate(() => [...document.querySelectorAll('button.dg')].filter((b) => !b.querySelector('.tl svg use') || !b.querySelector('span:last-child').textContent.trim()).map((b) => b.id || b.className));
   assert.deepEqual(eksik, []);
   assert.ok(await h.sayfa.evaluate(() => document.querySelectorAll('button.dg').length) >= 15);
-  const metinDugmeleri = await h.sayfa.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !b.classList.contains('dg') && !b.querySelector('svg') && !b.classList.contains('anahtar') && !b.classList.contains('cp') && !b.classList.contains('tk-gun') && !b.classList.contains('tk-ok') && !b.classList.contains('sy') && !b.classList.contains('snb') && !b.dataset.boy && !b.classList.contains('gun-ac') && !b.classList.contains('kare') && !b.classList.contains('gun-secenek') && !b.classList.contains('grupsatir') && !b.id.match(/^(topla|yol)$/)).map((b) => b.id || b.className));
+  const metinDugmeleri = await h.sayfa.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !b.classList.contains('dg') && !b.querySelector('svg') && !b.classList.contains('anahtar') && !b.classList.contains('cp') && !b.classList.contains('tk-gun') && !b.classList.contains('tk-ok') && !b.classList.contains('sy') && !b.classList.contains('snb') && !b.dataset.boy && !b.dataset.hiz && !b.classList.contains('gun-ac') && !b.classList.contains('kare') && !b.classList.contains('gun-secenek') && !b.classList.contains('grupsatir') && !b.id.match(/^(topla|yol)$/)).map((b) => b.id || b.className));
   assert.deepEqual(metinDugmeleri, [], 'yalnızca yazıdan oluşan düğme kalmamalı');
   await tikla(h.sayfa, '#ayarAc'); await bekle(300);
   assert.equal(await h.sayfa.$eval('#ayarKatman', (e) => e.hidden), false);
@@ -724,5 +724,45 @@ test('telefon eslemesi satiri: baslik solda, durum rozeti sagda, iki esit dugme;
   await h.sayfa.evaluate(() => { window.api.baglan = async () => ({ bagli: true, liste: [] }); const d0 = window.api.durumAl; window.api.durumAl = async () => ({ ...(await d0()), eslesmeKayitli: true, bagli: true, baglantiDurumu: 'Bağlı' }); });
   await h.sayfa.evaluate(() => document.getElementById('baglanDugme').click()); await bekle(400);
   n = await nokta(); assert.deepEqual([n.metin, n.durum, n.renk], ['Bağlı', 'bagli', 'rgb(95, 214, 138)']);
+  assert.deepEqual(h.hatalar, []);
+});
+
+test('indirme hizi satiri: Yavas varsayilan; Orta ve Hizli uyari gosterir; Hizli onay ister; secim kaydedilir; satir tasmaz', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#ayarAc'); await bekle(350);
+  await h.sayfa.evaluate(() => document.getElementById('hizEtiket').closest('.satir').scrollIntoView({ block: 'center' })); await bekle(150);
+  const durum = () => h.sayfa.evaluate(() => {
+    const R = (e) => e.getBoundingClientRect(), satir = document.getElementById('hizEtiket').closest('.satir'), sr = R(satir), seg = R(document.querySelector('#hizEtiket ~ .seg')), lab = R(document.getElementById('hizEtiket')), ic = document.querySelector('.ayar-icerik');
+    return { basili: ['hizYavas', 'hizOrta', 'hizHizli'].map((id) => document.getElementById(id).getAttribute('aria-pressed')), aciklama: document.getElementById('hizAciklama').textContent,
+      uyari: document.getElementById('hizUyari').textContent, uyariGorunur: getComputedStyle(document.getElementById('hizUyari')).display !== 'none', uyariRenk: getComputedStyle(document.getElementById('hizUyari')).color,
+      aciklamaRenk: getComputedStyle(document.getElementById('hizAciklama')).color, baslikAgirlik: Number(getComputedStyle(document.getElementById('hizEtiket')).fontWeight),
+      segSag: sr.right - seg.right, hizalama: Math.abs((seg.top + seg.bottom) / 2 - (lab.top + lab.bottom) / 2), tasma: ic.scrollWidth > ic.clientWidth + 1, icinde: seg.left >= sr.left && seg.right <= sr.right };
+  });
+  let d = await durum();
+  assert.deepEqual(d.basili, ['true', 'false', 'false']); assert.match(d.aciklama, /önerilen hız.*2–5 sn.*100 indirmede.*400 fotoğraf/); assert.equal(d.uyariGorunur, false);
+  assert.ok(d.baslikAgirlik >= 600); assert.ok(d.segSag >= 0 && d.segSag < 8, 'seçim sağ köşede: ' + d.segSag); assert.ok(d.hizalama < 6 && d.icinde && !d.tasma);
+  await foto(h, '18-hiz-yavas');
+  await tikla(h.sayfa, '#hizOrta');
+  d = await durum();
+  assert.deepEqual(d.basili, ['false', 'true', 'false']); assert.match(d.aciklama, /1–3 sn.*150 indirmede.*600 fotoğraf/); assert.equal(d.uyariGorunur, true); assert.match(d.uyari, /biraz artırabilir/);
+  assert.notEqual(d.uyariRenk, d.aciklamaRenk, 'uyarı ayrı renkte');
+  assert.equal((await cagrilar(h.sayfa)).filter((x) => x[0] === 'hizOnayi').length, 0, 'Orta için onay sorulmaz');
+  await foto(h, '18b-hiz-orta');
+  // Hizli: onay reddedilirse degismez
+  await h.sayfa.evaluate(() => { window.api.hizOnayi = async () => { window.__cagrilar.push(['hizOnayi']); return false; }; });
+  await tikla(h.sayfa, '#hizHizli');
+  assert.deepEqual((await durum()).basili, ['false', 'true', 'false'], 'onay verilmezse Orta kalır');
+  assert.equal((await cagrilar(h.sayfa)).filter((x) => x[0] === 'hizOnayi').length, 1);
+  // onay verilirse Hizli
+  await h.sayfa.evaluate(() => { window.api.hizOnayi = async () => { window.__cagrilar.push(['hizOnayi']); return true; }; });
+  await tikla(h.sayfa, '#hizHizli');
+  d = await durum();
+  assert.deepEqual(d.basili, ['false', 'false', 'true']); assert.match(d.aciklama, /0,5–1,5 sn.*200 indirmede.*800 fotoğraf/); assert.match(d.uyari, /belirgin şekilde artırabilir/);
+  await h.sayfa.evaluate(() => document.getElementById('hizEtiket').closest('.satir').scrollIntoView({ block: 'center' })); await bekle(120);
+  await foto(h, '18c-hiz-hizli');
+  // Bitti: secim kaydedilir
+  await tikla(h.sayfa, '#ayarKapat'); await bekle(200);
+  const kayit = (await cagrilar(h.sayfa)).filter((x) => x[0] === 'ayarKaydet').pop();
+  assert.equal(kayit[1].indirmeHizi, 'hizli');
   assert.deepEqual(h.hatalar, []);
 });

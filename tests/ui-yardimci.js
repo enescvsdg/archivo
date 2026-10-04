@@ -78,7 +78,7 @@ const SAHTE_API = (veri) => `
       dosyaGoster: kaydet('dosyaGoster'), ayarKaydet: kaydet('ayarKaydet', (a) => ({ ...durum.ayar, ...a })), degisiklikSor: kaydet('degisiklikSor', true),
       topla: kaydet('topla', {}), durdur: kaydet('durdur', true), baglan: kaydet('baglan', { liste: [] }), gruplariGetir: kaydet('gruplariGetir', { liste: [] }),
       gecmisKontrol: kaydet('gecmisKontrol', {}), gecmisIndir: kaydet('gecmisIndir', {}), gecmisiSifirla: kaydet('gecmisiSifirla', true), klasorSec: kaydet('klasorSec', null),
-      veriKlasoruAc: kaydet('veriKlasoruAc'), whatsappCikis: kaydet('whatsappCikis', { cikildi: true }), senkronizasyonOnayla: kaydet('senkronizasyonOnayla', true),
+      veriKlasoruAc: kaydet('veriKlasoruAc'), whatsappCikis: kaydet('whatsappCikis', { cikildi: true }), senkronizasyonOnayla: kaydet('senkronizasyonOnayla', true), hizOnayi: kaydet('hizOnayi', true),
     };
     for (const ad of ['onGruplar', 'onQr', 'onDurum', 'onDosya', 'onYinelenen', 'onBitti', 'onHata', 'onSenkron']) window.api[ad] = (fn) => { window.__cb[ad] = fn; };
     const SABIT = new Date('2026-10-03T12:00:00').getTime(); const GD = Date;

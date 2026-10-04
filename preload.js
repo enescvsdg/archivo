@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   gecmisIndir: (a) => ipcRenderer.invoke('gecmis-indir', a),
   fotografSil: (yol) => ipcRenderer.invoke('fotograf-sil', yol),
   degisiklikSor: () => ipcRenderer.invoke('degisiklik-sor'),
+  hizOnayi: () => ipcRenderer.invoke('hiz-onayi'),
   gecmisKontrol: (a) => ipcRenderer.invoke('gecmis-kontrol', a),
   senkronizasyonOnayla: () => ipcRenderer.invoke('senkronizasyon-onayla'),
   whatsappCikis: () => ipcRenderer.invoke('whatsapp-cikis'),

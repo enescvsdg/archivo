@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-VS2cgO+9nLpByl/VDcXyoyHeCR9Jq0jHngeUxAqWTHE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-bQrnVg7x2yW+q8ojXaZaZP9m4NJxj+k2qgDUpQbzTj0='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -943,6 +943,13 @@
   .satir .dg, .islem-dugme { flex: none; }
   .islem-dugme { margin-top: 6px; align-self: flex-end; }
   .dugme-satiri { display: flex; flex-wrap: wrap; gap: 18px; margin: 14px 0 6px; }
+  /* Indirme hizi: baslik + Yavas/Orta/Hizli secimi; secime gore aciklama ve (Orta/Hizli icin) risk uyarisi */
+  .satir.hiz { display: block; }
+  .hiz-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .hiz .seg button { padding: 5px 14px; }
+  .satir .hiz-aciklama { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--yazi-silik); }
+  .satir .hiz-uyari { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--uyari); }
+  .satir .hiz-uyari[hidden] { display: none; }
   /* Telefon eslemesi: ustte baslik + durum rozeti, altta iki esit cam kutulu dugme */
   .satir.eslesme { display: block; }
   .eslesme-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1160,6 +1167,15 @@
       <button class="dg" id="klasorDegistir"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-replace"/></svg></span><span>Değiştir</span></button>
     </div>
 
+    <div class="satir hiz">
+      <div class="hiz-ust">
+        <label id="hizEtiket">İndirme Hızı</label>
+        <span class="seg" role="group" aria-labelledby="hizEtiket"><button id="hizYavas" data-hiz="yavas" aria-pressed="true">Yavaş</button><button id="hizOrta" data-hiz="orta" aria-pressed="false">Orta</button><button id="hizHizli" data-hiz="hizli" aria-pressed="false">Hızlı</button></span>
+      </div>
+      <p class="hiz-aciklama" id="hizAciklama"></p>
+      <p class="hiz-uyari" id="hizUyari" hidden></p>
+    </div>
+
     <div class="satir" style="display:block">
       <label for="surumKutu">WhatsApp Web Sürümünü Sabitle</label>
       <input type="text" class="metinkutu" id="surumKutu" placeholder="Boş bırak = otomatik" />
@@ -1174,7 +1190,7 @@
       <input type="hidden" id="gecmisGun" value="3" /><div id="gunTekerlek" role="listbox" tabindex="0" aria-label="Geçmiş gün sayısı"><div id="gunSecenekleri"></div></div><small>Ortadaki sayı seçilir · fare veya trackpad ile kaydır</small>
       <div class="dugme-satiri"><button title="Geçmişi Tara" aria-label="Geçmişi Tara" class="dg" id="gecmisTara"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-history"/></svg></span><span>Geçmişi tara</span></button><button title="Geçmişi İndir" aria-label="Geçmişi İndir" class="dg" id="gecmisIndir"><span class="tl k t-vurgu"><svg class="ik" aria-hidden="true"><use href="#i-download"/></svg></span><span>Geçmişi indir</span></button></div>
       <small>Geçmişi Tara yalnızca kontrol eder. Geçmişi İndir seçili aralığı indirir. Topla bugünü toplar ve bu geçmiş aralığındaki eksikleri onayınıza sunar.</small>
-      <p><small>Sırayla ve insan hızında çalışır: geçmiş sayfa sayfa yüklenir, indirmeler arasında 2–5 saniye rastgele bekleme ve her 100 indirmede 2–5 dakika mola vardır. Çalışma başına en çok 60 dakika sürer; art arda 3 medya hatasında durur. Bu, hesabın kısıtlanmayacağını garanti etmez.</small></p>
+      <p><small>Sırayla ve insan hızında çalışır: geçmiş sayfa sayfa yüklenir, indirmeler arasında İndirme Hızı’nda seçtiğiniz kadar rastgele bekleme ve düzenli aralıklarla mola vardır. Çalışma başına en çok 60 dakika sürer; art arda 3 medya hatasında durur. Bu, hesabın kısıtlanmayacağını garanti etmez.</small></p>
       <div id="erisimRaporu"></div>
     </div>
     <div class="satir">
@@ -2311,6 +2327,7 @@
     $('yinelenenAnahtar').setAttribute('aria-checked', String(ayar.yinelenenleriAtla !== false));
     $('bireyselAnahtar').setAttribute('aria-checked', String(!!ayar.bireyselSohbetlerDeIndir));
     $('otomatikAnahtar').setAttribute('aria-checked', String(!!ayar.otomatikCalistir));
+    hizCiz(ayar.indirmeHizi || 'yavas');
     $('notAnahtar').setAttribute('aria-checked', String(ayar.yakinMesajlariAl !== false));
     $('pencereSlider').value = ayar.notPenceresiSaniye || 150;
     pencereEtiketYaz(ayar.notPenceresiSaniye || 150);
@@ -2349,6 +2366,27 @@
     $('ozet').textContent = sonuc.hata || sonuc.mesaj || (sonuc.cikildi ? 'WhatsApp’tan çıkış yapıldı' : 'Çıkış iptal edildi');
   });
 
+  // Indirme hizi secenekleri (Yavas varsayilan); Hizli secilirken ana surec bir kez onay sorar.
+  const HIZLAR = {
+    yavas: { aciklama: 'Hesabı en az yoran, önerilen hız. Her fotoğraftan önce 2–5 sn, her 100 indirmede 2–5 dk mola. Bir çalışmada (60 dk sınırı) yaklaşık 400 fotoğraf.', uyari: '' },
+    orta: { aciklama: 'Her fotoğraftan önce 1–3 sn, her 150 indirmede 1–3 dk mola. Bir çalışmada (60 dk sınırı) yaklaşık 600 fotoğraf.', uyari: 'Yavaştan daha hızlı indirmek WhatsApp’ın hesabı kısıtlama riskini biraz artırabilir. Garanti verilemez.' },
+    hizli: { aciklama: 'Her fotoğraftan önce 0,5–1,5 sn, her 200 indirmede 1–2 dk mola. Bir çalışmada (60 dk sınırı) yaklaşık 800 fotoğraf.', uyari: 'Dikkat: Bu hız hesabın kısıtlanma riskini belirgin şekilde artırabilir. Yalnızca eski fotoğrafları bir kerelik toplarken kullanın; garanti verilemez.' },
+  };
+  function hizCiz(ad) {
+    if (!HIZLAR[ad]) ad = 'yavas';
+    for (const [anahtar, id] of [['yavas', 'hizYavas'], ['orta', 'hizOrta'], ['hizli', 'hizHizli']]) $(id).setAttribute('aria-pressed', String(anahtar === ad));
+    $('hizAciklama').textContent = HIZLAR[ad].aciklama;
+    $('hizUyari').textContent = HIZLAR[ad].uyari;
+    $('hizUyari').hidden = !HIZLAR[ad].uyari;
+  }
+  for (const [ad, id] of [['yavas', 'hizYavas'], ['orta', 'hizOrta'], ['hizli', 'hizHizli']]) {
+    $(id).addEventListener('click', async () => {
+      if (!ayar || (ayar.indirmeHizi || 'yavas') === ad) return;
+      if (ad === 'hizli' && !(await window.api.hizOnayi())) return;
+      ayar.indirmeHizi = ad;
+      hizCiz(ad);
+    });
+  }
   function ayarTaslagi() { return {
       ilkCalismaGunSayisi: Number($('gecmisGun').value),
       sadeceSuGruplar: [...secili],
@@ -2356,6 +2394,7 @@
       yinelenenleriAtla: ayar.yinelenenleriAtla !== false,
       bireyselSohbetlerDeIndir: !!ayar.bireyselSohbetlerDeIndir,
       otomatikCalistir: !!ayar.otomatikCalistir,
+      indirmeHizi: ayar.indirmeHizi || 'yavas',
       yakinMesajlariAl: ayar.yakinMesajlariAl !== false,
       notPenceresiSaniye: ayar.notPenceresiSaniye || 150,
       hedefKlasor: ayar.hedefKlasor,

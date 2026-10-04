@@ -10,7 +10,7 @@ async function renderer() {
  for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,element());
  const callbacks={},calls=[],ticks=[];
  const state={ayar:{hedefKlasor:'/tmp/test',ilkCalismaGunSayisi:3,sadeceSuGruplar:[]},calisiyor:false,baglantiDurumu:'Bağlantı kapalı',rapor:null};
- const api={durumAl:async()=>state,klasorAc:async()=>{calls.push(['klasorAc']);},whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},senkronizasyonOnayla:async()=>{calls.push(['onay']);return true;},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
+ const api={durumAl:async()=>state,klasorAc:async()=>{calls.push(['klasorAc']);},hizOnayi:async()=>{calls.push(['hizOnayi']);return state.hizOnayi??true;},whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},senkronizasyonOnayla:async()=>{calls.push(['onay']);return true;},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
  for(const name of ['onGruplar','onQr','onDurum','onDosya','onYinelenen','onBitti','onHata','onSenkron'])api[name]=fn=>callbacks[name]=fn;
  const context={window:{api,addEventListener(){},matchMedia:()=>({matches:true})},document:{getElementById:id=>{assert.ok(elements.has(id),'Unknown element '+id);return elements.get(id);},documentElement:element(),createElement:element,addEventListener(){}},IntersectionObserver:class{observe(){}unobserve(){}},setInterval:fn=>ticks.push(fn),setTimeout:()=>0,clearTimeout(){},console};
  vm.createContext(context);vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
@@ -198,4 +198,26 @@ test('phone pairing badge: green dot only for Bağlı, grey for Bağlı değil, 
  // eslesme kaldirilinca gri
  Object.assign(h.state,{eslesmeKayitli:false,bagli:false,baglantiDurumu:'Bağlantı kapalı'});await yenile();
  assert.deepEqual(rozet().slice(0,2),['Bağlı değil','degil']);
+});
+
+test('speed setting: loads from settings, Hizli needs confirmation, Orta and Hizli show a warning, choice is part of the saved draft',async()=>{
+ const h=await renderer();const e=h.elements;
+ const basili=()=>['hizYavas','hizOrta','hizHizli'].map(id=>e.get(id).attrs['aria-pressed']);
+ h.state.ayar.indirmeHizi='orta';
+ await e.get('ayarAc').events.click();
+ assert.deepEqual(basili(),['false','true','false']);assert.equal(e.get('hizUyari').hidden,false);assert.match(e.get('hizAciklama').textContent,/1–3 sn.*150 indirmede/);
+ // Hizli: onay verilmezse degismez
+ h.state.hizOnayi=false;await e.get('hizHizli').events.click();
+ assert.deepEqual(basili(),['false','true','false']);assert.equal(h.calls.filter(c=>c[0]==='hizOnayi').length,1);
+ // onay verilirse Hizli
+ h.state.hizOnayi=true;await e.get('hizHizli').events.click();
+ assert.deepEqual(basili(),['false','false','true']);assert.match(e.get('hizUyari').textContent,/belirgin şekilde artırabilir/);assert.match(e.get('hizAciklama').textContent,/0,5–1,5 sn.*200 indirmede/);
+ // Yavas: onay istemez, uyari gizlenir
+ await e.get('hizYavas').events.click();
+ assert.deepEqual(basili(),['true','false','false']);assert.equal(e.get('hizUyari').hidden,true);assert.equal(h.calls.filter(c=>c[0]==='hizOnayi').length,2,'Yavaş için onay sorulmaz');
+ // Orta: onay istemez ama uyari gorunur
+ await e.get('hizOrta').events.click();assert.equal(e.get('hizUyari').hidden,false);assert.equal(h.calls.filter(c=>c[0]==='hizOnayi').length,2);
+ // secim kaydedilen taslaga girer
+ await e.get('ayarKapat').events.click();
+ const kayit=h.calls.filter(c=>c[0]==='save').pop();assert.equal(kayit[1].indirmeHizi,'orta');
 });

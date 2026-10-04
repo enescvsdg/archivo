@@ -9,6 +9,15 @@ const PACE = Object.freeze({
   molaHer: 100,             // bu kadar indirmeden sonra mola
   mola: [120000, 300000],   // mola suresi (2-5 dakika)
 });
+// Indirme hizi secenekleri (Ayarlar > Indirme Hizi). Yavas, PACE degerleridir ve varsayilandir; sayfa ve arama beklemeleri her hizda ayni kalir.
+// Daha hizli secenekler hesabin kisitlanma riskini artirabilir; garanti verilemez.
+const HIZ_SECENEKLERI = Object.freeze({
+  orta: Object.freeze({ indirme: [1000, 3000], molaHer: 150, mola: [60000, 180000] }),
+  hizli: Object.freeze({ indirme: [500, 1500], molaHer: 200, mola: [60000, 120000] }),
+});
+function hizProfili(ad, taban = PACE) {
+  return HIZ_SECENEKLERI[ad] || { indirme: taban.indirme, molaHer: taban.molaHer, mola: taban.mola };
+}
 function days(value) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1 || n > LIMITS.days) throw new Error('Geçmiş süresi 1–90 gün arasında olmalı');
@@ -34,4 +43,4 @@ function budget(now = Date.now) {
     succeeded() { failures = 0; },
   };
 }
-module.exports = { LIMITS, PACE, days, withTimeout, budget };
+module.exports = { LIMITS, PACE, HIZ_SECENEKLERI, hizProfili, days, withTimeout, budget };
