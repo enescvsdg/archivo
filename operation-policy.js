@@ -1,6 +1,6 @@
 // Insan hizi modeli: sert istek/medya/MB tavanlari yerine tempo. Tek emniyet siniri sure (60 dk) ve art arda 3 hatadir.
 // Bu ayarlar hesabin kisitlanmayacagini garanti etmez.
-const LIMITS = Object.freeze({ days: 90, messages: 20000, duration: 60 * 60 * 1000, failures: 3, timeout: 0, cikisZamanAsimi: 90000, hazirBekciAraligi: 5000, hazirlikDurguSaniye: 45, hazirlikUstSaniye: 300 });
+const LIMITS = Object.freeze({ days: 90, messages: 20000, duration: 60 * 60 * 1000, failures: 3, timeout: 0, cikisZamanAsimi: 90000, hazirBekciAraligi: 5000, hazirlikDurguSaniye: 45, hazirlikUstSaniye: 300, mesajSayaciAraligi: 5000 });
 // Araliklar [en az, en cok] milisaniyedir; her seferinde rastgele secilir (insan duzenli degildir).
 const PACE = Object.freeze({
   sayfa: [1000, 3000],      // gecmis mesaj sayfalari arasinda

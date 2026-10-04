@@ -10,8 +10,8 @@ async function renderer() {
  for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,element());
  const callbacks={},calls=[],ticks=[];
  const state={ayar:{hedefKlasor:'/tmp/test',ilkCalismaGunSayisi:3,sadeceSuGruplar:[]},calisiyor:false,baglantiDurumu:'Bağlantı kapalı',rapor:null};
- const api={durumAl:async()=>state,whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
- for(const name of ['onGruplar','onQr','onDurum','onDosya','onYinelenen','onBitti','onHata'])api[name]=fn=>callbacks[name]=fn;
+ const api={durumAl:async()=>state,whatsappCikis:async()=>{calls.push(['cikis']);return state.cikis||{cikildi:true};},senkronizasyonOnayla:async()=>{calls.push(['onay']);return true;},arsivAl:async()=>[],gruplarAl:async()=>[],ayarKaydet:async a=>{calls.push(['save',a]);return {...state.ayar,...a};},degisiklikSor:async()=>{calls.push(['confirm']);return state.saveChoice ?? true;},gecmisKontrol:async a=>{calls.push(['scan',a]);return {tamam:true};},topla:async(...args)=>{calls.push(['topla',...args]);return {tamam:true};},baglan:async()=>{calls.push(['baglan']);state.baglantiDurumu='Bağlı';state.bagli=true;return {bagli:true};},durdur:async()=>{calls.push(['durdur']);state.calisiyor=false;}};
+ for(const name of ['onGruplar','onQr','onDurum','onDosya','onYinelenen','onBitti','onHata','onSenkron'])api[name]=fn=>callbacks[name]=fn;
  const context={window:{api,addEventListener(){},matchMedia:()=>({matches:true})},document:{getElementById:id=>{assert.ok(elements.has(id),'Unknown element '+id);return elements.get(id);},documentElement:element(),createElement:element,addEventListener(){}},IntersectionObserver:class{observe(){}unobserve(){}},setInterval:fn=>ticks.push(fn),setTimeout:()=>0,console};
  vm.createContext(context);vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
  for(let n=0;n<8;n++)await Promise.resolve();
@@ -110,4 +110,36 @@ test('the logout button shows the message returned by the main process',async()=
  const h=await renderer();h.state.cikis={cikildi:true,zatenCikilmis:true,mesaj:'Telefondan zaten çıkılmış; yerel eşleşme temizlendi'};
  await h.elements.get('esleşmeSifirla').events.click();
  assert.equal(h.elements.get('ozet').textContent,'Telefondan zaten çıkılmış; yerel eşleşme temizlendi');
+});
+
+test('the Devam et button stays visible after later status events, stages fill in, and every panel closes when the work ends',async()=>{
+ const h=await renderer();const e=h.elements;
+ await e.get('topla').events.click();
+ h.callbacks.onSenkron({baglandi:true});h.callbacks.onSenkron({grupSayisi:41});
+ assert.equal(e.get('syncAdim1').attrs['data-durum'],'tamam');assert.equal(e.get('syncAdim2').attrs['data-durum'],'tamam');assert.match(e.get('syncAdim2Yazi').textContent,/Grup listesi alındı \(41 grup\)/);
+ h.callbacks.onDurum({metin:'Senkronize ediliyor',telefonOnayi:true});
+ h.callbacks.onSenkron({onayBekliyor:true,mesajSayisi:12430,durduSn:3});
+ assert.equal(e.get('syncDevam').hidden,false);assert.equal(e.get('syncKatman').hidden,false);
+ assert.match(e.get('syncAdim3Yazi').textContent,/12\.430 mesaj · artıyor/);
+ h.callbacks.onDurum({metin:'Senkronize ediliyor',yuklemeYuzdesi:99});
+ assert.equal(e.get('syncDevam').hidden,false,'sonradan gelen %99 bildirimi düğmeyi gizlememeli');assert.equal(e.get('syncKatman').hidden,false);
+ h.callbacks.onDurum({metin:'Başka bir durum metni'});
+ assert.equal(e.get('syncKatman').hidden,false,'onay beklenirken panel durum metni değişse de kapanmamalı');assert.equal(e.get('syncDevam').hidden,false);
+ assert.equal(e.get('islemPanel').hidden,true,'senkron paneli açıkken işlem paneli gizli');
+ h.callbacks.onSenkron({durduSn:130});assert.match(e.get('syncAdim3Yazi').textContent,/2 dakikadır değişmedi, büyük olasılıkla bitti/);
+ h.callbacks.onSenkron({durduSn:40});assert.match(e.get('syncAdim3Yazi').textContent,/40 saniyedir değişmedi$/);
+ await e.get('syncDevam').events.click();assert.equal(e.get('syncDevam').hidden,true);
+ assert.equal(h.calls.filter(c=>c[0]==='onay').length,1,'onay ana sürece iletilmeli');
+ await h.callbacks.onBitti({indirilen:0});
+ for(const id of ['syncKatman','islemPanel','qrKatman'])assert.equal(e.get(id).hidden,true,id+' iş bitince kapanmalı');
+ assert.equal(e.get('syncAdim1').attrs['data-durum'],'surer','sonraki işlem için aşamalar sıfırlanır');
+});
+test('stages start over for the next run and show waiting state before the connection is made',async()=>{
+ const h=await renderer();const e=h.elements;
+ await e.get('topla').events.click();
+ assert.equal(e.get('syncAdim1').attrs['data-durum'],'surer');assert.equal(e.get('syncAdim2').attrs['data-durum'],'bekliyor');assert.equal(e.get('syncAdim3').attrs['data-durum'],'bekliyor');
+ assert.match(e.get('syncAdim2Yazi').textContent,/bekleniyor/);assert.equal(e.get('syncDevam').hidden,true);
+ h.callbacks.onSenkron({baglandi:true});assert.equal(e.get('syncAdim2').attrs['data-durum'],'surer');assert.match(e.get('syncAdim2Yazi').textContent,/alınıyor/);
+ await h.callbacks.onBitti({indirilen:1});
+ await e.get('topla').events.click();assert.equal(e.get('syncAdim1').attrs['data-durum'],'surer');assert.match(e.get('syncAdim1Yazi').textContent,/bağlanılıyor/);
 });

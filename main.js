@@ -525,14 +525,45 @@ async function sohbetHazirliginiBekle(client, i, secili = [], kayit = () => {}) 
   if (beklendi) kayit('hazirlik-bitti', { kod: sonuc, ...(son != null ? { ilerleme: son } : {}) });
 }
 
-async function telefonOnayiniBekle(i) {
+// DENEME: telefondan gelen mesajlarin yerel depodaki SAYISINI (yalniz sayi, icerik degil) beklerken izler. Sayi artiyorsa
+// telefon hala mesaj gonderiyordur; uzun sure degismiyorsa buyuk olasilikla bitmistir. Karar yine kullanicidadir.
+function mesajSayaciIzle(i, kayit = () => {}) {
+  let durdu = false, zaman, son = null, degisim = Date.now(), sonYazi = 0;
+  const durdur = () => { durdu = true; clearTimeout(zaman); };
+  const dongu = async () => {
+    if (durdu) return;
+    try {
+      const sayfa = i.client?.pupPage;
+      if (sayfa && !i.iptal) {
+        const n = await Promise.race([
+          sayfa.evaluate(() => window.require('WAWebCollections').Msg.length, { islem: 'mesaj-sayaci' }),
+          new Promise((cozum) => { const z = setTimeout(() => cozum(null), 4000); z.unref?.(); }),
+        ]);
+        if (!durdu && Number.isFinite(n)) {
+          const simdi = Date.now();
+          if (n !== son) { son = n; degisim = simdi; }
+          yolla('senkron', { mesajSayisi: n, durduSn: Math.floor((simdi - degisim) / 1000) });
+          if (simdi - sonYazi >= 30000) { sonYazi = simdi; kayit('mesaj-sayaci', { ilerleme: n }); }
+        }
+      }
+    } catch (e) { /* sayfa yenilenirken okunamayabilir; sonraki turda yeniden denenir */ }
+    if (!durdu) { zaman = setTimeout(dongu, LIMITS.mesajSayaciAraligi); zaman.unref?.(); }
+  };
+  dongu();
+  return durdur;
+}
+
+async function telefonOnayiniBekle(i, kayit = () => {}) {
   if (jsonOku(path.join(veriKok(), 'senkronizasyon-onayi.json'), {}).tamam) return;
   kontrol(i);
   baglantiDurumu = 'Senkronize ediliyor';
+  yolla('senkron', { baglandi: true, grupSayisi: gruplariOku().length || null, onayBekliyor: true });
   yolla('durum', { metin: 'Senkronize ediliyor', telefonOnayi: true,
     ayrinti: 'WhatsApp Web hazır. Telefonda senkronizasyon sürüyorsa bekleyin. Telefonda tamamlandığında aşağıdan onaylayın.' });
-  await new Promise((resolve, reject) => { i.telefonOnay = resolve; i.telefonIptal = reject; });
-  i.telefonOnay = null; i.telefonIptal = null;
+  const sayacDurdur = mesajSayaciIzle(i, kayit);
+  try {
+    await new Promise((resolve, reject) => { i.telefonOnay = resolve; i.telefonIptal = reject; });
+  } finally { sayacDurdur(); i.telefonOnay = null; i.telefonIptal = null; }
   kontrol(i); jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: true });
   baglantiDurumu = 'Bağlı';
 }
@@ -827,13 +858,14 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     baglantiDurumu = 'Bağlı';
     clearTimeout(sure);
     yolla('qr', null);
+    yolla('senkron', { baglandi: true, grupSayisi: gruplariOku().length || null });
     yolla('durum', { metin: 'Senkronize ediliyor', ayrinti: 'Seçili grup hazırlanıyor' });
 
     // Yarida kesilirse hangi gruplarin sirada kaldigini raporlamak icin.
     const sira = { hedefler: [], baslayan: 0, biten: 0 };
     try {
       await sohbetHazirliginiBekle(client, i, ayar.sadeceSuGruplar, tani.record);
-      await telefonOnayiniBekle(i);
+      await telefonOnayiniBekle(i, tani.record);
       i.butce = budget();
       yolla('durum', { metin: 'Grup listesi alınıyor' });
       // WhatsApp Web'in ic yapisi kutuphaneden yeni oldugu icin getChatModel
@@ -1446,6 +1478,7 @@ async function baglanVeListele(sadeceBaglan = false) {
       gecici.once('ready', async () => {
         baglantiDurumu = 'Bağlı';
         yolla('qr', null);
+        yolla('senkron', { baglandi: true });
         try {
           yolla('durum', { metin: sadeceBaglan ? 'Senkronize ediliyor' : 'Grup adları alınıyor', ayrinti: 'Grup listesi hazırlanıyor' });
           eslesmeYaz(true);
@@ -1454,10 +1487,11 @@ async function baglanVeListele(sadeceBaglan = false) {
           const gruplar = s.filter(c => c.isGroup).map(c => ({ ad: c.name, son: c.timestamp || 0 })).sort((a,b) => b.son-a.son);
           gruplariYaz(gruplar);
           yolla('gruplar', gruplar);
+          yolla('senkron', { baglandi: true, grupSayisi: gruplar.length });
           if (sadeceBaglan) {
             yolla('durum', { metin: 'Senkronize ediliyor', ayrinti: gruplar.length + ' grup listeye eklendi; senkronizasyon bekleniyor.' });
             await sohbetHazirliginiBekle(gecici, i, [], tani.record);
-            await telefonOnayiniBekle(i);
+            await telefonOnayiniBekle(i, tani.record);
           }
           yolla('durum', { metin: gruplar.length + ' adet grup bulundu' });
           cozum(gruplar);

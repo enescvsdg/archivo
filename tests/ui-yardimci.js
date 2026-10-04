@@ -80,7 +80,7 @@ const SAHTE_API = (veri) => `
       gecmisKontrol: kaydet('gecmisKontrol', {}), gecmisIndir: kaydet('gecmisIndir', {}), gecmisiSifirla: kaydet('gecmisiSifirla', true), klasorSec: kaydet('klasorSec', null),
       veriKlasoruAc: kaydet('veriKlasoruAc'), whatsappCikis: kaydet('whatsappCikis', { cikildi: true }), senkronizasyonOnayla: kaydet('senkronizasyonOnayla', true),
     };
-    for (const ad of ['onGruplar', 'onQr', 'onDurum', 'onDosya', 'onYinelenen', 'onBitti', 'onHata']) window.api[ad] = (fn) => { window.__cb[ad] = fn; };
+    for (const ad of ['onGruplar', 'onQr', 'onDurum', 'onDosya', 'onYinelenen', 'onBitti', 'onHata', 'onSenkron']) window.api[ad] = (fn) => { window.__cb[ad] = fn; };
     const SABIT = new Date('2026-10-03T12:00:00').getTime(); const GD = Date;
     class SahteTarih extends GD { constructor(...a) { if (a.length === 0) super(SABIT); else super(...a); } static now() { return SABIT; } }
     window.Date = SahteTarih;

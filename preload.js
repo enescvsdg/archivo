@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   onQr: (cb) => ipcRenderer.on('qr', (_e, v) => cb(v)),
   onDurum: (cb) => ipcRenderer.on('durum', (_e, v) => cb(v)),
   onDosya: (cb) => ipcRenderer.on('dosya', (_e, v) => cb(v)),
+  onSenkron: (cb) => ipcRenderer.on('senkron', (_e, v) => cb(v)),
   onYinelenen: (cb) => ipcRenderer.on('yinelenen', (_e, v) => cb(v)),
   onBitti: (cb) => ipcRenderer.on('bitti', (_e, v) => cb(v)),
   onHata: (cb) => ipcRenderer.on('hata', (_e, v) => cb(v)),

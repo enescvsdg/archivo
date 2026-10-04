@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-eBCCFEnrJ5v36K58/rG+jHhql7YqAXlqtpsCEId+jnk='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-BoU0FFvDZggB/Wby8+MkB1i8NM5/dZrFdmjzMU106Zg='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -620,7 +620,6 @@
   .gun-secenek[aria-selected="true"] { color:var(--vurgu); font-size:24px; font-weight:600; }
   #fotoMenu { position:fixed; z-index:60; padding:8px; border-radius:12px; background:#292c31; border:1px solid #ffffff40; box-shadow:0 8px 30px #0008; }
   #fotoMenu[hidden] { display:none; }
-#syncKatman { z-index:46; }
  #syncBar { height:10px; overflow:hidden; border-radius:20px; background:#1118; margin:24px 0 12px; }
  #syncDolgu { display:block; height:100%; width:35%; border-radius:20px; background:linear-gradient(90deg,#2A4E94,#8FB5F2); animation:syncAkis 1.8s ease-in-out infinite alternate; }
  #syncBar.belirli #syncDolgu { animation:none; transition:width .3s; }
@@ -846,6 +845,27 @@
   .uyari-metin { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .uyari .dg { flex: none; color: var(--yazi); }
 
+  .sync-kapsul {
+    position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%);
+    width: min(580px, 94vw); z-index: 18; padding: 16px 20px; border-radius: 26px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 20px; row-gap: 6px; align-items: start;
+    animation: yuksel 260ms cubic-bezier(.2,.8,.3,1);
+  }
+  .sync-kapsul[hidden] { display: none; }
+  .sync-kapsul h2 { grid-column: 1; margin: 0 0 4px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .sync-adimlar { grid-column: 1; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .sync-adimlar li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--yazi-yumusak); }
+  .sync-adimlar li[data-durum="tamam"], .sync-adimlar li[data-durum="surer"] { color: var(--yazi); }
+  .adim-ikon { flex: none; position: relative; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.28); display: block; }
+  li[data-durum="tamam"] .adim-ikon { border-color: rgba(0,0,0,0.35); background: linear-gradient(160deg, #5FD68A, #2FAE62); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); }
+  li[data-durum="tamam"] .adim-ikon::after { content: ''; position: absolute; left: 5px; top: 2px; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  li[data-durum="surer"] .adim-ikon { border-color: rgba(255,255,255,0.22); border-top-color: var(--vurgu-acik); animation: don 1s linear infinite; }
+  .sync-ipucu { grid-column: 1; margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--yazi-yumusak); }
+  .sync-ipucu[hidden] { display: none; }
+  /* Asamali liste ilerlemeyi zaten gosterir; yuzde cubugu ve genel metin yalniz DOM'da kalir (mantik ve testler icin). */
+  .sync-kapsul #syncMetin, .sync-kapsul #syncBar, .sync-kapsul #syncBilgi { display: none; }
+  .sync-dugmeler { grid-column: 2; grid-row: 1 / span 6; align-self: center; display: flex; gap: 16px; }
+
   .bos-filtre { display: flex; align-items: center; justify-content: center; gap: 18px; max-width: 520px; margin: 14vh auto 0; padding: 18px 24px; border-radius: 22px; color: var(--yazi-yumusak); font-size: 13.5px; }
   .bos-filtre[hidden] { display: none; }
 
@@ -994,13 +1014,22 @@
   <small id="islemAyrinti"></small><small id="islemSure"></small>
   <button class="dg islem-dugme" id="islemDurdur"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button>
 </section>
-<div class="katman" id="syncKatman" hidden role="dialog" aria-modal="true" aria-labelledby="syncBaslik">
- <div class="kart cam"><h2 id="syncBaslik">Senkronizasyon devam ediyor</h2>
- <p id="syncMetin">WhatsApp ve seçili sohbetler hazırlanıyor. Tamamlanana kadar bekleyin.</p>
+<section id="syncKatman" class="sync-kapsul cam" hidden role="status" aria-live="polite" aria-labelledby="syncBaslik">
+ <h2 id="syncBaslik">Senkronizasyon devam ediyor</h2>
+ <ol class="sync-adimlar">
+  <li id="syncAdim1" data-durum="surer"><span class="adim-ikon"></span><span id="syncAdim1Yazi">WhatsApp’a bağlanılıyor…</span></li>
+  <li id="syncAdim2" data-durum="bekliyor"><span class="adim-ikon"></span><span id="syncAdim2Yazi">Grup listesi bekleniyor</span></li>
+  <li id="syncAdim3" data-durum="bekliyor"><span class="adim-ikon"></span><span id="syncAdim3Yazi">Telefondan mesajlar bekleniyor</span></li>
+ </ol>
+ <p class="sync-ipucu" id="syncIpucu" hidden>Grupları Ayarlar’dan şimdiden seçebilirsiniz. Telefonda senkron bitince Devam et’e basın.</p>
+ <p class="sync-ipucu" id="syncMetin">WhatsApp ve seçili sohbetler hazırlanıyor. Tamamlanana kadar bekleyin.</p>
  <div id="syncBar" role="progressbar" aria-label="WhatsApp hazırlığı"><span id="syncDolgu"></span></div>
  <small id="syncBilgi">Kesin ilerleme yüzdesi henüz alınmadı.</small>
- <div class="dugme-satiri"><button hidden class="dg" id="syncDevam"><span class="tl k t-yesil"><svg class="ik" aria-hidden="true"><use href="#i-circle-check"/></svg></span><span>Telefonda tamamlandı · Devam et</span></button><button class="dg" id="syncIptal"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button></div></div>
-</div>
+ <div class="sync-dugmeler">
+  <button hidden class="dg" id="syncDevam"><span class="tl k t-yesil"><svg class="ik" aria-hidden="true"><use href="#i-circle-check"/></svg></span><span>Devam et</span></button>
+  <button class="dg" id="syncIptal"><span class="tl k t-kirmizi"><svg class="ik" aria-hidden="true"><use href="#i-player-stop"/></svg></span><span>Durdur</span></button>
+ </div>
+</section>
 <div class="katman" id="qrKatman" hidden>
   <div class="kart cam">
     <h2>Telefonunu eşleştir</h2>
@@ -1886,7 +1915,7 @@
   }
   function ilerlemeGoster(d) {
     ilerleme = { ...d, baslangic: d.baslangic || ilerleme?.baslangic || Date.now(), sonIlerleme: d.sonIlerleme || Date.now() };
-    $('islemPanel').hidden = false;
+    $('islemPanel').hidden = !$('syncKatman').hidden;   // senkron paneli aciksa iki panel ust uste binmesin
     $('islemAsama').textContent = d.metin;
     const parcalar = [d.ayrinti];
     if (d.toplamGrup) parcalar.push('Grup ' + d.grup + ' / ' + d.toplamGrup);
@@ -1895,15 +1924,14 @@
     $('islemAyrinti').textContent = parcalar.filter(Boolean).join(' · ');
   }
   setInterval(() => {
-    if (!ilerleme || $('islemPanel').hidden) return;
+    if (!ilerleme) return;
     const gecen = Math.floor((Date.now() - ilerleme.baslangic) / 1000);
     const sessiz = Math.floor((Date.now() - ilerleme.sonIlerleme) / 1000);
     $('islemSure').textContent = 'Geçen süre: ' + gecen + ' sn · Son ilerleme: ' + sessiz + ' sn önce' + (sessiz >= 30 ? ' · Yeni ilerleme bilgisi alınamıyor; tamamlandığı varsayılmıyor.' : '');
   }, 1000);
   $('islemDurdur').addEventListener('click', async () => {
     $('islemAsama').textContent = 'Durduruluyor';
-    await window.api.durdur();
-    await durumuYukle();
+    await durdurVeKapat();
   });
   // Hata yazilari yeni bir calisma baslayinca silinir ya da Kapat ile elle kapatilir.
   function uyarilariTemizle() { for (const u of [...$('sayfa').querySelectorAll('.uyari')]) u.remove(); }
@@ -1916,11 +1944,12 @@
     $('sayfa').prepend(u);
   }
   function calismaModu(acik) {
+    if (acik !== calisiyor) senkronSifirla();
     calisiyor = acik;
     $('topla').disabled = acik;
     for (const id of ['baglanDugme','gecmisTara','gecmisIndir','gruplariYenile','gecmisSifirla','esleşmeSifirla']) $(id).disabled = acik;
     if (!acik) { $('baglanDugme').disabled = oturumKayitli; $('esleşmeSifirla').disabled = !oturumKayitli; }
-    if (!acik) { $('syncKatman').hidden = true; $('islemPanel').hidden = true; ilerleme = null; }
+    if (!acik) { $('syncKatman').hidden = true; $('islemPanel').hidden = true; $('qrKatman').hidden = true; ilerleme = null; }
     if (!acik) { $('toplaYazi').textContent = 'Topla'; $('dolgu').style.width = '0%'; }
   }
 
@@ -1948,12 +1977,47 @@
     try { await window.api.durdur(); } catch (e) {}
   });
 
-  $('syncDevam').addEventListener('click', async () => { $('syncDevam').disabled = true; await window.api.senkronizasyonOnayla(); });
-  $('syncIptal').addEventListener('click', async () => { await window.api.durdur(); await durumuYukle(); });
+  // Senkron paneli: uygulama kendi bildirdigi asamalari gosterir; "Devam et" onay beklendigi surece GORUNUR kalir
+  // (sonradan gelen durum mesajlari onu gizleyemez) ve is bitince/iptalde/hatada panel kendiliginden kapanir.
+  const senkronBos = () => ({ baglandi: false, grupSayisi: null, mesajSayisi: null, durduSn: 0, onayBekliyor: false });
+  let senkronDurum = senkronBos();
+  function senkronAdim(no, durum, yazi) { $('syncAdim' + no).setAttribute('data-durum', durum); $('syncAdim' + no + 'Yazi').textContent = yazi; }
+  function senkronCiz() {
+    const s = senkronDurum, sure = (sn) => sn >= 60 ? Math.floor(sn / 60) + ' dakikadır' : sn + ' saniyedir';
+    senkronAdim(1, s.baglandi ? 'tamam' : 'surer', s.baglandi ? 'WhatsApp’a bağlanıldı' : 'WhatsApp’a bağlanılıyor…');
+    const listeVar = Number.isFinite(s.grupSayisi);
+    senkronAdim(2, listeVar ? 'tamam' : s.baglandi ? 'surer' : 'bekliyor', listeVar ? 'Grup listesi alındı (' + s.grupSayisi + ' grup)' : s.baglandi ? 'Grup listesi alınıyor…' : 'Grup listesi bekleniyor');
+    let mesaj = s.baglandi ? 'Telefondan mesajlar geliyor' : 'Telefondan mesajlar bekleniyor';
+    if (s.baglandi && Number.isFinite(s.mesajSayisi)) {
+      mesaj += ' · ' + s.mesajSayisi.toLocaleString('tr-TR') + ' mesaj · ' + (s.durduSn < 15 ? 'artıyor' : sure(s.durduSn) + ' değişmedi' + (s.durduSn >= 120 ? ', büyük olasılıkla bitti' : ''));
+    }
+    senkronAdim(3, s.baglandi ? 'surer' : 'bekliyor', mesaj);
+    $('syncIpucu').hidden = !(s.onayBekliyor || listeVar);
+    $('syncDevam').hidden = !s.onayBekliyor;
+  }
+  function senkronSifirla() { senkronDurum = senkronBos(); senkronCiz(); }
+  window.api.onSenkron((s) => { senkronDurum = { ...senkronDurum, ...s }; senkronCiz(); });
+  $('syncDevam').addEventListener('click', async () => {
+    $('syncDevam').disabled = true;
+    try { await window.api.senkronizasyonOnayla(); } finally { senkronDurum.onayBekliyor = false; $('syncDevam').disabled = false; senkronCiz(); }
+  });
+  // Durdur: ana surec isi bitirene kadar kisa sure bekler; bitmese bile paneller kapanir.
+  async function durdurVeKapat() {
+    await window.api.durdur();
+    for (let n = 0; n < 20; n++) {
+      const durum = await window.api.durumAl();
+      if (!durum.calisiyor) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    await durumuYukle();
+    calismaModu(false);
+  }
+  $('syncIptal').addEventListener('click', durdurVeKapat);
   window.api.onDurum((d) => {
-    $('syncDevam').hidden = !d.telefonOnayi; $('syncDevam').disabled = false;
+    if (d.telefonOnayi) senkronDurum.onayBekliyor = true;
     const hazirlik = /Senkronize|WhatsApp hazır|WhatsApp bağlantısı hazırlanıyor/.test(d.metin);
-    $('syncKatman').hidden = !hazirlik;
+    $('syncKatman').hidden = !(hazirlik || senkronDurum.onayBekliyor);
+    senkronCiz();
     if (hazirlik) {
       const yuzde = d.yuklemeYuzdesi;
       const belirli = Number.isFinite(yuzde);

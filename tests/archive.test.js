@@ -532,6 +532,61 @@ test('phone sync confirmation blocks chat collection until approved',async t=>{
  assert.equal((await pending).bagli,true);await h.settle();
  assert.equal(readJson(path.join(h.dir,'senkronizasyon-onayi.json'),{}).tamam,true);
 });
+test('while waiting for the phone confirmation the window gets stage info and an experimental message counter that stops once approved',async t=>{
+ const olaylar=[];let n=1000,okuma=0;
+ const h=harness(t,[group('A',async()=>[]),group('B',async()=>[])],false,{limits:{mesajSayaciAraligi:5}});
+ writeJson(path.join(h.dir,'senkronizasyon-onayi.json'),{tamam:false});
+ h.ctx.__gonder=(k,v)=>olaylar.push([k,v]);
+ vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }',h.ctx);
+ const {sayfa}=bekciSayfasi();const eski=sayfa.evaluate;
+ sayfa.evaluate=async(fn,arg)=>{if(arg&&arg.islem==='mesaj-sayaci'){okuma++;return n+=7;}return eski(fn,arg);};
+ const pending=h.invoke('baglan');h.clients[0].pupPage=sayfa;h.clients[0].emit('ready');
+ for(let k=0;k<800&&olaylar.filter(([a,v])=>a==='senkron'&&v.mesajSayisi).length<3;k++)await new Promise(r=>setTimeout(r,5));
+ const sen=olaylar.filter(([a])=>a==='senkron').map(([,v])=>v);
+ assert.ok(sen.some(v=>v.baglandi===true),'bağlandı bilgisi');
+ assert.ok(sen.some(v=>v.grupSayisi===2),'grup listesi alındı bilgisi (2 grup)');
+ assert.ok(sen.some(v=>v.onayBekliyor===true&&v.grupSayisi===2),'onay bekleniyor bilgisi');
+ const sayilar=sen.filter(v=>v.mesajSayisi).map(v=>v.mesajSayisi);
+ assert.ok(sayilar.length>=3);assert.deepEqual(sayilar.slice(0,3),[1007,1014,1021]);
+ assert.ok(sen.filter(v=>v.mesajSayisi).every(v=>v.durduSn===0),'sayı artarken durma süresi 0');
+ assert.ok(olaylar.some(([k,v])=>k==='durum'&&v.telefonOnayi===true),'eski durum olayı korunur');
+ assert.equal(h.invoke('senkronizasyon-onayla'),true);assert.equal((await pending).bagli,true);await h.settle();
+ const sonraki=okuma;await new Promise(r=>setTimeout(r,60));assert.equal(okuma,sonraki,'onaydan sonra sayaç durmalı');
+ const tani=readJson(path.join(h.dir,'baglanti-tanisi.json'),{});
+ const kayit=(tani.olaylar||[]).filter(o=>o.asama==='mesaj-sayaci');
+ assert.equal(kayit.length,1,'tanıya en çok 30 saniyede bir yazılır');assert.equal(kayit[0].ilerleme,1007);assert.equal(JSON.stringify(tani).includes('Msg'),false);
+});
+
+test('the message counter ignores page errors, reports an unchanged count as a growing stall time, and stops when the operation is stopped',async t=>{
+ const olaylar=[];let cagri=0;
+ const h=harness(t,[group('A',async()=>[])],false,{limits:{mesajSayaciAraligi:5}});
+ writeJson(path.join(h.dir,'senkronizasyon-onayi.json'),{tamam:false});
+ h.ctx.__gonder=(k,v)=>olaylar.push([k,v]);
+ vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }',h.ctx);
+ const {sayfa}=bekciSayfasi();const eski=sayfa.evaluate;
+ sayfa.evaluate=async(fn,arg)=>{if(arg&&arg.islem==='mesaj-sayaci'){cagri++;if(cagri%2===1)throw new Error('Execution context was destroyed');return 5000;}return eski(fn,arg);};
+ const pending=h.invoke('baglan');h.clients[0].pupPage=sayfa;h.clients[0].emit('ready');
+ for(let k=0;k<1200&&olaylar.filter(([a,v])=>a==='senkron'&&v.mesajSayisi===5000).length<2;k++)await new Promise(r=>setTimeout(r,5));
+ const olculer=olaylar.filter(([a,v])=>a==='senkron'&&v.mesajSayisi===5000).map(([,v])=>v.durduSn);
+ assert.ok(olculer.length>=2,'hata veren turlar atlanır, sayaç çalışmaya devam eder');assert.ok(olculer.every((d,i)=>i===0||d>=olculer[i-1]),'değişmeyen sayıda durma süresi azalmaz');
+ await h.invoke('durdur');await pending.catch(()=>{});
+ const sonraki=cagri;await new Promise(r=>setTimeout(r,60));assert.equal(cagri,sonraki,'Durdur sonrası sayaç durmalı');
+});
+
+test('collection also reports connection and group-list stages before asking for the phone confirmation',async t=>{
+ const olaylar=[];
+ const h=harness(t,[group('g',async()=>[])]);
+ writeJson(path.join(h.dir,'senkronizasyon-onayi.json'),{tamam:false});writeJson(path.join(h.dir,'gruplar.json'),[{ad:'g',son:1},{ad:'h',son:2},{ad:'i',son:3}]);
+ h.ctx.__gonder=(k,v)=>olaylar.push([k,v]);
+ vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }',h.ctx);
+ await h.invoke('topla',true);h.clients[0].emit('ready');
+ for(let k=0;k<400&&!olaylar.some(([a,v])=>a==='senkron'&&v.onayBekliyor);k++)await new Promise(r=>setTimeout(r,5));
+ const sen=olaylar.filter(([a])=>a==='senkron').map(([,v])=>v);
+ assert.ok(sen.some(v=>v.baglandi===true&&v.grupSayisi===3));assert.ok(sen.some(v=>v.onayBekliyor===true&&v.grupSayisi===3));
+ assert.equal(h.invoke('senkronizasyon-onayla'),true);await h.settle();
+ assert.equal(sen.filter(v=>v.mesajSayisi).length,0,'sayfa yokken sayaç çalışmaz');
+});
+
 test('real logout requires an existing connected client',async t=>{
  const h=harness(t,[]);assert.match((await h.invoke('whatsapp-cikis')).hata,/Gerçek çıkış/);
  assert.equal(h.clients.length,0);

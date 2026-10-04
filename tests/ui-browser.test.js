@@ -423,3 +423,68 @@ test('Windows yollari dogru file adresine cevrilir ve grup adi standardi ornekle
   assert.deepEqual(r.tasi, ['b', 'c', 'a', 'd']); assert.deepEqual(r.tasi2, ['d', 'a', 'b', 'c']); assert.deepEqual(r.tasi3, ['a', 'b']);
   assert.deepEqual(r.hucre, ['2026-09-28*', '2026-09-29*', '2026-09-30*', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']);
 });
+
+test('senkron paneli: asamalar gorunur, ekrani kilitlemez, Devam et tiklanabilir ve sonradan gelen durumlar onu gizlemez', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#topla');
+  await h.sayfa.evaluate(() => {
+    window.__cb.onSenkron({ baglandi: true }); window.__cb.onSenkron({ grupSayisi: 41 });
+    window.__cb.onDurum({ metin: 'Senkronize ediliyor', telefonOnayi: true });
+    window.__cb.onSenkron({ onayBekliyor: true, mesajSayisi: 12430, durduSn: 3 });
+    window.__cb.onDurum({ metin: 'Senkronize ediliyor', yuklemeYuzdesi: 99 });
+  });
+  await bekle(350);
+  const o = await h.sayfa.evaluate(() => {
+    const R = (id) => document.getElementById(id).getBoundingClientRect();
+    const tepe = (id) => { const r = R(id); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); };
+    return {
+      panel: getComputedStyle(document.getElementById('syncKatman')).display, islem: getComputedStyle(document.getElementById('islemPanel')).display,
+      devamGorunur: getComputedStyle(document.getElementById('syncDevam')).display,
+      devamTiklanir: document.getElementById('syncDevam').contains(tepe('syncDevam')), durdurTiklanir: document.getElementById('syncIptal').contains(tepe('syncIptal')),
+      ayarTiklanir: document.getElementById('ayarAc').contains(tepe('ayarAc')), filtreTiklanir: !!tepe('sabitCipler') && !document.getElementById('syncKatman').contains(tepe('sabitCipler')),
+      kapsul: R('syncKatman').toJSON(), alt: R('alt').toJSON(), pencere: [innerWidth, innerHeight],
+      adimlar: [1, 2, 3].map((n) => [document.getElementById('syncAdim' + n).getAttribute('data-durum'), document.getElementById('syncAdim' + n + 'Yazi').textContent]),
+    };
+  });
+  assert.equal(o.panel, 'grid'); assert.equal(o.islem, 'none', 'iki panel üst üste binmemeli');
+  assert.equal(o.devamGorunur, 'flex', 'Devam et görünür'); assert.ok(o.devamTiklanir, 'Devam et tıklanabilir (üstünü başka öğe kapatmıyor)'); assert.ok(o.durdurTiklanir);
+  assert.ok(o.ayarTiklanir, 'panel ekranı kilitlememeli: Ayarlar düğmesi tıklanabilir'); assert.ok(o.filtreTiklanir, 'filtre kartı panelin arkasında kalmamalı');
+  assert.ok(o.kapsul.bottom <= o.alt.top, 'panel alt çubuğun üstünde durmalı'); assert.ok(o.kapsul.left >= 0 && o.kapsul.right <= o.pencere[0] && o.kapsul.top >= 0);
+  assert.ok(o.kapsul.height < 260, 'panel küçük olmalı: ' + o.kapsul.height);
+  assert.deepEqual(o.adimlar.map((a) => a[0]), ['tamam', 'tamam', 'surer']); assert.match(o.adimlar[1][1], /41 grup/); assert.match(o.adimlar[2][1], /12\.430 mesaj · artıyor/);
+  await foto(h, '14-senkron-paneli');
+  await tikla(h.sayfa, '#syncDevam');
+  assert.equal(await h.sayfa.$eval('#syncDevam', (e) => getComputedStyle(e).display), 'none');
+  assert.equal((await cagrilar(h.sayfa)).filter((x) => x[0] === 'senkronizasyonOnayla').length, 1);
+});
+
+test('Durdur ve is sonu: ana surec gec cevap verse bile uc gecici pencere de kapanir', { skip: ATLA }, async (t) => {
+  const kapali = (s) => s.evaluate(() => ['syncKatman', 'islemPanel', 'qrKatman'].map((id) => getComputedStyle(document.getElementById(id)).display));
+  const ac_ = async (h) => { await tikla(h.sayfa, '#topla'); await h.sayfa.evaluate(() => { window.__cb.onDurum({ metin: 'Senkronize ediliyor', telefonOnayi: true }); window.__cb.onQr('data:image/png;base64,AAAA'); window.__cb.onQr(null); }); await bekle(150); };
+  // 1) is sonu (onBitti)
+  const a = await ac_(await ac(t).then((h) => (t.h1 = h))); assert.notDeepEqual(await kapali(t.h1.sayfa), ['none', 'none', 'none']);
+  await t.h1.sayfa.evaluate(() => window.__cb.onBitti({ indirilen: 0 })); await bekle(250);
+  assert.deepEqual(await kapali(t.h1.sayfa), ['none', 'none', 'none'], 'onBitti sonrası paneller kapanmalı');
+  // 2) hata ile biten islem (Topla hata dondurur)
+  const h2 = await ac(t);
+  await h2.sayfa.evaluate(() => { window.api.topla = () => Promise.resolve({ hata: 'Bağlantı kurulamadı' }); });
+  await tikla(h2.sayfa, '#topla'); await bekle(250);
+  assert.deepEqual(await kapali(h2.sayfa), ['none', 'none', 'none'], 'hata sonrası paneller kapanmalı');
+  assert.match(await h2.sayfa.$eval('#ozet', (e) => e.textContent), /Bağlantı kurulamadı/);
+  // 3) Durdur: ana surec ilk uc yoklamada hala "calisiyor" der, sonra biter
+  const h3 = await ac(t); await ac_(h3);
+  await h3.sayfa.evaluate(() => { let n = 0; const eski = window.api.durumAl; window.api.durumAl = () => eski().then((d) => ({ ...d, calisiyor: ++n <= 3 })); });
+  const t0 = Date.now(); await tikla(h3.sayfa, '#syncIptal'); await bekle(1400);
+  assert.deepEqual(await kapali(h3.sayfa), ['none', 'none', 'none'], 'Durdur sonrası paneller kapanmalı'); assert.ok((await cagrilar(h3.sayfa)).some((x) => x[0] === 'durdur'));
+  assert.equal(await h3.sayfa.$eval('#topla', (e) => e.disabled), false, 'Topla yeniden etkin olmalı');
+  // 4) islem panelindeki Durdur ayni sekilde
+  const h4 = await ac(t); await tikla(h4.sayfa, '#topla'); await h4.sayfa.evaluate(() => window.__cb.onDurum({ metin: 'Fotoğraflar indiriliyor', ayrinti: 'g' }));
+  await bekle(150); assert.equal(await h4.sayfa.$eval('#islemPanel', (e) => getComputedStyle(e).display) !== 'none', true);
+  await tikla(h4.sayfa, '#islemDurdur'); await bekle(600);
+  assert.deepEqual(await kapali(h4.sayfa), ['none', 'none', 'none']);
+  // 5) ana surec 5 sn'den uzun "calisiyor" derse bile paneller kapanir (zorla)
+  const h5 = await ac(t); await ac_(h5);
+  await h5.sayfa.evaluate(() => { const eski = window.api.durumAl; window.api.durumAl = () => eski().then((d) => ({ ...d, calisiyor: true })); });
+  await tikla(h5.sayfa, '#syncIptal'); await bekle(5800);
+  assert.deepEqual(await kapali(h5.sayfa), ['none', 'none', 'none'], '5 sn sonra paneller zorla kapanmalı');
+});
