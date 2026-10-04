@@ -1,6 +1,6 @@
 # Archivo 2.0.1 doğrulama
 
-172 yerel test geçti (2.0.0’da 145; bunların 33’ü gerçek Chrome for Testing ile arayüzü süren testlerdir, Chrome bulunamazsa atlanır). Testler sahte WhatsApp istemcisi ve sahte `window.api` kullanır; otomatik testlerde gerçek hesap kullanılmaz.
+173 yerel test geçti (2.0.0’da 145; bunların 34’ü gerçek Chrome for Testing ile arayüzü süren testlerdir, Chrome bulunamazsa atlanır). Testler sahte WhatsApp istemcisi ve sahte `window.api` kullanır; otomatik testlerde gerçek hesap kullanılmaz.
 
 ## Canlı testte (2.0.0, gerçek hesap) bulunup 2.0.1’de düzeltilenler
 
@@ -13,6 +13,8 @@
 - **Telefon Eşlemesi satırı.** Başlık solda, rozet sağda, iki eşit cam kutulu düğme. Rozetin noktası gerçek Chrome’da hesaplanmış renkle sınanır: “Bağlı” yeşil (rgb 95,214,138), “Bağlı değil” gri (139,147,163), geçici durumlar mavi (143,181,242); düğmelerin etkin/pasif durumu, hata açıklaması, rozetin taşmaması ve işlem bitince gerçek duruma dönüş denendi. Aynı mantık sahte arayüzde (6 durum) ayrıca sınandı.
 - **Ayarlar başlıkları.** Tüm başlıkların her kelimesinin ilk harfinin büyük (bağlaçlar hariç) ve yazı ağırlığının ≥ 600, açıklamaların ≤ 400 olduğu gerçek Chrome’da hesaplanmış stilden doğrulandı (16 başlık).
 - **İndirme hızı.** Politika birim testi (Yavaş = `PACE`, Orta, Hızlı, bilinmeyen değer Yavaş, her seçenek bir öncekinden hızlı, değerler donmuş); ayarın kaydı ve geçersiz değerin Yavaş olması; kaydedilen hızın indirmeler arası beklemeyi ve mola sıklığını (Orta 150, Hızlı 200) değiştirmesi; Hızlı onay penceresinin Vazgeç varsayılanlı olması; arayüzde seçim, açıklama, uyarı rengi, onay reddedilirse değişmeme ve kayda girme (gerçek Chrome ve sahte arayüz). Bir hata testle yakalandı: uyarı yazısı başka bir stil kuralı yüzünden gri çıkıyordu, düzeltildi.
+
+- **Uzun klasör yolu yatay kaydırma çubuğu açıyordu** (paketli uygulamanın gerçek penceresinde görüldü): Ayarlar’daki “Kaydedilecek Klasör” yolu boşluksuz uzunsa satırdan taşıyordu. Açıklama yazıları artık gerektiğinde her yerden sarılır; test, düzeltme geri alındığında kırılıyor (mutasyon kontrolü).
 
 Eski testlerde yapılan değişiklikler: sayfalama testleri güne göre sayfalamaya göre yeniden yazıldı (50/100/200 fotoğraf sayfalaması kalktı); “tüm düğmeler ikon üstte” testi yeni segment düğmelerini (`7·15·30`, `Yavaş·Orta·Hızlı`) yazı-segmenti olarak tanır; sahte arayüz çıkış testlerine `clearTimeout` ve `klasorAc`/`hizOnayi` eklendi.
 

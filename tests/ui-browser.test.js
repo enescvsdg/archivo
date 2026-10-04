@@ -766,3 +766,16 @@ test('indirme hizi satiri: Yavas varsayilan; Orta ve Hizli uyari gosterir; Hizli
   assert.equal(kayit[1].indirmeHizi, 'hizli');
   assert.deepEqual(h.hatalar, []);
 });
+
+test('ayarlar: bosluksuz cok uzun klasor yolu satira sarilir, yatay kaydirma cubugu cikmaz', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await h.sayfa.evaluate(async () => {
+    const d = await window.api.durumAl();
+    window.api.durumAl = async () => ({ ...d, ayar: { ...d.ayar, hedefKlasor: '/var/folders/4r/glmqdk8x2hsbphr3l8vbvh2r0000gn/T/' + 'Cok-Uzun-Klasor-Adi-'.repeat(6) } });
+  });
+  await tikla(h.sayfa, '#ayarAc'); await bekle(400);
+  const o = await h.sayfa.evaluate(() => { const ic = document.querySelector('.ayar-icerik'), e = document.getElementById('klasorEtiket'); return { tasma: ic.scrollWidth > ic.clientWidth + 1, satir: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight || 14)), metin: e.textContent.length }; });
+  assert.ok(o.metin > 100);
+  assert.equal(o.tasma, false, 'uzun yol yüzünden yatay kaydırma çıkmamalı');
+  assert.ok(o.satir >= 2, 'uzun yol birden çok satıra sarılmalı');
+});
