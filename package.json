@@ -31,7 +31,8 @@
       "connection-config.js",
       "operation-policy.js",
       "collection-plan.js",
-      "connection-diagnostics.js"
+      "connection-diagnostics.js",
+      "browser-processes.js"
     ],
     "compression": "normal",
     "win": {

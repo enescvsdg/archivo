@@ -33,4 +33,5 @@ contextBridge.exposeInMainWorld('api', {
   onYinelenen: (cb) => ipcRenderer.on('yinelenen', (_e, v) => cb(v)),
   onBitti: (cb) => ipcRenderer.on('bitti', (_e, v) => cb(v)),
   onHata: (cb) => ipcRenderer.on('hata', (_e, v) => cb(v)),
+  onEslesme: (cb) => ipcRenderer.on('eslesme', (_e, v) => cb(v)),
 });

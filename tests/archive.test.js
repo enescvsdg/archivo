@@ -45,7 +45,7 @@ function harness(t, chats, failure = false, options = {}) {
   writeJson(path.join(dir,'senkronizasyon-onayi.json'),{tamam:true});
   class FakeClient extends EventEmitter {
     constructor() { super(); clients.push(this); }
-    async initialize() { if (failure) throw new Error('offline'); }
+    async initialize() { this.initialized = true; if (failure) throw new Error('offline'); }
     async destroy() { this.destroyed = true; }
     async getChats() { return chats; }
     async logout() { if (options.logoutFailure) throw new Error('logout offline');this.loggedOut=true; }
@@ -55,13 +55,16 @@ function harness(t, chats, failure = false, options = {}) {
   const bildirimler = [];
   const electron = { app, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)) }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) } };
   // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
+  // Yetim Chrome temizligi testte gercek surecleri taramaz; cagrilar kaydedilir, istenirse options.yetimTemizligi ile davranis verilir.
+  const temizlikler = [];
+  const tarayicilar = { yetimleriKapat: async (klasor) => { temizlikler.push(klasor); return options.yetimTemizligi ? options.yetimTemizligi(klasor) : []; } };
   const gercekPolitika = require('../operation-policy');
   const politika = { ...gercekPolitika, LIMITS: { ...gercekPolitika.LIMITS, ...(options.limits || {}) }, PACE: { sayfa: [0, 0], indirme: [0, 0], arama: [0, 0], molaHer: 100, mola: [0, 0], ...(options.pace || {}) } };
   const context = {
     require: name => name === 'electron' ? electron : name === 'qrcode' ? { toDataURL: async () => 'qr' }
       : name === 'whatsapp-web.js' ? { Client: FakeClient, LocalAuth: class {} }
       : name === 'whatsapp-web.js/package.json' ? { version: 'test' }
-      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? politika : require(name),
+      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? politika : name === './browser-processes' ? tarayicilar : require(name),
     __dirname: path.join(__dirname, '..'), process: { argv: [], platform: 'darwin', pid: process.pid },
     Buffer, console: { log() {}, error() {} }, setTimeout: (fn, ms) => { if (options.beklemeler) options.beklemeler.push(ms); return setTimeout(fn, ms <= 1500 ? 1 : ms); }, clearTimeout,
   };
@@ -69,7 +72,7 @@ function harness(t, chats, failure = false, options = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8'), context);
   const invoke = (name, ...args) => handlers.get(name)(null, ...args);
   const settle = async () => { for (let n = 0; n < 1500 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
-  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, quitSayisi: () => quitSayisi };
+  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, temizlikler, quitSayisi: () => quitSayisi };
 }
 const group = (id, fetchMessages) => ({ id: { _serialized: id }, name: id, isGroup: true, timestamp: 0, fetchMessages });
 test('failed media keeps its group checkpoint while successful group advances', async t => {
@@ -143,10 +146,12 @@ test('browser identity follows the bundled browser version and platform', () => 
 test('Topla reuses the ready group connection without another initialization', async t => {
   const h = harness(t, []);
   const result = h.invoke('gruplari-getir');
-  let starts = 1;
+  // Tarayici, yetim Chrome temizliginden sonra bir kez baslatilir.
+  let starts = 0;
   h.clients[0].initialize = async () => { starts++; };
   h.clients[0].emit('ready');
   assert.equal((await result).liste.length, 0);
+  assert.equal(starts, 1);
   assert.notEqual(h.clients[0].destroyed, true);
   await h.invoke('topla', true);
   await h.settle();
@@ -1330,4 +1335,132 @@ test('Hizli asks for confirmation in the main process with Vazgec as the default
  assert.equal(await h.invoke('hiz-onayi'),true);
  assert.deepEqual([...sorular[0].buttons],['Vazgeç','Hızlı yap']);assert.equal(sorular[0].defaultId,0);assert.equal(sorular[0].cancelId,0);assert.equal(sorular[0].type,'warning');
  assert.match(sorular[0].message,/kısıtlanma riskini artırabilir/);assert.match(sorular[0].detail,/garantisi verilemez/);
+});
+
+// ---- 2.0.2: telefondan cikis (kopma nedeni), elle cikista ilerleme haberi, yetim Chrome temizligi ----
+async function hazirBaglanti(h) { const p = h.invoke('baglan'); h.clients[0].emit('ready'); await p; return h.clients[0]; }
+function olaylariYakala(h) {
+  const olaylar = [];
+  h.ctx.__gonder = (k, v) => olaylar.push([k, v]);
+  vm.runInContext('pencere = { isDestroyed: () => false, webContents: { send: (k, v) => __gonder(k, v) } }', h.ctx);
+  return olaylar;
+}
+const eslesmeOlaylari = olaylar => olaylar.filter(([k]) => k === 'eslesme').map(([, v]) => ({ ...v }));
+const kisaBekle = (ms = 20) => new Promise(r => setTimeout(r, ms));
+for (const neden of ['LOGOUT', 'UNPAIRED', 'UNPAIRED_IDLE']) test('phone-side logout (' + neden + ') on the kept-open connection clears the local pairing, keeps the group selection and tells the window', async t => {
+  const h = harness(t, [group('a', async () => [])]);
+  writeJson(path.join(h.dir, 'ayarlar.json'), { sadeceSuGruplar: ['a'] });
+  const istemci = await hazirBaglanti(h);
+  assert.equal(h.invoke('durum-al').eslesmeKayitli, true);
+  const olaylar = olaylariYakala(h);
+  istemci.emit('disconnected', neden);
+  await kisaBekle();
+  const d = h.invoke('durum-al');
+  assert.equal(d.eslesmeKayitli, false); assert.equal(d.bagli, false); assert.equal(d.calisiyor, false);
+  assert.equal(istemci.destroyed, true);
+  assert.deepEqual(readJson(path.join(h.dir, 'gruplar.json'), null), []);
+  assert.equal(readJson(path.join(h.dir, 'senkronizasyon-onayi.json'), {}).tamam, false);
+  assert.deepEqual(readJson(path.join(h.dir, 'ayarlar.json'), {}).sadeceSuGruplar, ['a'], 'grup seçimi korunur');
+  const kopma = readJson(path.join(h.dir, 'son-kopma.json'), {});
+  assert.equal(kopma.neden, neden); assert.equal(kopma.eslesmeSilindi, true);
+  assert.deepEqual(eslesmeOlaylari(olaylar), [{ cikis: true, neden }]);
+  assert.ok(h.temizlikler.length >= 2 && h.temizlikler.every(k => k === path.join(h.dir, 'oturum', 'session')), 'kopmadan sonra yalnız kendi oturum klasörünün Chrome’u temizlenir');
+});
+for (const neden of [undefined, 'CONFLICT', 'Max qrcode retries reached']) test('a disconnect that is not a logout (' + neden + ') keeps the pairing; the reason is recorded and the window refreshes', async t => {
+  const h = harness(t, []);
+  const istemci = await hazirBaglanti(h);
+  const olaylar = olaylariYakala(h);
+  istemci.emit('disconnected', neden);
+  await kisaBekle();
+  const d = h.invoke('durum-al');
+  assert.equal(d.eslesmeKayitli, true, 'uyku/ağ kopması eşleşmeyi silmez'); assert.equal(d.bagli, false);
+  assert.equal(istemci.destroyed, true);
+  const kopma = readJson(path.join(h.dir, 'son-kopma.json'), {});
+  assert.equal(kopma.neden, String(neden ?? 'bilinmiyor')); assert.equal(kopma.eslesmeSilindi, false);
+  assert.deepEqual(eslesmeOlaylari(olaylar), [{ cikis: false, neden: String(neden ?? 'bilinmiyor') }]);
+});
+test('a QR request while a pairing is stored means the phone removed this device: pairing is cleared once, a new scan pairs again', async t => {
+  const h = harness(t, []);
+  writeJson(path.join(h.dir, 'eslesme-durumu.json'), { giris: true });
+  const olaylar = olaylariYakala(h);
+  h.invoke('topla', true);
+  h.clients[0].emit('qr', 'kod');
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, false);
+  assert.equal(h.invoke('durum-al').baglantiDurumu, 'QR bekleniyor');
+  h.clients[0].emit('qr', 'kod-yenilendi');
+  assert.deepEqual(eslesmeOlaylari(olaylar), [{ cikis: true, neden: 'QR' }], 'QR yenilenince ikinci kez bildirilmez');
+  h.clients[0].emit('authenticated');
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, true, 'yeni tarama eşleştirir');
+  await h.invoke('durdur'); await h.settle();
+});
+test('a first pairing (no stored pairing) does not report a logout when the QR appears', async t => {
+  const h = harness(t, []);
+  const olaylar = olaylariYakala(h);
+  const p = h.invoke('baglan');
+  await kisaBekle(5);
+  h.clients[0].emit('qr', 'kod');
+  assert.deepEqual(eslesmeOlaylari(olaylar), []);
+  await h.invoke('durdur'); await p;
+});
+test('a logout reported while Topla is starting stops the run with a clear message and clears the pairing', async t => {
+  const h = harness(t, []);
+  writeJson(path.join(h.dir, 'eslesme-durumu.json'), { giris: true });
+  const olaylar = olaylariYakala(h);
+  h.invoke('topla', true);
+  h.clients[0].emit('disconnected', 'LOGOUT');
+  await h.settle();
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, false);
+  assert.ok(olaylar.some(([k, v]) => k === 'hata' && /telefondan kaldırılmış/.test(v)), 'kullanıcıya neden söylenir');
+});
+test('manual logout tells the window right after confirmation that logging out is in progress; cancelling sends nothing', async t => {
+  for (const onay of [1, 0]) {
+    const h = harness(t, [], false, { confirm: onay });
+    await hazirBaglanti(h);
+    const olaylar = olaylariYakala(h);
+    await h.invoke('whatsapp-cikis');
+    const es = eslesmeOlaylari(olaylar);
+    if (onay) assert.deepEqual(es[0], { cikisSuruyor: true }); else assert.deepEqual(es, []);
+  }
+});
+for (const islemAdi of ['topla', 'gruplari-getir']) test('before a new browser starts (' + islemAdi + ') leftover Archivo Chrome for this profile is closed first', async t => {
+  const h = harness(t, [], false, { yetimTemizligi: async () => [4101, 4102] });
+  const p = h.invoke(islemAdi, true);
+  assert.equal(h.clients[0].initialized, undefined, 'tarayıcı temizlikten önce başlatılmaz');
+  await kisaBekle(5);
+  assert.deepEqual([...h.temizlikler], [path.join(h.dir, 'oturum', 'session')]);
+  assert.equal(h.clients[0].initialized, true);
+  assert.deepEqual([...readJson(path.join(h.dir, 'tarayici-temizligi.json'), {}).pidler], [4101, 4102], 'kapatılan süreçler kaydedilir');
+  await h.invoke('durdur'); await p; await h.settle();
+});
+test('a kept-open connection is reused by Topla without closing any browser', async t => {
+  const h = harness(t, []);
+  const p = h.invoke('gruplari-getir'); h.clients[0].emit('ready'); await p;
+  assert.equal(h.temizlikler.length, 1);
+  await h.invoke('topla', true); await h.settle();
+  assert.equal(h.clients.length, 1);
+  assert.equal(h.temizlikler.length, 1, 'hazır bağlantı yeniden kullanılırken temizlik yapılmaz');
+  await h.invoke('durdur');
+});
+for (const islemAdi of ['topla', 'gruplari-getir']) test('pressing Durdur while leftover browsers are being closed (' + islemAdi + ') means no browser is started', async t => {
+  let birak;
+  const h = harness(t, [], false, { yetimTemizligi: () => new Promise(r => { birak = r; }) });
+  const p = h.invoke(islemAdi, true);
+  await kisaBekle(5);
+  await h.invoke('durdur');
+  birak([]);
+  await p; await h.settle(); await kisaBekle(5);
+  assert.equal(h.clients[0].initialized, undefined);
+});
+test('logout through a temporary browser also closes leftover Chrome first, and Durdur during that closing starts nothing', async t => {
+  let birak;
+  const h = harness(t, [], false, { confirm: 1, yetimTemizligi: () => new Promise(r => { birak = r; }) });
+  writeJson(path.join(h.dir, 'eslesme-durumu.json'), { giris: true });
+  const sonuc = h.invoke('whatsapp-cikis');
+  await kisaBekle(5);
+  assert.equal(h.clients.length, 0, 'temizlik bitmeden geçici tarayıcı oluşturulmaz');
+  await h.invoke('durdur');
+  birak([]);
+  assert.equal((await sonuc).cikildi, false);
+  assert.equal(h.clients.length, 0);
+  assert.equal(readJson(path.join(h.dir, 'eslesme-durumu.json'), {}).giris, true, 'iptal edilen çıkış eşleşmeyi silmez');
 });

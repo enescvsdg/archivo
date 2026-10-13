@@ -9,6 +9,7 @@ const { observeConnection, errorText } = require('./connection-diagnostics');
 const { connectionConfig } = require('./connection-config');
 const { dayStart, eligibleMedia, belgeResmi, missingDays } = require('./collection-plan');
 const { LIMITS, PACE, hizProfili, days, withTimeout, budget } = require('./operation-policy');
+const tarayicilar = require('./browser-processes');
 let canliDurum = null;
 let baglantiDurumu = 'Bağlantı kapalı';
 let islem = null;
@@ -41,7 +42,7 @@ async function bozukHazirIstemciyiAt() {
   hazirClient = null;
   client.removeAllListeners();
   baglantiDurumu = 'Bağlantı kapalı';
-  try { await client.destroy(); } catch (e) {}
+  await istemciyiKapat(client);
 }
 
 
@@ -60,7 +61,7 @@ async function islemiDurdur() {
   const i = islem;
   if (!i) {
     const client = hazirIstemiAl();
-    if (client) { try { await client.destroy(); } catch (e) {} }
+    if (client) await istemciyiKapat(client);
     baglantiDurumu = 'Bağlantı kapalı';
     return;
   }
@@ -812,8 +813,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     rapor.baglantiAsamasi = tani.state.asama;
     if (i.basladi && !i.iptal && !kapaniyor && await istemciSaglikli(client)) {
       client.removeAllListeners(); hazirClient = client;
-      client.once('disconnected', () => { if (hazirClient === client) { hazirClient = null; baglantiDurumu = 'Bağlantı kapalı'; void client.destroy().catch(() => {}); } });
-    } else { try { await client.destroy(); } catch (e) {} }
+      client.once('disconnected', (neden) => hazirIstemciKoptu(client, neden));
+    } else await istemciyiKapat(client);
     if (islem === i) { islem = null; calisiyor = false; }
     baglantiDurumu = hazirClient ? 'Bağlı' : 'Bağlantı kapalı';
     rapor.sonuc = i.iptal ? 'iptal' : (sayac.hata || sayac.atlanan) ? 'eksik' : 'bitti';
@@ -838,6 +839,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
 
 
   client.on('qr', async (qr) => {
+    // Kayitli eslesme varken QR istenmesi: WhatsApp bu cihaz kaydini artik kabul etmiyor (telefondan cikilmis).
+    if (eslesmeVar()) baglantiKoptu('QR');
     jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
     baglantiDurumu = 'QR bekleniyor';
     yolla('durum', { metin: 'QR bekleniyor' });
@@ -856,7 +859,11 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     } catch (e) {}
   });
   client.on('auth_failure', (m) => void baslatmaHatasi(new Error('Eşleşme başarısız: ' + m)));
-  client.on('disconnected', () => { i.iptal = true; i.reject(new Error('Bağlantı kesildi')); });
+  client.on('disconnected', (neden) => {
+    const cikis = baglantiKoptu(neden);
+    if (cikis && i.basladi) yolla('hata', CIKIS_MESAJI);
+    i.iptal = true; i.reject(new Error(cikis ? CIKIS_MESAJI : 'Bağlantı kesildi'));
+  });
 
   client.once('ready', async () => {
     if (tamamlandi || i.iptal) return;
@@ -1166,6 +1173,9 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   if (mevcutClient) {
     client.emit('ready');
   } else {
+    await yetimTarayicilariKapat();
+    // Temizlik sirasinda Durdur'a basildiysa tarayici hic acilmaz.
+    if (tamamlandi) return { tamam: true };
     try { client.initialize().catch(baslatmaHatasi); } catch (err) { await baslatmaHatasi(err); }
   }
 
@@ -1372,8 +1382,54 @@ ipcMain.handle('veri-klasoru-ac', () => shell.openPath(veriKok()));
 function eslesmeVar() { return !!jsonOku(path.join(veriKok(), 'eslesme-durumu.json'), {}).giris; }
 function eslesmeYaz(giris) { jsonYaz(path.join(veriKok(), 'eslesme-durumu.json'), { giris }); }
 
+// whatsapp-web.js kopma nedeni 'LOGOUT' (telefondan cikis) ya da WhatsApp durum adidir; bu uc neden cihaz kaydinin kalktigini gosterir.
+// 'QR': kayitli eslesme varken WhatsApp yeniden QR istedi (oturum sunucuda kapanmis).
+const CIKIS_NEDENLERI = new Set(['LOGOUT', 'UNPAIRED', 'UNPAIRED_IDLE', 'QR']);
+const CIKIS_MESAJI = 'WhatsApp bağlantısı telefondan kaldırılmış. QR kod ile yeniden bağlanın.';
+// Kopma nedenini kaydeder. Cihaz kaydi kalktiysa yerel eslesme de "yok" sayilir (standart baslangic: QR kod goster);
+// uyku ya da ag kopmasinda eslesme korunur. Her durumda pencereye haber verilir (rozet beklemeden guncellenir).
+function baglantiKoptu(neden) {
+  const metin = String(neden ?? 'bilinmiyor');
+  const cikis = CIKIS_NEDENLERI.has(metin);
+  try { jsonYaz(path.join(veriKok(), 'son-kopma.json'), { zaman: Date.now(), neden: metin, eslesmeSilindi: cikis }); } catch (e) { hataYaz('son-kopma', e); }
+  if (cikis) yerelEslesmeyiTemizle();
+  yolla('eslesme', { cikis, neden: metin });
+  return cikis;
+}
+// Grup yenileme/Topla sonrasi acik tutulan tarayici koptu.
+function hazirIstemciKoptu(client, neden) {
+  if (hazirClient !== client) return;
+  hazirClient = null;
+  baglantiDurumu = 'Bağlantı kapalı';
+  void istemciyiKapat(client);
+  baglantiKoptu(neden);
+}
+
+const oturumKlasoru = () => path.join(veriKok(), 'oturum', 'session');
+// Uyku ya da ag kopmasindan kalan kendi Chrome'umuzu kapatir ("browser is already running" hatasini onler).
+// Yalnizca bu surumun oturum klasoruyle acilmis surecler kapatilir.
+async function yetimTarayicilariKapat() {
+  try {
+    const kapatilan = await tarayicilar.yetimleriKapat(oturumKlasoru());
+    if (kapatilan.length) {
+      console.log('Yetim tarayıcı kapatıldı:', kapatilan.join(', '));
+      jsonYaz(path.join(veriKok(), 'tarayici-temizligi.json'), { zaman: Date.now(), pidler: kapatilan });
+    }
+    return kapatilan;
+  } catch (e) { hataYaz('yetim-tarayici', e); return []; }
+}
+// Istemciyi kapatir. Baglanti kopuksa destroy takilabilir; baska islem yoksa ardindan kalan kendi Chrome'umuz da temizlenir.
+async function istemciyiKapat(client) {
+  let kapanis = null;
+  try { kapanis = client.destroy(); } catch (e) {}
+  try { if (kapanis) await withTimeout(Promise.resolve(kapanis), 10000, 'Tarayıcı kapatma'); } catch (e) {}
+  if (!islem && !cikisClient && !hazirClient && !calisiyor) await yetimTarayicilariKapat();
+}
+
 // Kullanıcının çıkış isteği: kayıtlı oturumu bir kez aç, QR ile yeniden giriş yapma.
 async function cikisIstemcisi() {
+  await yetimTarayicilariKapat();
+  if (cikisIptal) throw new Error('İşlem iptal edildi');
   const client = new Client(istemciSecenekleri());
   cikisClient = client;
   const bekci = hazirBekcisi(client);
@@ -1391,14 +1447,15 @@ async function cikisIstemcisi() {
       client.initialize().catch(reject);
     });
     return client;
-  } catch (e) { try { await client.destroy(); } catch (_) {} throw e; }
+  } catch (e) { await istemciyiKapat(client); throw e; }
   finally { bekci(); clearTimeout(zamanlayici); cikisReddet = null; }
 }
 
 // Yerel eslesmeyi temizler: sunucuda oturum kapali oldugu bilindiginde ya da kullanici onayladiginda.
 function yerelEslesmeyiTemizle() {
   eslesmeYaz(false);
-  hazirClient = null;
+  const acik = hazirIstemiAl();
+  if (acik) void istemciyiKapat(acik);
   baglantiDurumu = 'Çıkış yapıldı';
   jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
   gruplariYaz([]);
@@ -1413,6 +1470,8 @@ async function whatsappCikis() {
   if (calisiyor || yerelSilme) return { hata: 'Bağlantı durumu değişti; çıkış yapılmadı' };
   let client = hazirClient, sonuc;
   calisiyor = true; cikisCalisiyor = true; cikisIptal = false;
+  // Cikis gecici bir tarayici acabildigi icin 1-2 dakika surebilir; Ayarlar'da hemen "Çıkış yapılıyor" gorunsun.
+  yolla('eslesme', { cikisSuruyor: true });
   try {
     try {
       if (!client) client = await cikisIstemcisi();
@@ -1420,7 +1479,7 @@ async function whatsappCikis() {
       yerelEslesmeyiTemizle();
       sonuc = { cikildi: true };
     } catch (e) {
-      if (client && client !== hazirClient) { try { await client.destroy(); } catch (_) {} }
+      if (client && client !== hazirClient) await istemciyiKapat(client);
       if (cikisIptal) sonuc = { cikildi: false };
       else if (e.oturumGecersiz) {
         // WhatsApp QR istedi: oturum sunucuda zaten kapali. Yerel kaydi temizlemek guvenlidir.
@@ -1471,9 +1530,10 @@ async function baglanVeListele(sadeceBaglan = false) {
       i.reject = hata;
 
       gecici.on('auth_failure', m => hata(new Error('Eşleşme başarısız: ' + m)));
-      gecici.on('disconnected', () => { i.iptal = true; hata(new Error('Bağlantı kesildi')); });
+      gecici.on('disconnected', (neden) => { const cikis = baglantiKoptu(neden); i.iptal = true; hata(new Error(cikis ? CIKIS_MESAJI : 'Bağlantı kesildi')); });
       gecici.on('loading_screen', percent => yolla('durum', { metin: 'Senkronize ediliyor', yuklemeYuzdesi: Number(percent) }));
       gecici.on('qr', async (qr) => {
+        if (eslesmeVar()) baglantiKoptu('QR');
         jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
     baglantiDurumu = 'QR bekleniyor';
         yolla('durum', { metin: 'QR bekleniyor' });
@@ -1509,7 +1569,8 @@ async function baglanVeListele(sadeceBaglan = false) {
         } catch (e) { hata(e); }
       });
       if (mevcutClient) gecici.emit('ready');
-      else gecici.initialize().catch(hata);
+      // Yeni tarayici acmadan once kalan kendi Chrome'umuz kapatilir; bu sirada Durdur'a basildiysa tarayici acilmaz.
+      else yetimTarayicilariKapat().then(() => { if (i.iptal) throw new Error('İşlem iptal edildi'); return gecici.initialize(); }).catch(hata);
     });
     kontrol(i);
     if (!sadeceBaglan) gruplariYaz(liste);
@@ -1527,16 +1588,10 @@ async function baglanVeListele(sadeceBaglan = false) {
     if ((listeAlindi || tani.state.sayfa?.kutuphaneHazir) && !i.iptal && !kapaniyor && await istemciSaglikli(gecici)) {
       gecici.removeAllListeners();
       hazirClient = gecici;
-      gecici.once('disconnected', () => {
-        if (hazirClient === gecici) {
-          hazirClient = null;
-          baglantiDurumu = 'Bağlantı kapalı';
-          void gecici.destroy().catch(() => {});
-        }
-      });
+      gecici.once('disconnected', (neden) => hazirIstemciKoptu(gecici, neden));
     } else {
       baglantiDurumu = 'Bağlantı kapalı';
-      try { await gecici.destroy(); } catch (e) {}
+      await istemciyiKapat(gecici);
     }
     if (islem === i) { islem = null; calisiyor = false; }
     canliDurum = null;
@@ -1622,6 +1677,8 @@ app.whenReady().then(async () => {
     return;
   }
   tepsiKur();
+  // Onceki calismadan (cokme, uyku) kalan kendi Chrome'umuz varsa kapatilir.
+  if (app.hasSingleInstanceLock?.() !== false) void yetimTarayicilariKapat();
 
   if (!SESSIZ) pencereAc(); // Açılışta otomatik indirme başlatılmaz.
 

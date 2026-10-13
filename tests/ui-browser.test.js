@@ -782,3 +782,45 @@ test('ayarlar: bosluksuz cok uzun klasor yolu satira sarilir, yatay kaydirma cub
   assert.equal(o.tasma, false, 'uzun yol yüzünden yatay kaydırma çıkmamalı');
   assert.ok(o.satir >= 2, 'uzun yol birden çok satıra sarılmalı');
 });
+
+// 2.0.2: elle cikista Ayarlar acikken "Çıkış yapılıyor" gorunur ve is bitince Bitti'ye basmadan rozet/QR dugmesi guncellenir;
+// telefondan cikis haberi gelince Ayarlar acik olsa bile standart baslangica doner.
+test('telefon eslemesi: elle cikis surerken ilerleme gorunur, bitince Bitti beklenmeden QR kod goster acilir; telefondan cikis haberi rozeti hemen gunceller', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  const oku = () => h.sayfa.evaluate(() => ({ rozet: document.getElementById('baglantiEtiket').textContent, durum: document.getElementById('baglantiEtiket').dataset.durum, ayrinti: document.getElementById('baglantiAyrinti').textContent, qrYazi: document.getElementById('baglanYazi').textContent, qrPasif: document.getElementById('baglanDugme').disabled, cikisPasif: document.getElementById('esleşmeSifirla').disabled, ayarAcik: !document.getElementById('ayarKatman').hidden, grupSayisi: document.querySelectorAll('#grupListe .grupsatir').length, ozet: document.getElementById('ozet').textContent }));
+  // Ana surecin sirasi: onaydan sonra "suruyor" haberi -> (gecici tarayici, uzun surer) -> durum dosyalari -> 'bitti' -> cevap
+  await h.sayfa.evaluate(() => {
+    const d0 = window.api.durumAl; window.__cikildi = false;
+    window.api.durumAl = async () => { const d = await d0(); return window.__cikildi ? { ...d, eslesmeKayitli: false, bagli: false, baglantiDurumu: 'Çıkış yapıldı' } : d; };
+    window.api.whatsappCikis = async () => {
+      window.__cb.onEslesme({ cikisSuruyor: true });
+      await new Promise((r) => setTimeout(r, 700));
+      window.__cikildi = true;
+      window.__cb.onBitti({ mesaj: 'WhatsApp’tan çıkış yapıldı' });
+      return { cikildi: true };
+    };
+  });
+  await tikla(h.sayfa, '#ayarAc'); await bekle(300);
+  let o = await oku();
+  assert.deepEqual([o.rozet, o.qrPasif, o.cikisPasif], ['Bağlı', true, false]);
+  await h.sayfa.evaluate(() => document.getElementById('esleşmeSifirla').click()); await bekle(200);
+  o = await oku();
+  assert.deepEqual([o.rozet, o.durum, o.qrPasif, o.cikisPasif], ['Çıkış yapılıyor', 'surer', true, true], 'çıkış sürerken ilerleme görünür, iki düğme kapalı');
+  assert.match(o.ayrinti, /kapatılıyor/);
+  await foto(h, '24a-cikis-suruyor');
+  await bekle(900);
+  o = await oku();
+  assert.deepEqual([o.rozet, o.durum, o.qrYazi, o.qrPasif, o.cikisPasif, o.ayarAcik], ['Bağlı değil', 'degil', 'QR kod göster', false, true, true], 'Bitti’ye basmadan güncellenir');
+  await foto(h, '24b-cikis-bitti');
+  // Telefondan cikis: yeniden bagli gorunen durumdan baslar, grup listesi dolu
+  await h.sayfa.evaluate(() => { window.__cikildi = false; window.__cb.onGruplar([{ ad: 'Grup A', son: 2 }, { ad: 'Grup B', son: 1 }]); });
+  await h.sayfa.evaluate(() => window.__cb.onEslesme({ cikis: false, neden: 'CONFLICT' })); await bekle(200);
+  o = await oku();
+  assert.deepEqual([o.rozet, o.grupSayisi], ['Bağlı', 2], 'çıkış olmayan kopma eşleşmeyi ve listeyi silmez');
+  await h.sayfa.evaluate(() => { window.__cikildi = true; window.__cb.onEslesme({ cikis: true, neden: 'LOGOUT' }); }); await bekle(250);
+  o = await oku();
+  assert.deepEqual([o.rozet, o.durum, o.qrYazi, o.qrPasif, o.cikisPasif, o.ayarAcik, o.grupSayisi], ['Bağlı değil', 'degil', 'QR kod göster', false, true, true, 0], 'telefondan çıkış: standart başlangıç');
+  assert.match(o.ozet, /Telefon bağlantısı kaldırılmış/);
+  await foto(h, '24c-telefondan-cikis');
+  assert.deepEqual(h.hatalar, []);
+});

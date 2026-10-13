@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-1WD1Mn8C2y8EOMWMpFLhfr9QnbxrMrxullEZV0scops='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-YKLA/sD2WS20GfqIUJuW3TCT+7GvNigvucnRsvCrWUQ='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2182,6 +2182,22 @@
   window.api.onYinelenen((d) => { $('ozet').textContent = 'Yinelenen atlandı · ' + grupAdiGoster(d.grup); });
 
   window.api.onHata((m) => uyariEkle(m));
+
+  // Ana surec eslesme degisikligini bildirir: elle cikis suruyor; telefondan cikis / QR istenmesi (eslesme bitti); baglanti koptu.
+  // Ayarlar acik olsa bile rozet ve QR kod goster dugmesi hemen guncellenir.
+  window.api.onEslesme(async (e) => {
+    if (e && e.cikisSuruyor) {
+      baglantiYaz('Çıkış yapılıyor', 'WhatsApp oturumu kapatılıyor; bu bir dakikayı bulabilir.');
+      $('baglanDugme').disabled = true; $('esleşmeSifirla').disabled = true;
+      return;
+    }
+    const d = await window.api.durumAl();
+    baglantiCiz(d);
+    if (e && e.cikis) {
+      gruplariCiz([]);
+      if (!d.calisiyor) $('ozet').textContent = 'Telefon bağlantısı kaldırılmış · QR kod ile yeniden bağlanın';
+    }
+  });
 
   window.api.onBitti(async (s) => {
     const gecenSn = ilerleme ? Math.max(0, Math.round((Date.now() - ilerleme.baslangic) / 1000)) : null;
