@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-YKLA/sD2WS20GfqIUJuW3TCT+7GvNigvucnRsvCrWUQ='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-wu59fei4CVcrgRHbHDiZ2jg1N8Q/TOIMA2ia8cO9NAY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1156,7 +1156,7 @@
 
     <div class="satir" style="display:block">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
-        <label>Hangi Gruplar<small id="grupOzet">Hiçbiri seçili değil — hepsi taranır</small></label>
+        <label>Hangi Gruplar<small id="grupOzet">Hiçbiri seçili değil — Topla’ya basınca sorulur</small></label>
         <button class="dg" id="gruplariYenile"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-refresh"/></svg></span><span id="gruplariYenileYazi">Yenile</span></button>
       </div>
       <div id="grupListe"></div>
@@ -2104,7 +2104,7 @@
     $('toplaYazi').textContent = 'Bağlanıyor';
     ilerlemeGoster({ metin: 'WhatsApp açılıyor' });
     const sonuc = await window.api.topla(false, false);
-    if (sonuc && sonuc.hata) { calismaModu(false); $('ozet').textContent = sonuc.hata; }
+    if (sonuc && (sonuc.hata || sonuc.iptal)) { calismaModu(false); $('ozet').textContent = sonuc.hata || sonuc.mesaj; }
   });
 
   $('yol').addEventListener('click', () => window.api.klasorAc());
@@ -2252,11 +2252,14 @@
 
   function grupOzetYaz() {
     $('grupOzet').textContent = secili.size === 0
-      ? 'Hiçbiri seçili değil — hepsi taranır'
+      ? 'Hiçbiri seçili değil — Topla’ya basınca sorulur'
       : secili.size + ' grup seçili';
   }
 
   function gruplariCiz(liste) {
+    // Yeni (bos olmayan) listede bulunmayan gruplar secimden duser (ornegin baska hesapla baglanildiysa).
+    // Bos liste (cikistan sonra) secimi korur; Bitti'ye basinca kaydedilir.
+    if (liste.length) { const adlar = new Set(liste.map((g) => g.ad)); for (const a of [...secili]) if (!adlar.has(a)) secili.delete(a); }
     const kap = $('grupListe');
     kap.innerHTML = '';
     for (const g of liste) {
@@ -2315,14 +2318,14 @@
     uyarilariTemizle();
     calismaModu(true); ilerlemeGoster({ metin: 'Geçmiş erişimi kontrol ediliyor' });
     const sonuc = await window.api.gecmisKontrol({ ilkCalismaGunSayisi: gun, sadeceSuGruplar: [...secili] });
-    if (sonuc?.hata) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata; }
+    if (sonuc?.hata || sonuc?.iptal) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata || sonuc.mesaj; }
   });
   $('gecmisIndir').addEventListener('click', async () => {
     uyarilariTemizle();
     calismaModu(true); ilerlemeGoster({ metin: 'Geçmiş indirme hazırlanıyor' });
     try {
       const sonuc = await window.api.gecmisIndir({ ilkCalismaGunSayisi: Number($('gecmisGun').value), sadeceSuGruplar: [...secili] });
-      if (sonuc?.hata) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata; }
+      if (sonuc?.hata || sonuc?.iptal) { calismaModu(false); $('erisimRaporu').textContent = sonuc.hata || sonuc.mesaj; }
     } catch (e) { calismaModu(false); $('erisimRaporu').textContent = e.message; }
   });
   $('gruplariYenile').addEventListener('click', async () => {
@@ -2381,7 +2384,8 @@
     $('esleşmeSifirla').disabled = true;
     const sonuc = await window.api.whatsappCikis();
     await durumuYukle();
-    if (sonuc.cikildi) { secili.clear(); gruplariCiz([]); }
+    // Cikista grup secimi korunur; yalniz liste bosalir (yeniden baglaninca gelir).
+    if (sonuc.cikildi) gruplariCiz([]);
     $('ozet').textContent = sonuc.hata || sonuc.mesaj || (sonuc.cikildi ? 'WhatsApp’tan çıkış yapıldı' : 'Çıkış iptal edildi');
   });
 

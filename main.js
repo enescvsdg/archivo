@@ -1188,9 +1188,24 @@ const SIMGE_B64 = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFtklEQVR4nM2Xb
 
 ipcMain.handle('durum-al', () => ({ ayar: ayarOku(), sonZaman: sonZamanOku(), calisiyor, canliDurum, baglantiDurumu, bagli: !!hazirClient, eslesmeKayitli: eslesmeVar(), rapor: jsonOku(raporYolu(), null) }));
 ipcMain.handle('gruplar-al', () => gruplariOku());
-ipcMain.handle('gecmis-kontrol', (_e, taslak) => toplamayiBaslat(false, true, true, { ilkCalismaGunSayisi: days(taslak.ilkCalismaGunSayisi), sadeceSuGruplar: taslak.sadeceSuGruplar }));
-ipcMain.handle('gecmis-indir', (_e, taslak) => toplamayiBaslat(false, true, false, { ilkCalismaGunSayisi: days(taslak.ilkCalismaGunSayisi), sadeceSuGruplar: taslak.sadeceSuGruplar }));
-ipcMain.handle('topla', (_e, zorla, gecmis) => toplamayiBaslat(!!zorla, !!gecmis));
+// Hic grup secili degilse tum gruplar taranir. Bu, kullanici acikca onaylamadan baslamaz (Vazgec varsayilan).
+async function tumGruplarOnayi(secili) {
+  if (Array.isArray(secili) && secili.length) return true;
+  const sayi = gruplariOku().length;
+  const { response } = await dialog.showMessageBox(pencere, { type: 'warning', buttons: ['Vazgeç', 'Hepsini tara'], defaultId: 0, cancelId: 0,
+    message: 'Hiç grup seçmedin. ' + (sayi ? 'Tüm gruplar (' + sayi + ') taransın mı?' : 'Tüm gruplar taransın mı?'),
+    detail: 'Grup seçmek için: Ayarlar › Hangi Gruplar. Tüm grupları taramak uzun sürer ve WhatsApp hesabını daha çok yorar.' });
+  return response === 1;
+}
+const GRUP_SECILMEDI = { iptal: true, mesaj: 'Başlamadı: hiç grup seçilmedi' };
+// Grup seciliyse ya da calisan bir islem varsa soru sorulmadan baslatilir (toplamayiBaslat "suruyor" cevabini kendisi verir).
+function onayliBaslat(secili, ...arguman) {
+  if (calisiyor || yerelSilme || (Array.isArray(secili) && secili.length)) return toplamayiBaslat(...arguman);
+  return tumGruplarOnayi(secili).then((onay) => (onay ? toplamayiBaslat(...arguman) : GRUP_SECILMEDI));
+}
+ipcMain.handle('gecmis-kontrol', (_e, taslak) => onayliBaslat(taslak.sadeceSuGruplar, false, true, true, { ilkCalismaGunSayisi: days(taslak.ilkCalismaGunSayisi), sadeceSuGruplar: taslak.sadeceSuGruplar }));
+ipcMain.handle('gecmis-indir', (_e, taslak) => onayliBaslat(taslak.sadeceSuGruplar, false, true, false, { ilkCalismaGunSayisi: days(taslak.ilkCalismaGunSayisi), sadeceSuGruplar: taslak.sadeceSuGruplar }));
+ipcMain.handle('topla', (_e, zorla, gecmis) => onayliBaslat(ayarOku().sadeceSuGruplar, !!zorla, !!gecmis));
 
 ipcMain.handle('durdur', async () => {
   await islemiDurdur();

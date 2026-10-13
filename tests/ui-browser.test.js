@@ -824,3 +824,32 @@ test('telefon eslemesi: elle cikis surerken ilerleme gorunur, bitince Bitti bekl
   await foto(h, '24c-telefondan-cikis');
   assert.deepEqual(h.hatalar, []);
 });
+
+// 2.0.2: grup secimi cikista korunur; yeni listede olmayan gruplar secimden duser; 0 grupta Vazgec'ten sonra ekran eski haline doner.
+test('grup secimi: cikista korunur, yeni listede olmayan grup duser, Bitti ile kaydedilir; 0 grup sorusunda Vazgec ekrani geri birakir', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await h.sayfa.evaluate(() => {
+    const d0 = window.api.durumAl;
+    window.api.durumAl = async () => { const d = await d0(); return { ...d, ayar: { ...d.ayar, sadeceSuGruplar: ['Grup A', 'Grup B'] } }; };
+    window.api.gruplarAl = async () => [{ ad: 'Grup A', son: 2 }, { ad: 'Grup B', son: 1 }];
+  });
+  await tikla(h.sayfa, '#ayarAc'); await bekle(300);
+  const isaretli = () => h.sayfa.$$eval('#grupListe .grupsatir[aria-checked="true"] .ad', (l) => l.map((e) => e.textContent));
+  assert.deepEqual(await isaretli(), ['Grup A', 'Grup B']);
+  assert.equal(await h.sayfa.$eval('#grupOzet', (e) => e.textContent), '2 grup seçili');
+  await h.sayfa.evaluate(() => document.getElementById('esleşmeSifirla').click()); await bekle(300);
+  assert.equal(await h.sayfa.$$eval('#grupListe .grupsatir', (l) => l.length), 0, 'çıkışta liste boşalır');
+  assert.equal(await h.sayfa.$eval('#grupOzet', (e) => e.textContent), '2 grup seçili', 'seçim korunur');
+  await h.sayfa.evaluate(() => window.__cb.onGruplar([{ ad: 'Grup A', son: 3 }, { ad: 'Grup C', son: 1 }])); await bekle(150);
+  assert.deepEqual(await isaretli(), ['Grup A'], 'yeni listede olmayan Grup B düşer');
+  await tikla(h.sayfa, '#ayarKapat'); await bekle(200);
+  const kayit = (await cagrilar(h.sayfa)).filter((c) => c[0] === 'ayarKaydet').pop();
+  assert.deepEqual(kayit[1].sadeceSuGruplar, ['Grup A']);
+  // 0 grup: ana surec soruyu sorar; Vazgec'te Topla geri gelir, ozet nedeni yazar
+  await h.sayfa.evaluate(() => { window.api.topla = async () => ({ iptal: true, mesaj: 'Başlamadı: hiç grup seçilmedi' }); });
+  await tikla(h.sayfa, '#topla'); await bekle(250);
+  assert.equal(await h.sayfa.$eval('#topla', (e) => e.disabled), false);
+  assert.equal(await h.sayfa.$eval('#toplaYazi', (e) => e.textContent), 'Topla');
+  assert.equal(await h.sayfa.$eval('#ozet', (e) => e.textContent), 'Başlamadı: hiç grup seçilmedi');
+  assert.deepEqual(h.hatalar, []);
+});
