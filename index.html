@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-bQrnVg7x2yW+q8ojXaZaZP9m4NJxj+k2qgDUpQbzTj0='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-1WD1Mn8C2y8EOMWMpFLhfr9QnbxrMrxullEZV0scops='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2063,7 +2063,7 @@
   });
   // Hata yazilari yalniz Tumu gorunumunde acilir (grup sayfalarinda gizlenir), uyariSuresi sonra kendiliginden kaybolur,
   // yeni bir calisma baslayinca silinir ya da Kapat ile elle kapatilir. Sure yalniz yazi gorunurken isler: grupta gezerken dolmaz.
-  let uyariSuresi = 30000;
+  let uyariSuresi = 10000;
   const uyarilar = new Set();
   function uyariKaldir(u) { clearTimeout(u.zaman); u.el.remove(); uyarilar.delete(u); }
   function uyarilariTemizle() { for (const u of [...uyarilar]) uyariKaldir(u); }
@@ -2268,6 +2268,7 @@
 
   window.api.onGruplar(liste => { gruplariCiz(liste); $('grupOzet').textContent = liste.length + ' adet grup bulundu'; });
 
+  const BAGLANDI_OZETI = 'Bağlandı · Topla’ya hazır';
   // Telefon eslemesi rozeti: yesil nokta yalniz "Bagli"; "Bagli degil" gri; gecici durumlar (WhatsApp aciliyor, Senkronize ediliyor, QR bekleniyor) mavi.
   function baglantiYaz(durum, ayrinti) {
     const e = $('baglantiEtiket');
@@ -2290,7 +2291,7 @@
     try {
       const s = await window.api.baglan();
       hata = s.hata || '';
-      if (!s.hata) { baglantiYaz('Bağlı'); $('baglanYazi').textContent = 'Bağlandı'; $('grupOzet').textContent = (s.liste || []).length + ' adet grup bulundu'; }
+      if (!s.hata) { baglantiYaz('Bağlı'); $('baglanYazi').textContent = 'Bağlandı'; $('grupOzet').textContent = (s.liste || []).length + ' adet grup bulundu'; $('ozet').textContent = BAGLANDI_OZETI; }
     } finally { calismaModu(false); const durum = await window.api.durumAl(); baglantiCiz(durum, hata); }
   });
   $('gecmisTara').addEventListener('click', async () => {
@@ -2316,6 +2317,8 @@
     d.textContent = 'Yenile';
     if (s.hata) { $('grupOzet').textContent = s.hata; return; }
     baglantiYaz('Bağlı');
+    // Cikis yazisi baglanti kurulunca bayat kalmasin; baska sonuc ozetlerine dokunma.
+    if (/çıkış|kapatmış|temizlendi/i.test($('ozet').textContent)) $('ozet').textContent = BAGLANDI_OZETI;
     gruplariCiz(s.liste);
   });
 

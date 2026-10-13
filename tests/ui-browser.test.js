@@ -428,7 +428,7 @@ test('hata yazilari yalniz Tumu gorunumunde gorunur, grup sayfalarinda gizlenir 
 test('hata yazilari belirli sure sonra kendiliginden kaybolur; sure grup sayfasinda gezerken dolmaz', { skip: ATLA }, async (t) => {
   const h = await ac(t);
   const say = () => h.sayfa.$$eval('#sayfa .uyari', (l) => l.length);
-  assert.equal(await h.sayfa.evaluate(() => uyariSuresi), 30000, 'varsayılan süre 30 saniye');
+  assert.equal(await h.sayfa.evaluate(() => uyariSuresi), 10000, 'varsayılan süre 10 saniye');
   await h.sayfa.evaluate(() => { uyariSuresi = 700; });
   await h.sayfa.evaluate(() => window.__cb.onHata('Kısa ömürlü'));
   assert.equal(await say(), 1);
@@ -715,15 +715,18 @@ test('telefon eslemesi satiri: baslik solda, durum rozeti sagda, iki esit dugme;
   }
   await h.sayfa.evaluate(() => window.__cb.onBitti({ indirilen: 0, rapor: { sonuc: 'bitti' } })); await bekle(250);
   n = await nokta(); assert.equal(n.durum, 'degil', 'iş bitince gerçek duruma döner');
-  // 4) QR ile baglanti hatasi: hata aciklamada, rozet gri
+  // 4) QR ile baglanti hatasi: hata aciklamada, rozet gri; ozet satiri bayat cikis yazisinda kalir (baglanti kurulmadi)
+  await h.sayfa.evaluate(() => { document.getElementById('ozet').textContent = 'WhatsApp’tan çıkış yapıldı'; });
   await h.sayfa.evaluate(() => { window.api.baglan = async () => ({ hata: 'Bağlantı kurulamadı: deneme hatası' }); });
   await h.sayfa.evaluate(() => document.getElementById('baglanDugme').click()); await bekle(400);
   n = await nokta();
   assert.deepEqual([n.metin, n.durum, n.ayrinti], ['Bağlı değil', 'degil', 'Bağlantı kurulamadı: deneme hatası']);
+  assert.equal(await h.sayfa.$eval('#ozet', (e) => e.textContent), 'WhatsApp’tan çıkış yapıldı', 'bağlantı kurulamadıysa özet değişmez');
   // 5) QR ile basarili baglanti: yesil
   await h.sayfa.evaluate(() => { window.api.baglan = async () => ({ bagli: true, liste: [] }); const d0 = window.api.durumAl; window.api.durumAl = async () => ({ ...(await d0()), eslesmeKayitli: true, bagli: true, baglantiDurumu: 'Bağlı' }); });
   await h.sayfa.evaluate(() => document.getElementById('baglanDugme').click()); await bekle(400);
   n = await nokta(); assert.deepEqual([n.metin, n.durum, n.renk], ['Bağlı', 'bagli', 'rgb(95, 214, 138)']);
+  assert.equal(await h.sayfa.$eval('#ozet', (e) => e.textContent), 'Bağlandı · Topla’ya hazır', 'bağlanınca özet satırı yenilenir');
   assert.deepEqual(h.hatalar, []);
 });
 

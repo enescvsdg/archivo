@@ -112,6 +112,14 @@ test('the logout button shows the message returned by the main process',async()=
  assert.equal(h.elements.get('ozet').textContent,'Telefondan zaten çıkılmış; yerel eşleşme temizlendi');
 });
 
+test('connecting after a logout replaces the stale logout summary',async()=>{
+ const h=await renderer();
+ await h.elements.get('esleşmeSifirla').events.click();
+ assert.equal(h.elements.get('ozet').textContent,'WhatsApp’tan çıkış yapıldı');
+ await h.elements.get('baglanDugme').events.click();
+ assert.equal(h.elements.get('ozet').textContent,'Bağlandı · Topla’ya hazır');
+});
+
 test('the Devam et button stays visible after later status events, stages fill in, and every panel closes when the work ends',async()=>{
  const h=await renderer();const e=h.elements;
  await e.get('topla').events.click();
