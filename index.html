@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-wu59fei4CVcrgRHbHDiZ2jg1N8Q/TOIMA2ia8cO9NAY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-h92xsMSgDMvIxnjNOsurydUN6UeQZC3AA6yGJB+FX0U='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1129,6 +1129,11 @@
     </div>
 
     <div class="satir">
+      <label>PDF’leri de İndir<small>Kapalıyken PDF alınmaz</small></label>
+      <button class="anahtar" id="pdfAnahtar" role="switch" aria-checked="false"></button>
+    </div>
+
+    <div class="satir">
       <label>Yinelenenleri Atla<small>Aynı foto birden çok grupta ise tek kopya</small></label>
       <button class="anahtar" id="yinelenenAnahtar" role="switch" aria-checked="true"></button>
     </div>
@@ -2228,6 +2233,7 @@
   }
 
   anahtarKur('videoAnahtar', 'videolariDaIndir');
+  anahtarKur('pdfAnahtar', 'pdfleriDaIndir');
   anahtarKur('yinelenenAnahtar', 'yinelenenleriAtla');
   anahtarKur('bireyselAnahtar', 'bireyselSohbetlerDeIndir');
   anahtarKur('otomatikAnahtar', 'otomatikCalistir');
@@ -2346,6 +2352,7 @@
     ayar = JSON.parse(JSON.stringify((await window.api.durumAl()).ayar));
     ayarYedek = JSON.parse(JSON.stringify(ayar));
     $('videoAnahtar').setAttribute('aria-checked', String(!!ayar.videolariDaIndir));
+    $('pdfAnahtar').setAttribute('aria-checked', String(!!ayar.pdfleriDaIndir));
     $('yinelenenAnahtar').setAttribute('aria-checked', String(ayar.yinelenenleriAtla !== false));
     $('bireyselAnahtar').setAttribute('aria-checked', String(!!ayar.bireyselSohbetlerDeIndir));
     $('otomatikAnahtar').setAttribute('aria-checked', String(!!ayar.otomatikCalistir));
@@ -2414,6 +2421,7 @@
       ilkCalismaGunSayisi: Number($('gecmisGun').value),
       sadeceSuGruplar: [...secili],
       videolariDaIndir: !!ayar.videolariDaIndir,
+      pdfleriDaIndir: !!ayar.pdfleriDaIndir,
       yinelenenleriAtla: ayar.yinelenenleriAtla !== false,
       bireyselSohbetlerDeIndir: !!ayar.bireyselSohbetlerDeIndir,
       otomatikCalistir: !!ayar.otomatikCalistir,

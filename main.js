@@ -7,7 +7,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const { readJson, writeJson, scanMessages, scanPaced } = require('./archive-state');
 const { observeConnection, errorText } = require('./connection-diagnostics');
 const { connectionConfig } = require('./connection-config');
-const { dayStart, eligibleMedia, belgeResmi, missingDays } = require('./collection-plan');
+const { dayStart, eligibleMedia, belgeResmi, missingDays, belgeTuru, mesajBelgesi, belgeEtiketi } = require('./collection-plan');
 const { LIMITS, PACE, hizProfili, days, withTimeout, budget } = require('./operation-policy');
 const tarayicilar = require('./browser-processes');
 let canliDurum = null;
@@ -104,6 +104,7 @@ const VARSAYILAN_AYAR = {
   sadeceSuGruplar: [],
   bireyselSohbetlerDeIndir: false,
   videolariDaIndir: false,
+  pdfleriDaIndir: false,
   grubaGoreAltKlasor: false,
   ilkCalismaGunSayisi: 3,
   taramaTavani: LIMITS.messages,
@@ -136,9 +137,18 @@ const UZANTILAR = {
   'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png',
   'image/webp': '.webp', 'image/gif': '.gif', 'image/heic': '.heic',
   'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/3gpp': '.3gp',
+  'application/pdf': '.pdf',
 };
 
 const GORSEL = /\.(jpe?g|png|webp|gif|heic)$/i;
+// Arsivdeki tum dosya turleri (fotograf, video, PDF). Toplama "zaten indirildi" kontrolunu bunlarla yapar.
+const ARSIV_DOSYASI = /\.(jpe?g|png|webp|gif|heic|mp4|mov|3gp|pdf)$/i;
+// Belgenin kendi adi dosya adinin sonuna eklenir (ornegin ..._Grup_rapor.pdf); yasak karakterler temizlenir.
+function belgeAdiParcasi(ad) {
+  // Klasor ayiricilari dahil yasak karakterler temizle() ile '-' olur; ad hicbir zaman klasor disina yol gostermez.
+  const kok = String(ad || '').replace(/\.[^.\\/]*$/, '');
+  return kok ? temizle(kok).slice(0, 50) : '';
+}
 const ikiHane = (n) => String(n).padStart(2, '0');
 const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
 // Insan hizi: rastgele bekleme. Durdur ve sure siniri her saniyede kontrol edilir (uzun molada bile hemen durur).
@@ -780,7 +790,23 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const rapor = { baslangic: simdi, gun: gunSayisi, gecmis, sadeceTara, gruplar: [], alinamayanMedya: [], bekleyenGrupSayisi: 0, sonuc: 'devam' };
   const sayac = { indirilen: 0, yinelenen: 0, atlanan: 0, hata: 0 };
   const dizin = dizinOku();
-  const mevcutAdlar = new Set(arsivListele(Infinity).flatMap(g => g.dosyalar.map(d => d.ad)));
+  const mevcutAdlar = new Set(arsivListele(Infinity, { tumTurler: true }).flatMap(g => g.dosyalar.map(d => d.ad)));
+  // Alinmayan belgeler (ayari kapali PDF, Word, Excel, CAD...): yalniz sayilir, indirilmez. Ayni mesaj bir kez sayilir.
+  const atlananBelgeYolu = path.join(veriKok(), 'atlanan-belgeler.json');
+  const atlananBelgeler = jsonOku(atlananBelgeYolu, { turler: {}, kimlikler: [] });
+  const sayilanBelgeler = new Set(atlananBelgeler.kimlikler || []);
+  rapor.atlananBelgeler = {};
+  const belgeyiSay = (msg, kimlik) => {
+    const etiket = belgeEtiketi(msg);
+    rapor.atlananBelgeler[etiket] = (rapor.atlananBelgeler[etiket] || 0) + 1;
+    if (!kimlik || sayilanBelgeler.has(kimlik)) return;
+    sayilanBelgeler.add(kimlik);
+    atlananBelgeler.turler = { ...(atlananBelgeler.turler || {}), [etiket]: ((atlananBelgeler.turler || {})[etiket] || 0) + 1 };
+    atlananBelgeler.kimlikler = [...sayilanBelgeler].slice(-5000);
+    atlananBelgeler.guncelleme = Date.now();
+    atlananBelgeDegisti = true;
+  };
+  let atlananBelgeDegisti = false;
   const mevcutKayitlar = Object.entries(dizin).filter(([ad]) => mevcutAdlar.has(ad));
   const hashHaritasi = new Map(mevcutKayitlar.map(([ad, k]) => [k.hash, ad]));
   const silinenYolu = path.join(veriKok(), 'silinen-mesajlar.json');
@@ -824,6 +850,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
       rapor.alinamayanMedya.push({ grup: k.grup, tur: k.tur, iletildi: !!k.iletildi, zaman: k.zaman, mesajKimligi: kimlik, neden: k.neden + ' · ' + ALINAMAYAN_DENEME + ' denemeden sonra vazgeçildi' });
     }
     try { jsonYaz(raporYolu(), rapor); } catch (e) { hataYaz('rapor', e); }
+    if (atlananBelgeDegisti) { try { jsonYaz(atlananBelgeYolu, atlananBelgeler); } catch (e) { hataYaz('atlanan-belgeler', e); } }
     yolla('bitti', { ...sayac, rapor });
     bildirimGonder(bitisBildirimMetni(sayac, rapor, i.iptal));
     if (SESSIZ && !pencere) app.quit();
@@ -982,7 +1009,10 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           const kimlik = mesajKimligi(msg);
           // Even with content deduplication disabled, a retry must not save the same message twice.
           if (kimlik && islenenMesajlar.has(kimlik)) continue;
-          if (!eligibleMedia(msg, ayar.videolariDaIndir)) continue;
+          if (!eligibleMedia(msg, ayar.videolariDaIndir, ayar)) {
+            if (msg.hasMedia && msg.type === 'document' && !belgeResmi(msg)) belgeyiSay(msg, kimlik);
+            continue;
+          }
           // Vazgecilen fotograf istek harcamaz ve art arda hata sayacini tetiklemez; rapora bitirde eklenir.
           if (kimlik && alinamayanlar[kimlik]?.vazgecildi) continue;
           const onceSilindi = kimlik && silinen[kimlik];
@@ -1075,7 +1105,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           // Belge olarak gelen fotograf bazen "octet-stream" turunde gelir; dosya adindan resim sayilir.
           const resimMi = media.mimetype.startsWith('image/') || belgeResmi(msg);
           const videoMu = media.mimetype.startsWith('video/');
-          if (!resimMi && !(videoMu && ayar.videolariDaIndir)) {
+          const belge = resimMi || videoMu ? null : (belgeTuru(media) || mesajBelgesi(msg));
+          if (!resimMi && !(videoMu && ayar.videolariDaIndir) && !(belge && ayar[belge.ayar] === true)) {
             console.log('    . atlandi (tur: ' + media.mimetype + ')');
             continue;
           }
@@ -1107,8 +1138,9 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           const hedefKlasor = path.join(gunKlasoru, grupAdi);
           fs.mkdirSync(hedefKlasor, { recursive: true });
 
-          const uzanti = UZANTILAR[media.mimetype] || path.extname(media.filename || msg._data?.filename || '') || '.bin';
-          const tamYol = cakismayanYol(hedefKlasor, `${klasor}_${saat}_${grupAdi}`, uzanti);
+          const uzanti = (belge && belge.uzanti) || UZANTILAR[media.mimetype] || path.extname(media.filename || msg._data?.filename || '') || '.bin';
+          const belgeAdi = belge ? belgeAdiParcasi(media.filename || msg._data?.filename) : '';
+          const tamYol = cakismayanYol(hedefKlasor, `${klasor}_${saat}_${grupAdi}` + (belgeAdi ? '_' + belgeAdi : ''), uzanti);
           fs.writeFileSync(tamYol, tampon);
 
           const ad = path.basename(tamYol);
@@ -1148,7 +1180,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
 
       kontrol(i);
       // Indirmeden sonra hala eksik kalan gunler (alinamayan, atlanan, erisilemeyen).
-      rapor.eksikGunler = missingDays(kuyruk.flatMap(({ paket }) => paket.medyalar), islenenMesajlar, silinen, bugunBaslangic, ayar.videolariDaIndir);
+      rapor.eksikGunler = missingDays(kuyruk.flatMap(({ paket }) => paket.medyalar), islenenMesajlar, silinen, bugunBaslangic, ayar.videolariDaIndir, ayar);
       if (!sadeceTara && !gecmis) sonZamanYaz(simdi - 1, ilerleme);
       console.log('\n=== BITTI ===');
       console.log('  indirilen: ' + sayac.indirilen + ', yinelenen: ' + sayac.yinelenen +
@@ -1231,7 +1263,7 @@ ipcMain.handle('ayar-kaydet', (_e, yeni) => {
   return b;
 });
 
-function arsivListele(gunSayisi = 60) {
+function arsivListele(gunSayisi = 60, { tumTurler = false } = {}) {
   const ayar = ayarOku();
   const kok = ayar.hedefKlasor;
   if (!fs.existsSync(kok)) return [];
@@ -1257,7 +1289,7 @@ function arsivListele(gunSayisi = 60) {
         continue;
       }
 
-      if (!GORSEL.test(g.name)) continue;
+      if (!(tumTurler ? ARSIV_DOSYASI : GORSEL).test(g.name)) continue;
 
       // gun bilinmiyorsa dosya adinin basindaki tarihten cikar
       let iso = gunIsoDegeri;

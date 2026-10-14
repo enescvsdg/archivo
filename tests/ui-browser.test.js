@@ -853,3 +853,18 @@ test('grup secimi: cikista korunur, yeni listede olmayan grup duser, Bitti ile k
   assert.equal(await h.sayfa.$eval('#ozet', (e) => e.textContent), 'Başlamadı: hiç grup seçilmedi');
   assert.deepEqual(h.hatalar, []);
 });
+
+test('ayarlar: PDF’leri de Indir satiri Videolari da Indir’in hemen altinda; acilip kapanir ve Bitti ile kaydedilir', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#ayarAc'); await bekle(300);
+  const sira = await h.sayfa.evaluate(() => { const v = document.getElementById('videoAnahtar').closest('.satir'); return { sonraki: v.nextElementSibling?.querySelector('button')?.id, etiket: v.nextElementSibling?.querySelector('label')?.textContent }; });
+  assert.deepEqual(sira, { sonraki: 'pdfAnahtar', etiket: 'PDF’leri de İndirKapalıyken PDF alınmaz' });
+  assert.equal(await h.sayfa.$eval('#pdfAnahtar', (e) => e.getAttribute('aria-checked')), 'false', 'varsayılan kapalı');
+  await tikla(h.sayfa, '#pdfAnahtar');
+  assert.equal(await h.sayfa.$eval('#pdfAnahtar', (e) => e.getAttribute('aria-checked')), 'true');
+  await tikla(h.sayfa, '#ayarKapat'); await bekle(200);
+  const kayit = (await cagrilar(h.sayfa)).filter((c) => c[0] === 'ayarKaydet').pop();
+  assert.equal(kayit[1].pdfleriDaIndir, true);
+  assert.equal(kayit[1].videolariDaIndir, false, 'video ayarı etkilenmez');
+  assert.deepEqual(h.hatalar, []);
+});

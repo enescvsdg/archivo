@@ -1510,3 +1510,94 @@ for (const kanal of ['gecmis-kontrol', 'gecmis-indir']) test(kanal + ' with no g
   assert.equal(h.tumGrupSorulari.length, 1); assert.equal(h.clients.length, 1);
   await h.invoke('durdur'); await p; await h.settle();
 });
+
+// ---- 2.0.2: PDF'leri de indir (belge turleri tablosu), alinmayan belge sayaci, ikinci kez indirmeme ----
+test('document rules: PDF is taken only when its setting is on; it is recognised by type or by file name; Office and CAD files are never taken', () => {
+  const { eligibleMedia, belgeTuru, belgeEtiketi, BELGE_TURLERI } = require('../collection-plan');
+  const belge = veri => ({ hasMedia: true, type: 'document', _data: veri });
+  const acik = { pdfleriDaIndir: true }, kapali = { pdfleriDaIndir: false };
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf', filename: 'rapor.pdf' }), false, acik), true);
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/octet-stream', filename: 'Keşif RAPORU.PDF' }), false, acik), true, 'uzantıdan tanınır');
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf; charset=binary' }), false, acik), true);
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf', filename: 'rapor.pdf' }), false, kapali), false);
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf', filename: 'rapor.pdf' })), false, 'varsayılan kapalı');
+  assert.equal(eligibleMedia(belge({ mimetype: 'application/pdf', filename: 'rapor.pdf' }), false, { pdfleriDaIndir: 'evet' }), false, 'yalnız gerçek true açar');
+  for (const [mime, ad] of [['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'hakedis.xlsx'], ['application/msword', 'yazi.doc'], ['application/acad', 'proje.dwg'], ['application/dxf', 'plan.dxf'], ['application/zip', 'x.zip']])
+    assert.equal(eligibleMedia(belge({ mimetype: mime, filename: ad }), true, acik), false, ad + ' alınmaz');
+  assert.equal(eligibleMedia({ hasMedia: true, type: 'image', _data: { mimetype: 'application/pdf' } }, false, kapali), true, 'resim mesajı etkilenmez');
+  assert.equal(belgeTuru({ filename: 'a.pdf' }).uzanti, '.pdf');
+  assert.equal(belgeTuru({ mimetype: 'text/plain', filename: 'a.txt' }), null);
+  assert.deepEqual([belgeEtiketi(belge({ mimetype: 'application/pdf' })), belgeEtiketi(belge({ filename: 'Hakediş.XLSX' })), belgeEtiketi(belge({ filename: 'proje.dwg' })), belgeEtiketi(belge({ mimetype: 'application/x-foo' })), belgeEtiketi(belge({}))], ['PDF', 'XLSX', 'DWG', 'application/x-foo', 'Diğer']);
+  assert.ok(Object.isFrozen(BELGE_TURLERI) && BELGE_TURLERI.every(b => Object.isFrozen(b)));
+});
+function pdfDuzenegi(t, ayar, ekMesajlar = []) {
+  const now = Math.floor(Date.now() / 1000);
+  const indirilen = [];
+  const b64 = ad => Buffer.from('icerik-' + ad).toString('base64');
+  const belge = (id, fark, veri, govde = '') => ({ timestamp: now - fark, type: 'document', hasMedia: true, body: govde, id: { _serialized: id }, _data: veri,
+    downloadMedia: async () => { indirilen.push(id); return { ...veri, data: b64(id) }; } });
+  const mesajlar = [
+    belge('pdf-1', 900, { mimetype: 'application/pdf', filename: 'Keşif raporu: 3/Bölge.pdf' }, 'Keşif raporu, 3. bölge'),
+    belge('xlsx-1', 800, { mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: 'hakedis.xlsx' }),
+    belge('dwg-1', 700, { mimetype: 'application/octet-stream', filename: 'proje.DWG' }),
+    ...ekMesajlar.map(f => f(now)),
+  ];
+  const h = harness(t, [group('Saha Ekibi', async () => mesajlar)]);
+  writeJson(path.join(h.dir, 'ayarlar.json'), { sadeceSuGruplar: ['Saha Ekibi'], ...ayar });
+  return { h, indirilen, now };
+}
+test('with PDF on: the PDF is saved in the day/group folder with its own name, its caption is kept like a photo caption, other documents are counted not downloaded', async t => {
+  const { h, indirilen } = pdfDuzenegi(t, { pdfleriDaIndir: true });
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.deepEqual(indirilen, ['pdf-1'], 'yalnız PDF indirilir');
+  const dizin = readJson(path.join(h.dir, 'dizin.json'), {});
+  const [ad] = Object.keys(dizin);
+  assert.match(ad, /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_Saha Ekibi_Keşif raporu- 3-Bölge\.pdf$/, 'dosya adı: ' + ad);
+  assert.equal(dizin[ad].aciklama, 'Keşif raporu, 3. bölge');
+  assert.equal(dizin[ad].grup, 'Saha Ekibi');
+  const kok = readJson(path.join(h.dir, 'ayarlar.json'), {}).hedefKlasor || path.join(h.dir, 'arsiv');
+  const bul = (k, ad) => { for (const g of fs.readdirSync(k, { withFileTypes: true })) { const y = path.join(k, g.name); if (g.isDirectory()) { const r = bul(y, ad); if (r) return r; } else if (g.name === ad) return y; } return null; };
+  const ayarKok = vm.runInContext('ayarOku().hedefKlasor', h.ctx);
+  const yol = bul(ayarKok, ad);
+  assert.ok(yol, 'PDF diskte');
+  assert.equal(path.basename(path.dirname(yol)), 'Saha Ekibi', 'grup klasöründe');
+  assert.match(fs.readFileSync(path.join(path.dirname(path.dirname(yol)), '_aciklamalar.csv'), 'utf8'), /Keşif raporu, 3\. bölge/, 'açıklama dosyasına yazılır');
+  const rapor = readJson(path.join(h.dir, 'tarama-raporu.json'), {});
+  assert.deepEqual({ ...rapor.atlananBelgeler }, { XLSX: 1, DWG: 1 });
+  const sayac = readJson(path.join(h.dir, 'atlanan-belgeler.json'), {});
+  assert.deepEqual({ ...sayac.turler }, { XLSX: 1, DWG: 1 });
+});
+test('with PDF off (default): no document is downloaded and the PDF is counted with the other skipped documents; a second run counts nothing twice', async t => {
+  const { h, indirilen } = pdfDuzenegi(t, {});
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.deepEqual(indirilen, []);
+  assert.deepEqual({ ...readJson(path.join(h.dir, 'atlanan-belgeler.json'), {}).turler }, { PDF: 1, XLSX: 1, DWG: 1 });
+  await h.invoke('topla', true); await h.settle();
+  assert.deepEqual({ ...readJson(path.join(h.dir, 'atlanan-belgeler.json'), {}).turler }, { PDF: 1, XLSX: 1, DWG: 1 }, 'aynı mesaj bir kez sayılır');
+  assert.equal(readJson(path.join(h.dir, 'atlanan-belgeler.json'), {}).kimlikler.length, 3);
+});
+test('a PDF or a video already in the archive is not downloaded again by the next Topla (overlap window)', async t => {
+  const video = now => ({ timestamp: now - 600, type: 'video', hasMedia: true, body: '', id: { _serialized: 'video-1' }, _data: {},
+    downloadMedia: async () => { indirilenler.push('video-1'); return { mimetype: 'video/mp4', data: Buffer.from('video').toString('base64') }; } });
+  const indirilenler = [];
+  const { h, indirilen } = pdfDuzenegi(t, { pdfleriDaIndir: true, videolariDaIndir: true, yinelenenleriAtla: false }, [video]);
+  await h.invoke('topla', true); h.clients[0].emit('ready'); await h.settle();
+  assert.deepEqual([...indirilen, ...indirilenler].sort(), ['pdf-1', 'video-1']);
+  await h.invoke('topla', true); await h.settle();
+  assert.deepEqual([...indirilen, ...indirilenler].sort(), ['pdf-1', 'video-1'], 'ikinci Topla tekrar indirmez');
+  assert.equal(Object.keys(readJson(path.join(h.dir, 'dizin.json'), {})).length, 2);
+});
+test('settings: PDF switch is saved and is off by default', async t => {
+  const h = harness(t, []);
+  assert.equal(h.invoke('durum-al').ayar.pdfleriDaIndir, false);
+  h.invoke('ayar-kaydet', { pdfleriDaIndir: true });
+  assert.equal(readJson(path.join(h.dir, 'ayarlar.json'), {}).pdfleriDaIndir, true);
+});
+test('a document name can never point outside the group folder', t => {
+  const h = harness(t, []);
+  const parca = ad => vm.runInContext('belgeAdiParcasi(' + JSON.stringify(ad) + ')', h.ctx);
+  for (const ad of ['../../../etc/passwd.pdf', '..\\..\\Windows\\x.pdf', '/mutlak/yol.pdf', 'C:\\x.pdf']) assert.doesNotMatch(parca(ad), /[\\/:]/, ad);
+  assert.equal(parca('../../gizli.pdf'), '..-..-gizli');
+  assert.equal(parca(''), '');
+  assert.ok(parca('a'.repeat(200) + '.pdf').length <= 50);
+});
