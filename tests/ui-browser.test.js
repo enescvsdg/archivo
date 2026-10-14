@@ -949,3 +949,43 @@ test('ayarlar: Acilista Otomatik Topla satiri eski Acilista Uygulamayi Ac yerine
   assert.equal('otomatikCalistir' in kayit[1], false, 'eski anahtar gönderilmez');
   assert.deepEqual(h.hatalar, []);
 });
+
+// 2.0.2: Ayarlar karti %30 buyuk; yazi, dugme, ikon, anahtar ayni oranda; sira ve yerler degismez; en kucuk pencerede de tasmaz.
+test('ayarlar karti %30 buyuk: oranlar korunur, satir sirasi ayni, 620x520 pencerede tasmaz ve en alta inilir; diger kartlar etkilenmez', { skip: ATLA }, async (t) => {
+  for (const [w, y] of [[620, 520], [1180, 860]]) {
+    const h = await ac(t, { genislik: w, yukseklik: y });
+    await tikla(h.sayfa, '#ayarAc'); await bekle(350);
+    const o = await h.sayfa.evaluate(() => {
+      const k = document.querySelector('.ayar-karti'), r = k.getBoundingClientRect(), ic = document.querySelector('.ayar-icerik');
+      const satirlar = [...ic.querySelectorAll(':scope > .satir')];
+      const ustler = satirlar.map((x) => x.getBoundingClientRect().top);
+      const anahtar = document.getElementById('videoAnahtar').getBoundingClientRect();
+      const karo = document.querySelector('#ayarX .tl').getBoundingClientRect();
+      const tekerlek = document.getElementById('gunTekerlek').getBoundingClientRect();
+      const secili = document.querySelector('#gunSecenekleri [aria-selected="true"]');
+      secili.scrollIntoView({ block: 'nearest' });
+      const s = secili.getBoundingClientRect(), t2 = document.getElementById('gunTekerlek').getBoundingClientRect();
+      ic.scrollTop = ic.scrollHeight;
+      const son = satirlar[satirlar.length - 1].getBoundingClientRect(), icR = ic.getBoundingClientRect();
+      return {
+        zoom: getComputedStyle(k).zoom, genislik: r.width, icerde: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+        yanTasma: ic.scrollWidth > ic.clientWidth || document.documentElement.scrollWidth > innerWidth,
+        satirSayisi: satirlar.length, sirali: ustler.every((u, i) => i === 0 || u > ustler[i - 1]),
+        anahtar: [anahtar.width, anahtar.height], karo: [karo.width, karo.height], tekerlekYuksek: tekerlek.height,
+        seciliTekerlekte: s.top >= t2.top - 1 && s.bottom <= t2.bottom + 1, sonGorunur: son.bottom <= icR.bottom + 1,
+        digerKart: getComputedStyle(document.querySelector('#qrKatman .kart')).zoom,
+      };
+    });
+    assert.equal(o.zoom, '1.3', w + ': ölçek');
+    assert.ok(Math.abs(o.genislik - 380 * 1.3) < 1, w + ': genişlik 494: ' + o.genislik);
+    assert.ok(o.icerde, w + ': kart pencerenin içinde'); assert.equal(o.yanTasma, false, w + ': yan kaydırma yok');
+    assert.equal(o.satirSayisi, 16); assert.equal(o.sirali, true, 'satır sırası değişmez');
+    assert.ok(Math.abs(o.anahtar[0] - 46 * 1.3) < 0.6 && Math.abs(o.anahtar[1] - 27 * 1.3) < 0.6, 'anahtar aynı oranda: ' + o.anahtar);
+    assert.ok(Math.abs(o.karo[0] - 34 * 1.3) < 0.6, 'ikon karosu aynı oranda: ' + o.karo);
+    assert.equal(o.seciliTekerlekte, true, 'gün tekerleğinde seçili gün görünür');
+    assert.equal(o.sonGorunur, true, 'en alttaki satıra inilir');
+    assert.equal(o.digerKart, '1', 'diğer kartlar büyümez');
+    await foto(h, '26-ayarlar-' + w + 'x' + y);
+    assert.deepEqual(h.hatalar, []);
+  }
+});
