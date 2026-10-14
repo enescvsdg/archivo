@@ -51,9 +51,9 @@ function harness(t, chats, failure = false, options = {}) {
     async logout() { if (options.logoutFailure) throw new Error('logout offline');this.loggedOut=true; }
     async getWWebVersion() { return 'test'; }
   }
-  const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: () => {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
-  const bildirimler = [], tumGrupSorulari = [], acilanlar = [];
-  const electron = { app, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)), openPath: async p => { acilanlar.push(p); return options.openPathHata || ''; } }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: options.nativeImage || { createFromBuffer: () => ({ isEmpty: () => true }) } };
+  const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: (o) => girisOgeleri.push(o), getLoginItemSettings: () => options.girisOgesi || {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
+  const bildirimler = [], tumGrupSorulari = [], acilanlar = [], girisOgeleri = [];
+  const electron = { app, net: options.net, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)), openPath: async p => { acilanlar.push(p); return options.openPathHata || ''; } }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: options.nativeImage || { createFromBuffer: () => ({ isEmpty: () => true }) } };
   // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
   // Yetim Chrome temizligi testte gercek surecleri taramaz; cagrilar kaydedilir, istenirse options.yetimTemizligi ile davranis verilir.
   const temizlikler = [];
@@ -64,15 +64,15 @@ function harness(t, chats, failure = false, options = {}) {
     require: name => name === 'electron' ? electron : name === 'qrcode' ? { toDataURL: async () => 'qr' }
       : name === 'whatsapp-web.js' ? { Client: FakeClient, LocalAuth: class {} }
       : name === 'whatsapp-web.js/package.json' ? { version: 'test' }
-      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? politika : name === './browser-processes' ? tarayicilar : require(name),
-    __dirname: path.join(__dirname, '..'), process: { argv: [], platform: 'darwin', pid: process.pid },
+      : name === './package.json' ? require('../package.json') : name === './connection-diagnostics' ? require('../connection-diagnostics') : name === './collection-plan' ? require('../collection-plan') : name === './archive-state' ? require('../archive-state') : name === './connection-config' ? require('../connection-config') : name === './operation-policy' ? politika : name === './browser-processes' ? tarayicilar : name === 'os' ? (options.os || require('os')) : require(name),
+    __dirname: path.join(__dirname, '..'), process: { argv: options.argv || [], platform: options.platform || 'darwin', pid: process.pid, env: options.env || {}, execPath: '/Applications/Archivo.app/Contents/MacOS/Archivo' },
     Buffer, console: { log() {}, error() {} }, setTimeout: (fn, ms) => { if (options.beklemeler) options.beklemeler.push(ms); return setTimeout(fn, ms <= 1500 ? 1 : ms); }, clearTimeout,
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8'), context);
   const invoke = (name, ...args) => handlers.get(name)(null, ...args);
   const settle = async () => { for (let n = 0; n < 1500 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
-  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, temizlikler, tumGrupSorulari, acilanlar, quitSayisi: () => quitSayisi };
+  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, temizlikler, tumGrupSorulari, acilanlar, girisOgeleri, quitSayisi: () => quitSayisi };
 }
 const group = (id, fetchMessages) => ({ id: { _serialized: id }, name: id, isGroup: true, timestamp: 0, fetchMessages });
 test('failed media keeps its group checkpoint while successful group advances', async t => {
@@ -1674,4 +1674,130 @@ test('finish notification says files when videos or PDFs were downloaded', t => 
   assert.equal(m({ indirilen: 3, video: 1, pdf: 0 }), '3 dosya indirildi');
   assert.equal(m({ indirilen: 3, video: 0, pdf: 2 }), '3 dosya indirildi');
   assert.equal(m({ indirilen: 3, video: 0, pdf: 0 }), '3 fotoğraf indirildi');
+});
+
+// ---- 2.0.2: acilista otomatik toplama ----
+test('automatic collection decision covers every case in the agreed order', () => {
+  const { otomatikToplamaKarari, LIMITS } = require('../operation-policy');
+  const temel = { ayarAcik: true, acilistaMi: true, simdi: 100000, sonZaman: 100000 - 7 * 3600, eslesme: true, seciliSayi: 2, calisiyor: false, cevrimici: true };
+  const k = (ek) => otomatikToplamaKarari({ ...temel, ...ek });
+  assert.deepEqual(k({}), { karar: 'basla' });
+  assert.deepEqual(k({ sonZaman: null }), { karar: 'basla' }, 'hiç toplanmadıysa başlar');
+  assert.deepEqual(k({ ayarAcik: false }), { karar: 'yok' });
+  assert.deepEqual(k({ acilistaMi: false }), { karar: 'yok' }, 'elle açınca toplamaz');
+  assert.deepEqual(k({ calisiyor: true }), { karar: 'atla', neden: 'calisiyor' });
+  assert.deepEqual(k({ sonZaman: 100000 - 5 * 3600 }), { karar: 'atla', neden: 'yakinda-toplandi' });
+  assert.deepEqual(k({ sonZaman: 100000 - 6 * 3600 }), { karar: 'basla' }, 'tam 6 saat geçtiyse başlar');
+  assert.deepEqual(k({ eslesme: false, seciliSayi: 0 }), { karar: 'atla', neden: 'eslesme-yok' }, 'önce eşleşme');
+  assert.deepEqual(k({ seciliSayi: 0 }), { karar: 'atla', neden: 'grup-yok' });
+  assert.deepEqual(k({ cevrimici: false }), { karar: 'bekle', neden: 'internet-yok' });
+  assert.equal(LIMITS.otomatikBeklemeMs, 300000); assert.equal(LIMITS.otomatikAralikSn, 21600);
+});
+test('the Açılışta Otomatik Topla switch registers a hidden login item on Mac and the real exe with --acilis on Windows', async t => {
+  const mac = harness(t, []);
+  mac.invoke('ayar-kaydet', { acilistaOtomatikTopla: true });
+  mac.invoke('ayar-kaydet', { acilistaOtomatikTopla: false });
+  mac.invoke('ayar-kaydet', { indirmeHizi: 'orta' });
+  assert.deepEqual(mac.girisOgeleri.map(o => ({ ...o })), [{ openAtLogin: true, openAsHidden: true }, { openAtLogin: false, openAsHidden: true }], 'başka ayar kaydı giriş öğesine dokunmaz');
+  assert.equal(readJson(path.join(mac.dir, 'ayarlar.json'), {}).acilistaOtomatikTopla, false);
+  assert.equal(mac.invoke('durum-al').ayar.acilistaOtomatikTopla, false, 'varsayılan kapalı');
+  const win = harness(t, [], false, { platform: 'win32', env: { PORTABLE_EXECUTABLE_FILE: 'D:\\Programlar\\Archivo 2.0.2.exe' } });
+  win.invoke('ayar-kaydet', { acilistaOtomatikTopla: true });
+  const o = win.girisOgeleri[0];
+  assert.deepEqual({ ...o, args: [...o.args] }, { openAtLogin: true, path: 'D:\\Programlar\\Archivo 2.0.2.exe', args: ['--acilis'] }, 'geçici klasör değil asıl exe');
+});
+test('start-up: only with the switch on and a computer start does Archivo stay hidden and schedule the automatic run', t => {
+  const durum = (o) => { const h = harness(t, [], false, o); if (o.ayar) writeJson(path.join(h.dir, 'ayarlar.json'), o.ayar); return { ...vm.runInContext('baslangicDurumu()', h.ctx) }; };
+  const acik = { acilistaOtomatikTopla: true };
+  const uzun = { uptime: () => 99999 }, kisa = { uptime: () => 120 };
+  assert.deepEqual(durum({ ayar: acik, platform: 'win32', argv: ['--acilis'], os: uzun }), { acilis: true, gizli: true });
+  assert.deepEqual(durum({ ayar: acik, platform: 'win32', argv: [], os: kisa }), { acilis: false, gizli: false }, 'Windows’ta elle açılış');
+  assert.deepEqual(durum({ ayar: acik, girisOgesi: { wasOpenedAtLogin: true }, os: uzun }), { acilis: true, gizli: true });
+  assert.deepEqual(durum({ ayar: acik, girisOgesi: { wasOpenedAtLogin: false }, os: uzun }), { acilis: false, gizli: false }, 'Mac’te elle açılış');
+  assert.deepEqual(durum({ ayar: acik, girisOgesi: {}, os: kisa }), { acilis: true, gizli: false }, 'yedek: bilgisayar az önce açıldı, pencere yine açılır');
+  assert.deepEqual(durum({ ayar: {}, argv: ['--acilis'], girisOgesi: { wasOpenedAtLogin: true }, os: kisa }), { acilis: false, gizli: false }, 'ayar kapalıysa hiçbir şey');
+});
+function otomatikDuzenek(t, o = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const foto = { timestamp: now - 60, hasMedia: true, type: 'image', id: { _serialized: 'o1' }, downloadMedia: async () => ({ mimetype: 'image/jpeg', data: Buffer.from('otomatik').toString('base64') }) };
+  const h = harness(t, [group('Saha', async () => o.mesajlar || [foto])], false, { limits: { otomatikBeklemeMs: 15, otomatikInternetAralikMs: 15, otomatikInternetDeneme: 3 }, ...o.secenek });
+  writeJson(path.join(h.dir, 'ayarlar.json'), { acilistaOtomatikTopla: true, sadeceSuGruplar: ['Saha'], ...(o.ayar || {}) });
+  if (o.eslesme !== false) writeJson(path.join(h.dir, 'eslesme-durumu.json'), { giris: true });
+  if (o.sonZaman !== undefined) writeJson(path.join(h.dir, 'son-calisma.json'), { sonZaman: o.sonZaman });
+  return { h, now, bildirimMetinleri: () => h.bildirimler.map(b => b.o.body), otomatik: () => readJson(path.join(h.dir, 'otomatik-toplama.json'), null) };
+}
+const istemciBekle = async (h, n = 1) => { for (let k = 0; k < 300 && h.clients.length < n; k++) await kisaBekle(5); };
+test('automatic run: 5 minutes after start (shortened here) Topla starts without a window and the result arrives as a notification', async t => {
+  const { h, bildirimMetinleri, otomatik } = otomatikDuzenek(t, { sonZaman: Math.floor(Date.now() / 1000) - 7 * 3600 });
+  vm.runInContext('otomatikToplamayiKur()', h.ctx);
+  assert.equal(h.clients.length, 0, 'bekleme bitmeden başlamaz');
+  await istemciBekle(h);
+  assert.equal(h.clients.length, 1);
+  h.clients[0].emit('ready'); await h.settle();
+  assert.deepEqual(bildirimMetinleri(), ['Otomatik toplama: 1 fotoğraf indirildi']);
+  assert.equal(otomatik().karar, 'bitti');
+  assert.equal(vm.runInContext('pencere', h.ctx), null, 'pencere açılmadı');
+});
+for (const [ad, o, bildirim, neden] of [
+  ['collected less than 6 hours ago', { sonZaman: Math.floor(Date.now() / 1000) - 3600 }, [], 'yakinda-toplandi'],
+  ['no group selected', { ayar: { sadeceSuGruplar: [] } }, ['Otomatik toplama yapılmadı: hiç grup seçilmemiş (Ayarlar › Hangi Gruplar).'], 'grup-yok'],
+  ['not paired', { eslesme: false }, ['Otomatik toplama yapılamadı: WhatsApp eşleşmesi yok. Archivo’yu açıp QR kodu okutun.'], 'eslesme-yok'],
+]) test('automatic run is skipped when ' + ad + ' and no browser opens', async t => {
+  const d = otomatikDuzenek(t, o);
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await kisaBekle(80);
+  assert.equal(d.h.clients.length, 0);
+  assert.deepEqual(d.bildirimMetinleri(), bildirim);
+  assert.equal(d.otomatik().neden, neden);
+});
+test('automatic run waits for the internet (3 tries here) and starts when it comes back; without internet it gives up with a notification', async t => {
+  let sorgu = 0;
+  const d = otomatikDuzenek(t, { secenek: { net: { isOnline: () => ++sorgu >= 2 } } });
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await istemciBekle(d.h);
+  assert.equal(d.h.clients.length, 1, 'ikinci denemede internet var: başlar');
+  assert.equal(sorgu, 2);
+  assert.deepEqual(d.bildirimMetinleri(), []);
+  await d.h.invoke('durdur'); await d.h.settle();
+  let yokSorgu = 0;
+  const yok = otomatikDuzenek(t, { secenek: { net: { isOnline: () => { yokSorgu++; return false; } } } });
+  vm.runInContext('otomatikToplamayiKur()', yok.h.ctx);
+  for (let k = 0; k < 100 && !yok.bildirimMetinleri().length; k++) await kisaBekle(5);
+  assert.equal(yok.h.clients.length, 0);
+  assert.equal(yokSorgu, 3, 'üç deneme');
+  assert.deepEqual(yok.bildirimMetinleri(), ['Otomatik toplama yapılamadı: internet bağlantısı yok.']);
+});
+test('automatic run is skipped when a Topla started by hand is already running', async t => {
+  const d = otomatikDuzenek(t, {});
+  const elle = d.h.invoke('topla', true);
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await kisaBekle(80);
+  assert.equal(d.h.clients.length, 1, 'yalnız elle başlatılan');
+  assert.equal(d.otomatik().neden, 'calisiyor');
+  await d.h.invoke('durdur'); await elle; await d.h.settle();
+});
+test('when WhatsApp asks for a QR during the automatic run: no window, no QR, one notification, run stopped, pairing cleared', async t => {
+  const d = otomatikDuzenek(t, {});
+  const olaylar = olaylariYakala(d.h);
+  vm.runInContext('pencere = null', d.h.ctx);
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await istemciBekle(d.h);
+  d.h.clients[0].emit('qr', 'kod');
+  await d.h.settle();
+  assert.deepEqual(d.bildirimMetinleri(), ['Otomatik toplama yapılamadı: WhatsApp eşleşmesi düşmüş. Archivo’yu açıp QR kodu okutun.']);
+  assert.equal(olaylar.filter(([k, v]) => k === 'qr' && v).length, 0, 'QR kodu pencereye gönderilmez');
+  assert.equal(readJson(path.join(d.h.dir, 'eslesme-durumu.json'), {}).giris, false);
+  assert.equal(d.otomatik().neden, 'qr');
+  assert.equal(d.h.clients[0].destroyed, true);
+});
+test('an automatic run that ends with an error sends the finish notification and a separate error notification', async t => {
+  const d = otomatikDuzenek(t, { mesajlar: [] });
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await istemciBekle(d.h);
+  d.h.clients[0].getChats = async () => { throw new Error('liste alınamadı'); };
+  d.h.clients[0].emit('ready'); await d.h.settle();
+  const metinler = d.bildirimMetinleri();
+  assert.equal(metinler.length, 2, metinler.join(' | '));
+  assert.match(metinler[0], /^Otomatik toplama: /);
+  assert.match(metinler[1], /^Otomatik toplama hatası: /);
 });

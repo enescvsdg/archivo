@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, Notification, net } = require('electron');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -8,7 +9,7 @@ const { readJson, writeJson, scanMessages, scanPaced } = require('./archive-stat
 const { observeConnection, errorText } = require('./connection-diagnostics');
 const { connectionConfig } = require('./connection-config');
 const { dayStart, eligibleMedia, belgeResmi, missingDays, belgeTuru, mesajBelgesi, belgeEtiketi } = require('./collection-plan');
-const { LIMITS, PACE, hizProfili, days, withTimeout, budget } = require('./operation-policy');
+const { LIMITS, PACE, hizProfili, days, withTimeout, budget, otomatikToplamaKarari } = require('./operation-policy');
 const tarayicilar = require('./browser-processes');
 let canliDurum = null;
 let baglantiDurumu = 'Bağlantı kapalı';
@@ -80,6 +81,8 @@ else {
   app.setPath('userData', profil);
 }
 const SESSIZ = process.argv.includes('--sessiz');
+// Windows giris ogesi bu argumanla baslatir (bilgisayar acilisi).
+const ACILIS_ARGUMANI = process.argv.includes('--acilis');
 // Gec ulasan mesajlar icin taramaya son toplama kaydindan 2 saat once baslanir.
 const ORTUSME_SANIYE = 2 * 3600;
 // Ayni fotograf bu kadar ayri Topla'da alinamazsa vazgecilir; kuyrugu tikamaz, raporda gorunur.
@@ -112,7 +115,7 @@ const VARSAYILAN_AYAR = {
   yinelenenleriAtla: true,
   yakinMesajlariAl: true,
   notPenceresiSaniye: 150,
-  otomatikCalistir: false,
+  acilistaOtomatikTopla: false,
   indirmeHizi: 'yavas',
   waSurum: '',
 };
@@ -774,7 +777,7 @@ async function gonderenAdi(msg, islemBilgisi) {
   return ad;
 }
 
-async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak = {}) {
+async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak = {}, secenek = {}) {
   if (calisiyor || yerelSilme) return { hata: 'Toplama zaten sürüyor' };
   if (hazirClient) {
     await bozukHazirIstemciyiAt();
@@ -869,7 +872,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     try { jsonYaz(raporYolu(), rapor); } catch (e) { hataYaz('rapor', e); }
     if (atlananBelgeDegisti) { try { jsonYaz(atlananBelgeYolu, atlananBelgeler); } catch (e) { hataYaz('atlanan-belgeler', e); } }
     yolla('bitti', { ...sayac, rapor });
-    bildirimGonder(bitisBildirimMetni(sayac, rapor, i.iptal));
+    if (secenek.otomatik) otomatikBitti(sayac, rapor, i);
+    else bildirimGonder(bitisBildirimMetni(sayac, rapor, i.iptal));
     if (SESSIZ && !pencere) app.quit();
   };
   const baslatmaHatasi = async (err) => {
@@ -885,6 +889,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   client.on('qr', async (qr) => {
     // Kayitli eslesme varken QR istenmesi: WhatsApp bu cihaz kaydini artik kabul etmiyor (telefondan cikilmis).
     if (eslesmeVar()) baglantiKoptu('QR');
+    // Otomatik toplamada QR gosterilmez ve pencere acilmaz: bildirim gider, o gunluk toplama atlanir.
+    if (secenek.otomatik) { i.sessizBitir = true; otomatikKaydet('atla', 'qr'); bildirimGonder(OTOMATIK_BILDIRIM.qr); void islemiDurdur(); return; }
     jsonYaz(path.join(veriKok(), 'senkronizasyon-onayi.json'), { tamam: false });
     baglantiDurumu = 'QR bekleniyor';
     yolla('durum', { metin: 'QR bekleniyor' });
@@ -1273,12 +1279,7 @@ ipcMain.handle('ayar-kaydet', (_e, yeni) => {
   b.ilkCalismaGunSayisi = days(b.ilkCalismaGunSayisi);
   b.indirmeHizi = ['yavas', 'orta', 'hizli'].includes(b.indirmeHizi) ? b.indirmeHizi : 'yavas';
   ayarYaz(b);
-  if (typeof yeni.otomatikCalistir === 'boolean') {
-    app.setLoginItemSettings({
-      openAtLogin: yeni.otomatikCalistir,
-      ...(process.platform === 'darwin' ? {} : { args: [] }),
-    });
-  }
+  if (typeof yeni.acilistaOtomatikTopla === 'boolean') girisOgesiniAyarla(yeni.acilistaOtomatikTopla);
   return b;
 });
 
@@ -1725,12 +1726,93 @@ function tepsiKur() {
   if (process.platform === 'darwin') simge = simge.resize({ width: 18, height: 18 });
   tepsi = new Tray(simge);
   tepsi.setToolTip('WhatsApp Foto Arşivi');
+  tepsiMenusunuKur();
+  tepsi.on('click', () => pencereAc());
+}
+// Menu cubugu/tepsi menusunun en ustunde otomatik toplamanin durumu (pencere acmadan gorulebilsin).
+let tepsiDurumu = '';
+function tepsiMenusunuKur() {
+  if (!tepsi) return;
   tepsi.setContextMenu(Menu.buildFromTemplate([
+    ...(tepsiDurumu ? [{ label: tepsiDurumu, enabled: false }, { type: 'separator' }] : []),
     { label: 'Arşivi aç', click: () => pencereAc() },
     { type: 'separator' },
     { label: 'Çık', click: () => app.quit() },
   ]));
-  tepsi.on('click', () => pencereAc());
+}
+function tepsiDurumuYaz(metin) { tepsiDurumu = metin || ''; try { tepsiMenusunuKur(); } catch (e) {} }
+
+// ---------------- acilista otomatik toplama ----------------
+
+// Bilgisayar acilisinda Archivo pencere acmadan baslar (Mac: gizli giris ogesi; Windows: --acilis argumani).
+// Windows tasinabilir paketi gecici bir klasorden calisir; giris ogesi asil exe yoluna (PORTABLE_EXECUTABLE_FILE) yazilir.
+function girisOgesiniAyarla(acik) {
+  try {
+    if (process.platform === 'darwin') app.setLoginItemSettings({ openAtLogin: acik, openAsHidden: true });
+    else app.setLoginItemSettings({ openAtLogin: acik, path: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath, args: ['--acilis'] });
+  } catch (e) { hataYaz('giris-ogesi', e); }
+}
+// Bu calisma bilgisayar acilisinda mi basladi, pencere gizli mi kalsin? Ayar kapaliysa hicbiri.
+// Mac'te giris ogesi bilgisi (wasOpenedAtLogin) varsa gizli baslar; yoksa yedek olarak "bilgisayar 10 dk icinde acildi" sayilir
+// ve pencere yine acilir (yanlis algilamada kullanici bos bir ekranla kalmasin).
+function baslangicDurumu() {
+  if (ayarOku().acilistaOtomatikTopla !== true) return { acilis: false, gizli: false };
+  if (ACILIS_ARGUMANI) return { acilis: true, gizli: true };
+  if (process.platform === 'darwin') {
+    let giris = {};
+    try { giris = app.getLoginItemSettings() || {}; } catch (e) {}
+    if (giris.wasOpenedAtLogin === true) return { acilis: true, gizli: true };
+    if (os.uptime() < LIMITS.acilisPenceresiSn) return { acilis: true, gizli: false };
+  }
+  return { acilis: false, gizli: false };
+}
+const OTOMATIK_BILDIRIM = {
+  qr: 'Otomatik toplama yapılamadı: WhatsApp eşleşmesi düşmüş. Archivo’yu açıp QR kodu okutun.',
+  'eslesme-yok': 'Otomatik toplama yapılamadı: WhatsApp eşleşmesi yok. Archivo’yu açıp QR kodu okutun.',
+  'grup-yok': 'Otomatik toplama yapılmadı: hiç grup seçilmemiş (Ayarlar › Hangi Gruplar).',
+  'internet-yok': 'Otomatik toplama yapılamadı: internet bağlantısı yok.',
+};
+const saatYaz = (ms) => new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+// Son otomatik toplama karari/sonucu: canli dogrulama ve sorun giderme icin.
+function otomatikKaydet(karar, neden) { try { jsonYaz(path.join(veriKok(), 'otomatik-toplama.json'), { zaman: Date.now(), karar, neden: neden || null }); } catch (e) {} }
+const cevrimiciMi = () => { try { return typeof net?.isOnline === 'function' ? net.isOnline() !== false : true; } catch (e) { return true; } };
+let otomatikZamanlayici = null;
+function otomatikToplamayiKur(deneme = 0, bekleme = LIMITS.otomatikBeklemeMs) {
+  clearTimeout(otomatikZamanlayici);
+  tepsiDurumuYaz((deneme ? 'İnternet bekleniyor · ' : '') + 'Otomatik toplama ' + saatYaz(Date.now() + bekleme) + '’te başlayacak');
+  otomatikZamanlayici = setTimeout(() => { void otomatikToplamaDene(deneme); }, bekleme);
+}
+async function otomatikToplamaDene(deneme) {
+  const ayar = ayarOku();
+  const k = otomatikToplamaKarari({
+    ayarAcik: ayar.acilistaOtomatikTopla === true, acilistaMi: true, simdi: Math.floor(Date.now() / 1000), sonZaman: sonZamanOku(),
+    eslesme: eslesmeVar(), seciliSayi: (ayar.sadeceSuGruplar || []).length, calisiyor: calisiyor || yerelSilme, cevrimici: cevrimiciMi(),
+  }, LIMITS);
+  if (k.karar === 'bekle') {
+    if (deneme + 1 < LIMITS.otomatikInternetDeneme) { otomatikToplamayiKur(deneme + 1, LIMITS.otomatikInternetAralikMs); return k; }
+    otomatikKaydet('atla', k.neden); bildirimGonder(OTOMATIK_BILDIRIM[k.neden]); tepsiDurumuYaz('Otomatik toplama yapılamadı · internet yok');
+    return k;
+  }
+  if (k.karar !== 'basla') {
+    otomatikKaydet(k.karar, k.neden);
+    if (OTOMATIK_BILDIRIM[k.neden]) bildirimGonder(OTOMATIK_BILDIRIM[k.neden]);
+    tepsiDurumuYaz(k.neden === 'yakinda-toplandi' ? 'Otomatik toplama: son 6 saatte toplandı' : k.neden === 'calisiyor' ? '' : 'Otomatik toplama yapılmadı');
+    return k;
+  }
+  otomatikKaydet('basla');
+  tepsiDurumuYaz('Otomatik toplama sürüyor');
+  const sonuc = await toplamayiBaslat(false, false, false, {}, { otomatik: true });
+  if (sonuc && sonuc.hata) { otomatikKaydet('atla', sonuc.hata); bildirimGonder('Otomatik toplama başlamadı: ' + sonuc.hata); tepsiDurumuYaz('Otomatik toplama yapılmadı'); }
+  return k;
+}
+// Otomatik toplama bitti: her bitiste bildirim; hata olduysa nedeniyle ayrica bir bildirim. QR ile durdurulduysa yalniz QR bildirimi gitmistir.
+function otomatikBitti(sayac, rapor, i) {
+  if (i.sessizBitir) { tepsiDurumuYaz('Otomatik toplama yapılamadı · QR gerekiyor'); return; }
+  const metin = bitisBildirimMetni(sayac, rapor, i.iptal);
+  otomatikKaydet('bitti', rapor.sonuc);
+  bildirimGonder('Otomatik toplama: ' + metin);
+  if (sayac.hata && rapor.neden) bildirimGonder('Otomatik toplama hatası: ' + rapor.neden);
+  tepsiDurumuYaz('Son otomatik toplama ' + saatYaz(Date.now()) + ' · ' + metin);
 }
 
 app.whenReady().then(async () => {
@@ -1756,7 +1838,10 @@ app.whenReady().then(async () => {
   // Onceki calismadan (cokme, uyku) kalan kendi Chrome'umuz varsa kapatilir.
   if (app.hasSingleInstanceLock?.() !== false) void yetimTarayicilariKapat();
 
-  if (!SESSIZ) pencereAc(); // Açılışta otomatik indirme başlatılmaz.
+  // Bilgisayar acilisinda (ayar aciksa) pencere acilmaz; 5 dk sonra otomatik toplama denenir.
+  const baslangic = baslangicDurumu();
+  if (!SESSIZ && !baslangic.gizli) pencereAc();
+  if (baslangic.acilis) otomatikToplamayiKur();
 
 });
 

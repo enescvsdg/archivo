@@ -935,3 +935,17 @@ test('galeri: video ve PDF karolari, gun basliginda dosya sayisi, buyuk gorunumd
   const csp = h.hatalar.filter((m) => /Content Security Policy|Refused to load/i.test(m));
   assert.deepEqual(csp, [], 'güvenlik ayarı video ve küçük resimleri engellemez');
 });
+
+test('ayarlar: Acilista Otomatik Topla satiri eski Acilista Uygulamayi Ac yerine gelir, varsayilan kapali, Bitti ile kaydedilir', { skip: ATLA }, async (t) => {
+  const h = await ac(t);
+  await tikla(h.sayfa, '#ayarAc'); await bekle(300);
+  assert.equal(await h.sayfa.evaluate(() => document.getElementById('otomatikAnahtar').closest('.satir').querySelector('label').textContent), 'Açılışta Otomatik ToplaBilgisayar açılınca arka planda başlar ve toplar');
+  assert.equal(await h.sayfa.evaluate(() => document.body.textContent.includes('Açılışta Uygulamayı Aç')), false);
+  assert.equal(await h.sayfa.$eval('#otomatikAnahtar', (e) => e.getAttribute('aria-checked')), 'false');
+  await tikla(h.sayfa, '#otomatikAnahtar');
+  await tikla(h.sayfa, '#ayarKapat'); await bekle(200);
+  const kayit = (await cagrilar(h.sayfa)).filter((c) => c[0] === 'ayarKaydet').pop();
+  assert.equal(kayit[1].acilistaOtomatikTopla, true);
+  assert.equal('otomatikCalistir' in kayit[1], false, 'eski anahtar gönderilmez');
+  assert.deepEqual(h.hatalar, []);
+});

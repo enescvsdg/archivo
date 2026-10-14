@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-qllkaUx1ebvbfai7Xbv9Vq6AT5CiADwHa9Iazt5jlcQ='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; media-src 'self' file:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-BHobAC2rOpzWJv42RiU7uBv3y9s/FtzhIJHxtVWEjlw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; media-src 'self' file:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1189,7 +1189,7 @@
     </div>
 
     <div class="satir">
-      <label>Açılışta Uygulamayı Aç<small>Fotoğraf indirmez; Topla’yı bekler</small></label>
+      <label>Açılışta Otomatik Topla<small>Bilgisayar açılınca arka planda başlar ve toplar</small></label>
       <button class="anahtar" id="otomatikAnahtar" role="switch" aria-checked="false"></button>
     </div>
 
@@ -2318,7 +2318,7 @@
   anahtarKur('pdfAnahtar', 'pdfleriDaIndir');
   anahtarKur('yinelenenAnahtar', 'yinelenenleriAtla');
   anahtarKur('bireyselAnahtar', 'bireyselSohbetlerDeIndir');
-  anahtarKur('otomatikAnahtar', 'otomatikCalistir');
+  anahtarKur('otomatikAnahtar', 'acilistaOtomatikTopla');
   anahtarKur('notAnahtar', 'yakinMesajlariAl');
 
   function pencereEtiketYaz(sn) {
@@ -2437,7 +2437,7 @@
     $('pdfAnahtar').setAttribute('aria-checked', String(!!ayar.pdfleriDaIndir));
     $('yinelenenAnahtar').setAttribute('aria-checked', String(ayar.yinelenenleriAtla !== false));
     $('bireyselAnahtar').setAttribute('aria-checked', String(!!ayar.bireyselSohbetlerDeIndir));
-    $('otomatikAnahtar').setAttribute('aria-checked', String(!!ayar.otomatikCalistir));
+    $('otomatikAnahtar').setAttribute('aria-checked', String(!!ayar.acilistaOtomatikTopla));
     hizCiz(ayar.indirmeHizi || 'yavas');
     $('notAnahtar').setAttribute('aria-checked', String(ayar.yakinMesajlariAl !== false));
     $('pencereSlider').value = ayar.notPenceresiSaniye || 150;
@@ -2506,7 +2506,7 @@
       pdfleriDaIndir: !!ayar.pdfleriDaIndir,
       yinelenenleriAtla: ayar.yinelenenleriAtla !== false,
       bireyselSohbetlerDeIndir: !!ayar.bireyselSohbetlerDeIndir,
-      otomatikCalistir: !!ayar.otomatikCalistir,
+      acilistaOtomatikTopla: !!ayar.acilistaOtomatikTopla,
       indirmeHizi: ayar.indirmeHizi || 'yavas',
       yakinMesajlariAl: ayar.yakinMesajlariAl !== false,
       notPenceresiSaniye: ayar.notPenceresiSaniye || 150,
