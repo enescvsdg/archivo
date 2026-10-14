@@ -64,6 +64,8 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 
 ## Doğrulama ve sınırlar
 
+2.0.2 için GitHub Actions (`v2.0.2` dalı, `aaf90dd`, çalışma 38491844642) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde test (her sistemde 232 testten 191’i geçti, 0 hata; gerçek Chrome gerektiren 41 test GitHub’da atlanır), paketleme ve artefakt yükleme adımlarını başarıyla tamamladı: https://github.com/enescvsdg/archivo/actions/runs/38491844642.
+
 2.0.1 için GitHub Actions (`v2.0.1` dalı, çalışma 37235694150) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde test, paketleme ve artefakt yükleme adımlarını başarıyla tamamladı: https://github.com/enescvsdg/archivo/actions/runs/37235694150.
 
 2.0.2 için 232 yerel test geçti (2.0.1’de 173; 40’ı gerçek Chrome ile arayüzü sürer, biri gerçek Chrome ile yetim tarayıcı hatasını üretir). 2.0.2 ayrıntıları DOGRULAMA-2.0.2.md, 2.0.1 ayrıntıları DOGRULAMA-2.0.1.md içindedir. Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda değil, GitHub Actions’ta derlendi.

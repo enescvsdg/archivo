@@ -27,11 +27,15 @@ Yeni ya da değişen davranışların her biri için düzeltme bilerek geri alı
 
 Paketlenmiş Mac arm64 uygulaması (gerçek Electron 44.5.1, gerçek ana süreç) geçici bir veri klasörüyle açıldı (gerçek `profiller/2.0.2`’ye dokunulmadığı doğrulandı): 33 API işlevi (`dosyaAc`, `onEslesme` dahil); gerçek bir PDF ve gerçek bir `.mov` için küçük resimler macOS Quick Look ile üretildi; gün başlıkları “3 dosya / 1 foto”; PDF kartı (“Keşif raporu.pdf”, grup, tarih, boyut); video gerçekten yüklenip oynatılabilir oldu (16 sn, 400 px, hata yok) ve kapatınca boşaltıldı; gerçek ana süreç `/etc/hosts`’u açmayı reddetti; Ayarlar 494 px, yeni satır metinleri doğru; konsolda hata yok.
 
+## GitHub Actions
+
+Çalışma https://github.com/enescvsdg/archivo/actions/runs/38491844642 (`v2.0.2` dalı, `aaf90dd`): Windows x64 (Windows Server 2025), Apple Silicon Mac ve Intel Mac üzerinde `pnpm test`, paketleme ve artefakt yükleme başarılı. Her sistemde 232 testten 191’i geçti, 0 hata; gerçek Chrome for Testing gerektiren 41 test (arayüz testleri ve gerçek Chrome ile “already running” testi) GitHub’da Chrome bulunmadığı için atlanır, bunlar yalnızca bu Mac’te (arm64) çalıştı. Windows’ta gerçek süreçlerle yetim süreç temizliği testi (PowerShell ile süreç listesi, yalnızca bizim klasörlü sürecin kapanması, benzer klasörlünün açık kalması) geçti. İlk deneme hiç başlamadı (depo o sırada gizliydi, GitHub dakika/ödeme sınırı); depo yeniden herkese açık yapılınca ikinci deneme yeşil bitti.
+
 Ölçümle düzeltilen bir iddia: “güvenlik ayarı (CSP) videoyu engelliyor” sanılmıştı; ölçümde dosyadan açılan sayfada `'self'` dosya videolarını zaten kapsıyor. `media-src 'self' file:` yalnızca `img-src` ile aynı kuralı açıkça yazar (bu satırı kaldırmak davranışı değiştirmez).
 
 ## Doğrulanmadı
 
 - **Gerçek WhatsApp hesabında:** telefondan çıkışta `LOGOUT` nedeninin gerçekten geldiği (kütüphane kodundan çıkarıldı); PDF mesajında açıklamanın `caption` alanında geldiği (kütüphane bunu `body`’ye koyuyor); yetim Chrome temizliğinin gerçek uyku sonrası davranışı.
 - **Açılışta Otomatik Topla:** Mac’te giriş öğesiyle açılışta `wasOpenedAtLogin`’in gerçekten `true` geldiği (Electron 44’te alan var; gelmezse bilgisayar 10 dakikadan kısa süre önce açıldıysa pencere açık olarak yine toplar); uykudan uyanma olayı; bildirimlerin pencere kapalıyken görünmesi ve izin davranışı. Bilgisayarı yeniden başlatarak ve kapağı kapatıp açarak denenmelidir.
-- **Windows:** taşınabilir exe’nin gerçek açılışı, giriş öğesinin asıl exe’yi başlatması, PowerShell ile süreç listesi ve kabuk küçük resimleri (yalnızca CI’da test edilir). **Intel Mac** gerçek açılışı.
+- **Windows:** taşınabilir exe’nin gerçek açılışı, giriş öğesinin asıl exe’yi başlatması ve kabuk küçük resimleri (CI’da sahte istemciyle sınandı; PowerShell ile gerçek süreç listesi ve kapatma CI’da gerçek süreçlerle geçti). **Intel Mac** gerçek açılışı.
 - Yeni sürüm hesabın kısıtlanmayacağını garanti etmez.
