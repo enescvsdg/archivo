@@ -140,9 +140,20 @@ const UZANTILAR = {
   'application/pdf': '.pdf',
 };
 
-const GORSEL = /\.(jpe?g|png|webp|gif|heic)$/i;
-// Arsivdeki tum dosya turleri (fotograf, video, PDF). Toplama "zaten indirildi" kontrolunu bunlarla yapar.
+// Arsivdeki tum dosya turleri (fotograf, video, PDF): galeri, silme ve "zaten indirildi" kontrolu bunlarla yapilir.
 const ARSIV_DOSYASI = /\.(jpe?g|png|webp|gif|heic|mp4|mov|3gp|pdf)$/i;
+const VIDEO_DOSYASI = /\.(mp4|mov|3gp)$/i;
+const dosyaTuru = (ad) => (VIDEO_DOSYASI.test(ad) ? 'video' : /\.pdf$/i.test(ad) ? 'pdf' : 'resim');
+// Yol gercekten arsiv klasorunun icindeki, izin verilen turde bir dosya mi? Sembolik baglanti ve klasor disi reddedilir.
+function arsivDosyasi(yol, izinli, hataMetni) {
+  if (typeof yol !== 'string' || !yol) throw new Error(hataMetni);
+  const kok = fs.realpathSync(ayarOku().hedefKlasor);
+  if (fs.lstatSync(yol).isSymbolicLink()) throw new Error('Sembolik bağlantı kullanılamaz');
+  const tam = fs.realpathSync(yol);
+  const rel = path.relative(kok, tam);
+  if (!rel || rel.startsWith('..' + path.sep) || rel === '..' || path.isAbsolute(rel) || !izinli.test(tam) || !fs.statSync(tam).isFile()) throw new Error(hataMetni);
+  return tam;
+}
 // Belgenin kendi adi dosya adinin sonuna eklenir (ornegin ..._Grup_rapor.pdf); yasak karakterler temizlenir.
 function belgeAdiParcasi(ad) {
   // Klasor ayiricilari dahil yasak karakterler temizle() ile '-' olur; ad hicbir zaman klasor disina yol gostermez.
@@ -388,12 +399,18 @@ function kucukYolu(gun, ad) {
   return path.join(kucukKok(), gun, ad.replace(/\.[^.]+$/, '') + '.jpg');
 }
 
-function kucukUret(kaynakYol, gun, ad) {
+async function kucukUret(kaynakYol, gun, ad) {
   const hedef = kucukYolu(gun, ad);
   if (fs.existsSync(hedef)) return hedef;
   try {
-    const resim = nativeImage.createFromPath(kaynakYol);
-    if (resim.isEmpty()) return null;
+    let resim;
+    if (dosyaTuru(ad) !== 'resim') {
+      // Video ilk karesi / PDF ilk sayfasi: isletim sisteminin kucuk resmi (Mac Quick Look, Windows kabuk). Yalniz arsivdeki dosyalar.
+      if (typeof nativeImage.createThumbnailFromPath !== 'function') return null;
+      const tam = arsivDosyasi(kaynakYol, ARSIV_DOSYASI, 'Geçersiz dosya');
+      resim = await nativeImage.createThumbnailFromPath(tam, { width: 320, height: 320 });
+    } else resim = nativeImage.createFromPath(kaynakYol);
+    if (!resim || resim.isEmpty()) return null;
     const kucuk = resim.resize({ width: 320, quality: 'good' });
     fs.mkdirSync(path.dirname(hedef), { recursive: true });
     fs.writeFileSync(hedef, kucuk.toJPEG(74));
@@ -788,9 +805,9 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
     return kayit == null ? ilkBaslangic : Math.max(kayit - ORTUSME_SANIYE, simdi - LIMITS.days * 86400);
   };
   const rapor = { baslangic: simdi, gun: gunSayisi, gecmis, sadeceTara, gruplar: [], alinamayanMedya: [], bekleyenGrupSayisi: 0, sonuc: 'devam' };
-  const sayac = { indirilen: 0, yinelenen: 0, atlanan: 0, hata: 0 };
+  const sayac = { indirilen: 0, yinelenen: 0, atlanan: 0, hata: 0, video: 0, pdf: 0 };
   const dizin = dizinOku();
-  const mevcutAdlar = new Set(arsivListele(Infinity, { tumTurler: true }).flatMap(g => g.dosyalar.map(d => d.ad)));
+  const mevcutAdlar = new Set(arsivListele(Infinity).flatMap(g => g.dosyalar.map(d => d.ad)));
   // Alinmayan belgeler (ayari kapali PDF, Word, Excel, CAD...): yalniz sayilir, indirilmez. Ayni mesaj bir kez sayilir.
   const atlananBelgeYolu = path.join(veriKok(), 'atlanan-belgeler.json');
   const atlananBelgeler = jsonOku(atlananBelgeYolu, { turler: {}, kimlikler: [] });
@@ -1167,8 +1184,10 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
           if (kimlik && silinen[kimlik]) { delete silinen[kimlik]; jsonYaz(silinenYolu, silinen); }
 
           sayac.indirilen++;
+          const tur = resimMi ? 'resim' : videoMu ? 'video' : 'pdf';
+          if (tur !== 'resim') sayac[tur]++;
           console.log('    + ' + ad);
-          yolla('dosya', { gun: klasor, ad, yol: tamYol, kucuk, grup: chat.name, gonderen, aciklama, notlar });
+          yolla('dosya', { gun: klasor, ad, yol: tamYol, kucuk, tur, boyut: tur === 'resim' ? null : tampon.length, grup: chat.name, gonderen, aciklama, notlar });
         }
         kontrol(i);
         if (!sadeceTara && !gecmis && !sohbetHatasi) ilerleme[chat.id._serialized] = simdi - 1;
@@ -1263,7 +1282,7 @@ ipcMain.handle('ayar-kaydet', (_e, yeni) => {
   return b;
 });
 
-function arsivListele(gunSayisi = 60, { tumTurler = false } = {}) {
+function arsivListele(gunSayisi = 60) {
   const ayar = ayarOku();
   const kok = ayar.hedefKlasor;
   if (!fs.existsSync(kok)) return [];
@@ -1289,7 +1308,7 @@ function arsivListele(gunSayisi = 60, { tumTurler = false } = {}) {
         continue;
       }
 
-      if (!(tumTurler ? ARSIV_DOSYASI : GORSEL).test(g.name)) continue;
+      if (!ARSIV_DOSYASI.test(g.name)) continue;
 
       // gun bilinmiyorsa dosya adinin basindaki tarihten cikar
       let iso = gunIsoDegeri;
@@ -1303,9 +1322,14 @@ function arsivListele(gunSayisi = 60, { tumTurler = false } = {}) {
       const kYol = kucukYolu(iso, g.name);
 
       if (!gunler.has(iso)) gunler.set(iso, []);
+      const tur = dosyaTuru(g.name);
+      let boyut = null;
+      if (tur !== 'resim') { try { boyut = fs.statSync(tam).size; } catch (e) {} }
       gunler.get(iso).push({
         ad: g.name,
         yol: tam,
+        tur,
+        boyut,
         kucuk: fs.existsSync(kYol) ? kYol : null,
         grup: ust.grup || grupAdi || null,
         gonderen: ust.gonderen || null,
@@ -1330,6 +1354,14 @@ ipcMain.handle('arsiv-al', (_e, gunSayisi) => arsivListele(gunSayisi));
 
 ipcMain.handle('kucuk-uret', (_e, { yol, gun, ad }) => kucukUret(yol, gun, ad));
 
+// Yalniz arsiv klasorundeki PDF ve videolar bilgisayarin kendi programinda acilir; baska dosya ya da yol acilmaz.
+ipcMain.handle('dosya-ac', async (_e, yol) => {
+  let tam;
+  try { tam = arsivDosyasi(yol, /\.(pdf|mp4|mov|3gp)$/i, 'Yalnızca arşivdeki PDF ve videolar açılabilir'); } catch (e) { return { hata: e.message }; }
+  const hata = await shell.openPath(tam);
+  return hata ? { hata } : { acildi: true };
+});
+
 ipcMain.handle('klasor-sec', async () => {
   const s = await dialog.showOpenDialog(pencere, {
     properties: ['openDirectory', 'createDirectory'],
@@ -1350,13 +1382,9 @@ ipcMain.handle('dosya-goster', (_e, yol) => shell.showItemInFolder(yol));
 
 async function yerelFotografSil(yol, onayli = false, kilitli = false) {
   if (calisiyor || (yerelSilme && !kilitli)) throw new Error('Önce çalışan işlemi durdurun');
-  const kok = fs.realpathSync(ayarOku().hedefKlasor);
-  if (fs.lstatSync(yol).isSymbolicLink()) throw new Error('Sembolik bağlantı silinemez');
-  const tam = fs.realpathSync(yol);
-  const rel = path.relative(kok, tam);
-  if (!rel || rel.startsWith('..' + path.sep) || rel === '..' || path.isAbsolute(rel) || !GORSEL.test(tam) || !fs.statSync(tam).isFile()) throw new Error('Yalnızca arşiv klasöründeki fotoğraflar silinebilir');
+  const tam = arsivDosyasi(yol, ARSIV_DOSYASI, 'Yalnızca arşiv klasöründeki dosyalar silinebilir');
   const { response } = onayli ? { response: 1 } : await dialog.showMessageBox(pencere, { type: 'warning', buttons: ['Vazgeç', 'Sil'], defaultId: 0, cancelId: 0,
-    message: 'Bu fotoğraf silinsin mi?', detail: path.basename(tam) + '\nYerel arşivden kaldırılıp Çöp Kutusu’na taşınacak. WhatsApp ve telefon değişmeyecek.' });
+    message: { resim: 'Bu fotoğraf silinsin mi?', video: 'Bu video silinsin mi?', pdf: 'Bu PDF silinsin mi?' }[dosyaTuru(tam)], detail: path.basename(tam) + '\nYerel arşivden kaldırılıp Çöp Kutusu’na taşınacak. WhatsApp ve telefon değişmeyecek.' });
   if (response !== 1) return { silindi: false };
   if (calisiyor || (yerelSilme && !kilitli)) throw new Error('Önce çalışan işlemi durdurun');
   // Revalidate after confirmation to prevent a replaced path escaping the archive.
@@ -1401,11 +1429,12 @@ ipcMain.handle('gun-sil', async (_e, gun, grup = null) => {
   const onceki = await gunDosyalari(gun, grup);
   if (!onceki.length) return { silindi: false, adet: 0 };
   const gunTR = gun.split('-').reverse().join('.');
+  const sozcuk = onceki.every(d => d.tur === 'resim') ? 'fotoğraf' : 'dosya';
   const soru = grup
     ? { buttons: ['Hayır', 'Evet'], message: gunTR + ' tarihli “' + grup + '” fotoğrafları silinsin mi?',
-      detail: onceki.length + ' fotoğraf yerel Çöp Kutusu’na taşınacak; yalnızca bu grubun fotoğrafları silinir, diğer gruplara dokunulmaz. WhatsApp değişmeyecek.' }
+      detail: onceki.length + ' ' + sozcuk + ' yerel Çöp Kutusu’na taşınacak; yalnızca bu grubun fotoğrafları silinir, diğer gruplara dokunulmaz. WhatsApp değişmeyecek.' }
     : { buttons: ['Vazgeç', 'Tüm fotoğrafları sil'], message: 'DİKKAT: ' + gunTR + ' TARİHİNDEKİ TÜM GRUPLARIN FOTOĞRAFLARI SİLİNECEK',
-      detail: new Set(onceki.map(d => d.grup)).size + ' gruptan toplam ' + onceki.length + ' fotoğraf yerel Çöp Kutusu’na taşınacak; önizleme ve arşiv kayıtları kaldırılacak. WhatsApp değişmeyecek.\n\nYalnızca bir grubun fotoğraflarını silmek istiyorsanız Vazgeç’e basın, önce o grubu seçin.' };
+      detail: new Set(onceki.map(d => d.grup)).size + ' gruptan toplam ' + onceki.length + ' ' + sozcuk + ' yerel Çöp Kutusu’na taşınacak; önizleme ve arşiv kayıtları kaldırılacak. WhatsApp değişmeyecek.\n\nYalnızca bir grubun fotoğraflarını silmek istiyorsanız Vazgeç’e basın, önce o grubu seçin.' };
   const { response } = await dialog.showMessageBox(pencere, { type: 'warning', buttons: soru.buttons, defaultId: 0, cancelId: 0, message: soru.message, detail: soru.detail });
   if (response !== 1) return { silindi: false };
   const dosyalar = await gunDosyalari(gun, grup);
@@ -1663,7 +1692,7 @@ function bildirimGonder(govde) {
 function bitisBildirimMetni(sayac, rapor, iptal) {
   const eksik = !!(sayac.hata || sayac.atlanan);
   if (iptal) return 'İşlem durduruldu';
-  if (sayac.indirilen) return sayac.indirilen + ' fotoğraf indirildi' + (eksik ? ' (bazıları alınamadı)' : '');
+  if (sayac.indirilen) return sayac.indirilen + (sayac.video || sayac.pdf ? ' dosya' : ' fotoğraf') + ' indirildi' + (eksik ? ' (bazıları alınamadı)' : '');
   if (eksik) return 'İşlem tamamlanamadı; ayrıntı için Archivo’yu açın';
   return rapor.sadeceTara ? 'Geçmiş taraması tamamlandı' : 'Yeni fotoğraf yok';
 }

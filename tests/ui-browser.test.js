@@ -868,3 +868,70 @@ test('ayarlar: PDF’leri de Indir satiri Videolari da Indir’in hemen altinda;
   assert.equal(kayit[1].videolariDaIndir, false, 'video ayarı etkilenmez');
   assert.deepEqual(h.hatalar, []);
 });
+
+// 2.0.2: galeride video ve PDF: karo (tur etiketi, oynat isareti, kucuk resim yoksa ikon + PDF adi), gun basliginda "dosya",
+// buyuk gorunumde video oynatici ve PDF karti (PDF'i Ac), aramada PDF adi bulunur.
+function karisikVeri() {
+  const k = path.join(gecici, 'karisik', '2026-10-03', 'g');
+  fs.mkdirSync(k, { recursive: true });
+  const yaz = (ad, icerik) => { const y = path.join(k, ad); fs.writeFileSync(y, icerik); return y; };
+  const foto = yaz('2026-10-03_10-00-00_Saha_0.png', png(76, 123, 208));
+  const kucukVideo = yaz('kucuk-video.png', png(40, 50, 90));
+  const video = yaz('2026-10-03_11-00-00_Saha.mp4', Buffer.alloc(64));
+  const pdf = yaz('2026-10-03_12-00-00_Saha_Keşif raporu.pdf', '%PDF-1.4\n');
+  const k2 = path.join(gecici, 'karisik', '2026-10-02', 'g'); fs.mkdirSync(k2, { recursive: true });
+  const foto2 = path.join(k2, '2026-10-02_09-00-00_Saha_0.png'); fs.writeFileSync(foto2, png(47, 174, 98));
+  return [
+    { gun: '2026-10-03', dosyalar: [
+      { ad: path.basename(pdf), yol: pdf, kucuk: null, tur: 'pdf', boyut: 1468006, grup: 'Saha', gonderen: 'Ayşe K.', aciklama: null, notlar: [], gruplar: [] },
+      { ad: path.basename(video), yol: video, kucuk: kucukVideo, tur: 'video', boyut: 64, grup: 'Saha', gonderen: null, aciklama: 'Kaldırım onarımı videosu', notlar: [], gruplar: [] },
+      { ad: path.basename(foto), yol: foto, kucuk: foto, tur: 'resim', boyut: null, grup: 'Saha', gonderen: null, aciklama: null, notlar: [], gruplar: [] },
+    ] },
+    { gun: '2026-10-02', dosyalar: [{ ad: path.basename(foto2), yol: foto2, kucuk: foto2, tur: 'resim', boyut: null, grup: 'Saha', gonderen: null, aciklama: null, notlar: [], gruplar: [] }] },
+  ];
+}
+test('galeri: video ve PDF karolari, gun basliginda dosya sayisi, buyuk gorunumde video oynatici ve PDF karti; aramada PDF adi bulunur', { skip: ATLA }, async (t) => {
+  const h = await ac(t, { veri: karisikVeri() });
+  const karolar = () => h.sayfa.$$eval('.bolum:not(.kapali) .kare', (l) => l.map((k) => ({ tur: k.querySelector('.tur')?.textContent || null, oynat: !!k.querySelector('.oynat'), ikonlu: k.classList.contains('ikonlu'), ad: k.querySelector('.yedek-ikon small')?.textContent || null })));
+  await bekle(400);
+  const k = await karolar();
+  assert.deepEqual(k, [
+    { tur: 'PDF', oynat: false, ikonlu: true, ad: 'Keşif raporu.pdf' },
+    { tur: 'VİDEO', oynat: true, ikonlu: false, ad: null },
+    { tur: null, oynat: false, ikonlu: false, ad: null },
+  ]);
+  assert.equal(await h.sayfa.$eval('.bolum:not(.kapali) .kare.k-pdf img', (e) => e.getAttribute('src')), null, 'küçük resmi olmayan PDF resim olarak yüklenmeye çalışılmaz');
+  const adetler = await h.sayfa.$$eval('.gun-adet', (l) => l.map((e) => e.textContent));
+  assert.deepEqual(adetler, ['3 dosya', '1 foto']);
+  await foto(h, '25a-galeri-video-pdf');
+  // Buyuk gorunum: PDF karti
+  await h.sayfa.evaluate(() => document.querySelectorAll('.bolum:not(.kapali) .kare')[0].click()); await bekle(250);
+  const gorunen = () => h.sayfa.evaluate(() => ({ resim: !document.getElementById('buyukResim').hidden && getComputedStyle(document.getElementById('buyukResim')).display !== 'none', video: !document.getElementById('buyukVideo').hidden && getComputedStyle(document.getElementById('buyukVideo')).display !== 'none', belge: !document.getElementById('buyukBelge').hidden && getComputedStyle(document.getElementById('buyukBelge')).display !== 'none', videoSrc: document.getElementById('buyukVideo').getAttribute('src') || '' }));
+  let g = await gorunen();
+  assert.deepEqual([g.resim, g.video, g.belge], [false, false, true]);
+  assert.equal(await h.sayfa.$eval('#belgeAd', (e) => e.textContent), 'Keşif raporu.pdf');
+  assert.match(await h.sayfa.$eval('#belgeBilgi', (e) => e.textContent), /^Saha · .+ · 1,4 MB$/);
+  await foto(h, '25b-buyuk-pdf');
+  await tikla(h.sayfa, '#belgeAc');
+  const acmalar = (await cagrilar(h.sayfa)).filter((c) => c[0] === 'dosyaAc');
+  assert.equal(acmalar.length, 1); assert.match(acmalar[0][1], /Keşif raporu\.pdf$/);
+  // Video
+  await h.sayfa.keyboard.press('ArrowRight'); await bekle(250);
+  g = await gorunen();
+  assert.deepEqual([g.resim, g.video, g.belge], [false, true, false]);
+  assert.match(g.videoSrc, /^file:.*\.mp4$/);
+  await foto(h, '25c-buyuk-video');
+  // Fotograf: video birakilir
+  await h.sayfa.keyboard.press('ArrowRight'); await bekle(250);
+  g = await gorunen();
+  assert.deepEqual([g.resim, g.video, g.belge, g.videoSrc], [true, false, false, ''], 'videodan çıkınca oynatıcı boşaltılır');
+  await h.sayfa.keyboard.press('ArrowLeft'); await bekle(200);
+  assert.equal((await gorunen()).video, true);
+  await h.sayfa.keyboard.press('Escape'); await bekle(200);
+  assert.equal(await h.sayfa.$eval('#buyukVideo', (e) => e.getAttribute('src')), null, 'kapatınca video durur ve boşaltılır');
+  // Arama: PDF adiyla bulunur
+  await h.sayfa.type('#arama', 'keşif'); await bekle(450);
+  assert.deepEqual((await karolar()).map((x) => x.tur), ['PDF']);
+  const csp = h.hatalar.filter((m) => /Content Security Policy|Refused to load/i.test(m));
+  assert.deepEqual(csp, [], 'güvenlik ayarı video ve küçük resimleri engellemez');
+});

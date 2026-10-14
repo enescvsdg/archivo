@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   klasorSec: () => ipcRenderer.invoke('klasor-sec'),
   klasorAc: () => ipcRenderer.invoke('klasor-ac'),
   dosyaGoster: (y) => ipcRenderer.invoke('dosya-goster', y),
+  dosyaAc: (y) => ipcRenderer.invoke('dosya-ac', y),
   oturumSifirla: () => ipcRenderer.invoke('oturum-sifirla'),
   gecmisiSifirla: () => ipcRenderer.invoke('gecmisi-sifirla'),
   veriKlasoruAc: () => ipcRenderer.invoke('veri-klasoru-ac'),

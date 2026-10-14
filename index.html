@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-h92xsMSgDMvIxnjNOsurydUN6UeQZC3AA6yGJB+FX0U='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-qllkaUx1ebvbfai7Xbv9Vq6AT5CiADwHa9Iazt5jlcQ='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' file: data:; media-src 'self' file:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
 <title>Archivo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -576,17 +576,44 @@
     place-items: center;
   }
 
+  /* Video ve PDF karolari: sol ustte tur etiketi, videoda ortada oynat isareti; kucuk resim yoksa ikon + dosya adi */
+  .kare .tur { position: absolute; top: 6px; left: 6px; z-index: 3; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: #fff;
+    background: rgba(12,14,20,.62); border: 1px solid rgba(255,255,255,.22); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); text-shadow: none; }
+  .kare .oynat { position: absolute; left: 50%; top: 50%; z-index: 2; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+    background: rgba(12,14,20,.48); border: 1px solid rgba(255,255,255,.35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  .kare .oynat .ik { width: 18px; height: 18px; fill: #fff; margin-left: 2px; }
+  .kare.k-video::after, .kare.k-pdf::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 38px; background: linear-gradient(transparent, rgba(0,0,0,.72)); z-index: 1; pointer-events: none; }
+  .kare.k-video b, .kare.k-pdf b { z-index: 2; }
+  .kare .not { z-index: 3; }
+  .kare.k-video.ikonlu { background: linear-gradient(135deg, #2a3d66, #14192a 60%, #3a2b55); }
+  .kare.ikonlu img { display: none; }
+  .kare.k-pdf.ikonlu b { display: none; }
+  .kare .yedek-ikon { position: absolute; inset: 0 0 18px; display: grid; place-content: center; justify-items: center; gap: 8px; }
+  .kare .yedek-ikon[hidden] { display: none; }
+  .kare .yedek-ikon .tl { width: 46px; height: 46px; }
+  .kare .yedek-ikon .tl .ik { width: 26px; height: 26px; }
+  .kare .yedek-ikon small { font-size: 10px; color: rgba(255,255,255,.8); max-width: 92px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* ---- büyük önizleme ---- */
 
   #buyuk { padding: 0; }
 
-  #buyukResim {
+  #buyukResim, #buyukVideo {
     max-width: min(88vw, 1100px);
     max-height: 74vh;
     border-radius: 18px;
     display: block;
     box-shadow: 0 30px 80px rgba(0,0,0,0.65);
   }
+  #buyukVideo { background: #000; width: min(80vw, 980px); }
+  #buyukResim[hidden], #buyukVideo[hidden] { display: none; }
+  /* PDF: uygulama icinde gosterilmez; ikon, ad, bilgi ve "PDF'i Ac" (bilgisayarin kendi programi) */
+  #buyukBelge { width: min(80vw, 420px); border-radius: 26px; padding: 28px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+  #buyukBelge[hidden] { display: none; }
+  #buyukBelge .belge-ikon { width: 72px; height: 72px; border-radius: 22px; background: linear-gradient(180deg, #e2574c, #b53a31); }
+  #buyukBelge .belge-ikon .ik { width: 40px; height: 40px; }
+  #belgeAd { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  #belgeBilgi { font-size: 12px; color: var(--yazi-silik); }
 
   #buyukBilgi {
     margin-top: 14px;
@@ -964,7 +991,7 @@
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-calendar-event" viewBox="0 0 24 24"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3l0 4"/><path d="M8 3l0 4"/><path d="M4 11l16 0"/><path d="M8 15h2v2h-2z"/></symbol><symbol id="i-calendar-month" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 14v4"/><path d="M12 14v4"/><path d="M16 14v4"/></symbol><symbol id="i-calendar-week" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M7 14h.013"/><path d="M10.01 14h.005"/><path d="M13.01 14h.005"/><path d="M16.015 14h.005"/><path d="M13.015 17h.005"/><path d="M7.01 17h.005"/><path d="M10.01 17h.005"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M11 15h1"/><path d="M12 15v3"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></symbol><symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></symbol><symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6l-6 6l6 6"/></symbol><symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></symbol><symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="M6 15l6 -6l6 6"/></symbol><symbol id="i-circle-check" viewBox="0 0 24 24"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></symbol><symbol id="i-filter-off" viewBox="0 0 24 24"><path d="M8 4h12v2.172a2 2 0 0 1 -.586 1.414l-3.914 3.914m-.5 3.5v4l-6 2v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227"/><path d="M3 3l18 18"/></symbol><symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2"/></symbol><symbol id="i-folder-search" viewBox="0 0 24 24"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5"/><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M20.2 20.2l1.8 1.8"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></symbol><symbol id="i-grip-vertical" viewBox="0 0 24 24"><path d="M9 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M9 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M9 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol><symbol id="i-history" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></symbol><symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/><path d="M9 12h12l-3 -3"/><path d="M18 15l3 -3"/></symbol><symbol id="i-photo-down" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M12.5 21h-6.5a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v6.5"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l4 4"/><path d="M14 14l1 -1c.653 -.629 1.413 -.815 2.13 -.559"/><path d="M19 16v6"/><path d="M22 19l-3 3l-3 -3"/></symbol><symbol id="i-photo" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></symbol><symbol id="i-player-stop" viewBox="0 0 24 24"><path d="M5 5m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"/></symbol><symbol id="i-qrcode" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M7 17l0 .01"/><path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M7 7l0 .01"/><path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M17 7l0 .01"/><path d="M14 14l3 0"/><path d="M20 14l0 .01"/><path d="M14 14l0 3"/><path d="M14 20l3 0"/><path d="M17 17l3 0"/><path d="M20 17l0 3"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></symbol><symbol id="i-replace" viewBox="0 0 24 24"><path d="M3 3m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M15 15m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3"/><path d="M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3"/></symbol><symbol id="i-restore" viewBox="0 0 24 24"><path d="M3.06 13a9 9 0 1 0 .49 -4.087"/><path d="M3 4.001v5h5"/><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></symbol><symbol id="i-users-group" viewBox="0 0 24 24"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></symbol></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-file-type-pdf" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4"/><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6"/><path d="M17 18h2"/><path d="M20 15h-3v6"/><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1z"/></symbol><symbol id="i-player-play" viewBox="0 0 24 24"><path d="M7 4v16l13 -8z"/></symbol><symbol id="i-movie" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/><path d="M4 8l4 0"/><path d="M4 16l4 0"/><path d="M4 12l16 0"/><path d="M16 8l4 0"/><path d="M16 16l4 0"/></symbol><symbol id="i-external-link" viewBox="0 0 24 24"><path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6"/><path d="M11 13l9 -9"/><path d="M15 4h5v5"/></symbol><symbol id="i-calendar-event" viewBox="0 0 24 24"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3l0 4"/><path d="M8 3l0 4"/><path d="M4 11l16 0"/><path d="M8 15h2v2h-2z"/></symbol><symbol id="i-calendar-month" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 14v4"/><path d="M12 14v4"/><path d="M16 14v4"/></symbol><symbol id="i-calendar-week" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M7 14h.013"/><path d="M10.01 14h.005"/><path d="M13.01 14h.005"/><path d="M16.015 14h.005"/><path d="M13.015 17h.005"/><path d="M7.01 17h.005"/><path d="M10.01 17h.005"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M11 15h1"/><path d="M12 15v3"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></symbol><symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></symbol><symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6l-6 6l6 6"/></symbol><symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></symbol><symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="M6 15l6 -6l6 6"/></symbol><symbol id="i-circle-check" viewBox="0 0 24 24"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></symbol><symbol id="i-filter-off" viewBox="0 0 24 24"><path d="M8 4h12v2.172a2 2 0 0 1 -.586 1.414l-3.914 3.914m-.5 3.5v4l-6 2v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227"/><path d="M3 3l18 18"/></symbol><symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2"/></symbol><symbol id="i-folder-search" viewBox="0 0 24 24"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5"/><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M20.2 20.2l1.8 1.8"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></symbol><symbol id="i-grip-vertical" viewBox="0 0 24 24"><path d="M9 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M9 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M9 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M15 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol><symbol id="i-history" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></symbol><symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/><path d="M9 12h12l-3 -3"/><path d="M18 15l3 -3"/></symbol><symbol id="i-photo-down" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M12.5 21h-6.5a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v6.5"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l4 4"/><path d="M14 14l1 -1c.653 -.629 1.413 -.815 2.13 -.559"/><path d="M19 16v6"/><path d="M22 19l-3 3l-3 -3"/></symbol><symbol id="i-photo" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></symbol><symbol id="i-player-stop" viewBox="0 0 24 24"><path d="M5 5m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"/></symbol><symbol id="i-qrcode" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M7 17l0 .01"/><path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M7 7l0 .01"/><path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M17 7l0 .01"/><path d="M14 14l3 0"/><path d="M20 14l0 .01"/><path d="M14 14l0 3"/><path d="M14 20l3 0"/><path d="M17 17l3 0"/><path d="M20 17l0 3"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></symbol><symbol id="i-replace" viewBox="0 0 24 24"><path d="M3 3m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M15 15m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3"/><path d="M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3"/></symbol><symbol id="i-restore" viewBox="0 0 24 24"><path d="M3.06 13a9 9 0 1 0 .49 -4.087"/><path d="M3 4.001v5h5"/><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></symbol><symbol id="i-users-group" viewBox="0 0 24 24"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></symbol></svg>
 
 <div id="giris">
   <svg class="amblem amblem-giris" viewBox="0 0 64 64" aria-hidden="true">
@@ -1106,6 +1133,13 @@
   <button class="ok dg" id="okSol" aria-label="Önceki"><span class="tl t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-chevron-left"/></svg></span><span>Önceki</span></button>
   <div id="buyuk">
     <img id="buyukResim" alt="" />
+    <video id="buyukVideo" controls preload="metadata" playsinline hidden></video>
+    <div id="buyukBelge" class="cam" hidden>
+      <span class="tl belge-ikon"><svg class="ik" aria-hidden="true"><use href="#i-file-type-pdf"/></svg></span>
+      <div id="belgeAd"></div>
+      <div id="belgeBilgi"></div>
+      <button class="dg" id="belgeAc"><span class="tl k t-grafit"><svg class="ik" aria-hidden="true"><use href="#i-external-link"/></svg></span><span>PDF’i Aç</span></button>
+    </div>
     <div id="buyukBilgi" class="cam"></div>
     <div id="buyukAciklama" class="cam" hidden></div>
   </div>
@@ -1241,6 +1275,11 @@
 
   // Windows yollari (C:\Users\...) ile Unix yollarini (/home/...) dogru
   // file:// adresine cevirir. Surucu harfi kodlanmamalidir, yoksa C%3A olur.
+  // Dosya turu: video, PDF ya da fotograf (ana surecle ayni kural). Gun basliginda yalniz fotograf varsa "foto", yoksa "dosya".
+  const dosyaTuru = (ad) => (/\.(mp4|mov|3gp)$/i.test(ad) ? 'video' : /\.pdf$/i.test(ad) ? 'pdf' : 'resim');
+  const turBul = (d) => d.tur || dosyaTuru(d.ad || '');
+  const adetYazisi = (dosyalar) => dosyalar.length + (dosyalar.some((d) => turBul(d) !== 'resim') ? ' dosya' : ' foto');
+  const boyutYazisi = (b) => (b == null ? '' : b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
   function dosyaUrl(yol) {
     let y = String(yol).replace(/\\/g, '/');
     if (!y.startsWith('/')) y = '/' + y;
@@ -1290,6 +1329,7 @@
       gozcu.unobserve(kare);
       const v = kare._veri;
       const yeni = await window.api.kucukUret({ yol: v.yol, gun: v.gun, ad: v.ad });
+      if (!yeni && turBul(v) !== 'resim') { ikonluYap(kare); continue; }
       kare.querySelector('img').src = dosyaUrl(yeni || v.yol);
     }
   }, { rootMargin: '400px' });
@@ -1693,6 +1733,14 @@
     genelSayfa = 1;
     sayfaAcilisiKur(gunler);
   }
+  // Kucuk resmi olmayan video/PDF karosu: resim gizlenir, ikon (+ PDF adi) gosterilir.
+  function ikonluYap(kare) { kare.classList.add('ikonlu'); const y = kare.querySelector('.yedek-ikon'); if (y) y.hidden = false; }
+  // PDF'in kendi adi: dosya adindaki tarih_saat_Grup_ on eki atilir.
+  function belgeGorunenAdi(d) {
+    let ad = String(d.ad || '').replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_/, '');
+    for (const g of [d.grup, String(d.grup || '').replace(/[\\/:*?"<>|]/g, '-')]) if (g && ad.startsWith(g + '_')) { ad = ad.slice(g.length + 1); break; }
+    return ad;
+  }
   function kareKur(d, gun) {
     const kare = document.createElement('button');
     kare.className = 'kare';
@@ -1700,11 +1748,25 @@
     kare._veri = { ...d, gun };
     const img = document.createElement('img');
     img.loading = 'lazy'; img.alt = '';
+    const tur = turBul(d);
+    if (tur !== 'resim') img.addEventListener('error', () => ikonluYap(kare));
     if (d.kucuk) img.src = dosyaUrl(d.kucuk); else gozcu.observe(kare);
     const etiket = document.createElement('b');
     const ilkNot = d.aciklama || (d.notlar && d.notlar[0]) || null;
     etiket.textContent = ilkNot || (d.gonderen ? d.gonderen + ' · ' + grupAdiGoster(d.grup || '') : grupAdiGoster(d.grup || d.ad));
     kare.append(img, etiket);
+    if (tur !== 'resim') {
+      kare.classList.add('k-' + tur);
+      const cip = document.createElement('span');
+      cip.className = 'tur'; cip.textContent = tur === 'pdf' ? 'PDF' : 'VİDEO';
+      const yedek = document.createElement('span');
+      yedek.className = 'yedek-ikon'; yedek.hidden = true;
+      yedek.innerHTML = '<span class="tl k t-grafit">' + ikon(tur === 'pdf' ? 'file-type-pdf' : 'movie', 'ik') + '</span>';
+      if (tur === 'pdf') { const ad = document.createElement('small'); ad.textContent = belgeGorunenAdi(d); yedek.append(ad); }
+      kare.append(cip, yedek);
+      if (tur === 'video') { const o = document.createElement('span'); o.className = 'oynat'; o.innerHTML = ikon('player-play', 'ik'); kare.append(o); }
+      if (!ilkNot) etiket.textContent = tur === 'pdf' ? belgeGorunenAdi(d) : etiket.textContent;
+    }
     if (ilkNot) {
       const rozet = document.createElement('span');
       rozet.className = 'not'; rozet.textContent = '❝';
@@ -1784,7 +1846,7 @@
     const bas = document.createElement('div');
     bas.className = 'gunbasi cam';
     const grupGoster = gorunum.grup ? grupAdiGoster(gorunum.grup) : '';
-    bas.innerHTML = '<button class="gun-ac" aria-expanded="' + durum.acik + '"><span class="gun-ok">' + ikon('chevron-down', 'ik') + '</span><span>' + kacis(gunBasligi(g.gun)) + '</span><span class="gun-adet">' + g.dosyalar.length + ' foto</span></button>' +
+    bas.innerHTML = '<button class="gun-ac" aria-expanded="' + durum.acik + '"><span class="gun-ok">' + ikon('chevron-down', 'ik') + '</span><span>' + kacis(gunBasligi(g.gun)) + '</span><span class="gun-adet">' + adetYazisi(g.dosyalar) + '</span></button>' +
       '<button class="dg gun-sil" title="' + kacis(gorunum.grup ? 'Bu tarihte yalnızca ' + grupGoster + ' fotoğraflarını sil' : 'Bu tarihteki tüm grupların fotoğraflarını sil') + '" aria-label="' + kacis(gunBasligi(g.gun) + ' fotoğraflarını sil') + '"><span class="tl k t-kirmizi">' + ikon('trash', 'ik') + '</span><span>Sil</span></button>';
     const govde = document.createElement('div'); govde.className = 'govde';
     const ic = document.createElement('div'); ic.className = 'ic';
@@ -1841,7 +1903,7 @@
     $('sayfa').scrollTop = konumuKoru ? konum : 0;
   }
   function dosyaEkle(d) {
-    const v = { ad: d.ad, yol: d.yol, kucuk: d.kucuk || null, grup: d.grup || null, gonderen: d.gonderen || null, aciklama: d.aciklama || null, notlar: d.notlar || [], gruplar: [] };
+    const v = { ad: d.ad, yol: d.yol, kucuk: d.kucuk || null, tur: d.tur || dosyaTuru(d.ad || ''), boyut: d.boyut ?? null, grup: d.grup || null, gonderen: d.gonderen || null, aciklama: d.aciklama || null, notlar: d.notlar || [], gruplar: [] };
     let gun = arsiv.find((g) => g.gun === d.gun);
     if (!gun) { gun = { gun: d.gun, dosyalar: [] }; arsiv.push(gun); arsiv.sort((a, b) => b.gun.localeCompare(a.gun)); }
     gun.dosyalar.unshift(v);
@@ -1856,7 +1918,7 @@
       return;
     }
     k.dosyalar = g.dosyalar;
-    k.adet.textContent = g.dosyalar.length + ' foto';
+    k.adet.textContent = adetYazisi(g.dosyalar);
     if (kartDurum.get(d.gun).acik) govdeCiz(k);
     $('bos').style.display = 'none';
   }
@@ -1882,6 +1944,7 @@
   // Kapatinca liste, son bakilan fotografin gunune gecer: o gun baska bir sayfadaysa o sayfa acilir, gun karti acik gelir.
   function buyukKapat() {
     $('buyukKatman').hidden = true;
+    videoyuBirak();
     const v = buyukSira[buyukIndeks];
     if (!v) return;
     const gunler = gorunumGunleri();
@@ -1901,10 +1964,22 @@
     if (k && !kartDurum.get(v.gun).acik) kartAcKapat(k, true);
   }
 
+  // Video oynatici durdurulur ve bosaltilir (baska dosyaya gecince ya da kapatinca ses devam etmesin).
+  function videoyuBirak() { const v = $('buyukVideo'); try { v.pause(); } catch (e) {} v.removeAttribute('src'); v.dataset.yol = ''; try { v.load(); } catch (e) {} }
   function buyukCiz() {
     const v = buyukSira[buyukIndeks];
     if (!v) return;
-    $('buyukResim').src = dosyaUrl(v.yol);
+    const tur = turBul(v);
+    $('buyukResim').hidden = tur !== 'resim';
+    $('buyukVideo').hidden = tur !== 'video';
+    $('buyukBelge').hidden = tur !== 'pdf';
+    if (tur === 'resim') $('buyukResim').src = dosyaUrl(v.yol); else $('buyukResim').removeAttribute('src');
+    if (tur === 'video') { if ($('buyukVideo').dataset.yol !== v.yol) { videoyuBirak(); $('buyukVideo').src = dosyaUrl(v.yol); $('buyukVideo').dataset.yol = v.yol; } }
+    else videoyuBirak();
+    if (tur === 'pdf') {
+      $('belgeAd').textContent = belgeGorunenAdi(v);
+      $('belgeBilgi').textContent = [v.grup ? grupAdiGoster(v.grup) : '', gunBasligi(v.gun), boyutYazisi(v.boyut)].filter(Boolean).join(' · ');
+    }
     const parcalar = [];
     if (v.gonderen) parcalar.push(v.gonderen);
     if (v.grup) parcalar.push(grupAdiGoster(v.grup));
@@ -1947,6 +2022,12 @@
     buyukCiz();
   };
 
+  $('belgeAc').addEventListener('click', async () => {
+    const v = buyukSira[buyukIndeks];
+    if (!v) return;
+    const s = await window.api.dosyaAc(v.yol);
+    if (s && s.hata) $('belgeBilgi').textContent = 'Açılamadı: ' + s.hata;
+  });
   $('okSol').addEventListener('click', () => buyukGez(-1));
   $('okSag').addEventListener('click', () => buyukGez(1));
   $('buyukKatman').addEventListener('click', (e) => {
@@ -2021,14 +2102,15 @@
     const indirilen = s.indirilen || 0;
     const eksik = (s.atlanan || 0) + (s.hata || 0) > 0;
     const yinelenen = s.yinelenen ? ' · ' + s.yinelenen + ' yinelenen atlandı' : '';
-    if (rapor.sonuc === 'iptal') return { ton: 't-grafit', ikon: 'player-stop', baslik: 'İşlem durduruldu', ayrinti: indirilen ? indirilen + ' fotoğraf indirildi' : 'Fotoğraf indirilmedi', klasor: indirilen > 0 };
+    const sozcuk = s.video || s.pdf ? ' dosya' : ' fotoğraf';
+    if (rapor.sonuc === 'iptal') return { ton: 't-grafit', ikon: 'player-stop', baslik: 'İşlem durduruldu', ayrinti: indirilen ? indirilen + sozcuk + ' indirildi' : 'Fotoğraf indirilmedi', klasor: indirilen > 0 };
     if (eksik && !indirilen) return { ton: 't-kirmizi', ikon: 'x', baslik: 'İşlem tamamlanamadı', ayrinti: s.hata ? 'Tamamlanmayan gruplar sonraki Topla’da yeniden taranacak' : s.atlanan + ' fotoğraf alınamadı; sonraki Topla’da yeniden denenecek', klasor: false };
     if (rapor.sadeceTara) return { ton: 't-vurgu', ikon: 'history', baslik: 'Geçmiş taraması tamamlandı', ayrinti: 'İndirme yapılmadı', klasor: false };
     if (indirilen) {
       const parcalar = [];
       if (s.atlanan) parcalar.push(s.atlanan + ' alınamadı');
       if (s.hata) parcalar.push(s.hata + ' hata');
-      return { ton: 't-yesil', ikon: 'circle-check', baslik: 'İndirme tamamlandı', ayrinti: indirilen + ' fotoğraf indirildi' + yinelenen, eksik: parcalar.length ? parcalar.join(', ') + ', sonraki Topla’da yeniden denenecek' : '', klasor: true };
+      return { ton: 't-yesil', ikon: 'circle-check', baslik: 'İndirme tamamlandı', ayrinti: indirilen + sozcuk + ' indirildi' + yinelenen, eksik: parcalar.length ? parcalar.join(', ') + ', sonraki Topla’da yeniden denenecek' : '', klasor: true };
     }
     return { ton: 't-vurgu', ikon: 'photo', baslik: 'Yeni fotoğraf yok', ayrinti: (rapor.gecmis ? 'Seçilen günlerde yeni fotoğraf bulunamadı' : 'Son toplamadan beri gruplara yeni fotoğraf gelmemiş') + yinelenen, klasor: false };
   }

@@ -52,8 +52,8 @@ function harness(t, chats, failure = false, options = {}) {
     async getWWebVersion() { return 'test'; }
   }
   const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: () => {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
-  const bildirimler = [], tumGrupSorulari = [];
-  const electron = { app, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)) }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) } };
+  const bildirimler = [], tumGrupSorulari = [], acilanlar = [];
+  const electron = { app, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)), openPath: async p => { acilanlar.push(p); return options.openPathHata || ''; } }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: options.nativeImage || { createFromBuffer: () => ({ isEmpty: () => true }) } };
   // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
   // Yetim Chrome temizligi testte gercek surecleri taramaz; cagrilar kaydedilir, istenirse options.yetimTemizligi ile davranis verilir.
   const temizlikler = [];
@@ -72,7 +72,7 @@ function harness(t, chats, failure = false, options = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8'), context);
   const invoke = (name, ...args) => handlers.get(name)(null, ...args);
   const settle = async () => { for (let n = 0; n < 1500 && invoke('durum-al').calisiyor; n++) await new Promise(r => setTimeout(r, 10)); assert.equal(invoke('durum-al').calisiyor, false); };
-  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, temizlikler, tumGrupSorulari, quitSayisi: () => quitSayisi };
+  return { dir, clients, invoke, settle, ctx: context, appOn, bildirimler, temizlikler, tumGrupSorulari, acilanlar, quitSayisi: () => quitSayisi };
 }
 const group = (id, fetchMessages) => ({ id: { _serialized: id }, name: id, isGroup: true, timestamp: 0, fetchMessages });
 test('failed media keeps its group checkpoint while successful group advances', async t => {
@@ -1600,4 +1600,78 @@ test('a document name can never point outside the group folder', t => {
   assert.equal(parca('../../gizli.pdf'), '..-..-gizli');
   assert.equal(parca(''), '');
   assert.ok(parca('a'.repeat(200) + '.pdf').length <= 50);
+});
+
+// ---- 2.0.2: galeride video ve PDF (liste, silme, PDF'i Ac guvenligi, kucuk resim, gun silme, metinler) ----
+function arsivKur(h, dosyalar) {
+  const kok = vm.runInContext('ayarOku().hedefKlasor', h.ctx);
+  const klasor = path.join(kok, '2026', 'Ekim', '14.10.2026', 'Saha');
+  fs.mkdirSync(klasor, { recursive: true });
+  for (const [ad, icerik] of Object.entries(dosyalar)) fs.writeFileSync(path.join(klasor, ad), icerik);
+  return { kok, klasor };
+}
+test('the archive list shows photos, videos and PDFs with their type; other files are not listed', async t => {
+  const h = harness(t, []);
+  arsivKur(h, { 'a.jpg': 'j', 'b.mp4': 'v'.repeat(2048), 'c.pdf': 'p'.repeat(1500), 'd.exe': 'x', 'e.txt': 't', 'f.MOV': 'm' });
+  const gun = (await h.invoke('arsiv-al', 60))[0];
+  const ozet = Object.fromEntries(gun.dosyalar.map(d => [d.ad, [d.tur, d.boyut]]));
+  assert.deepEqual(ozet, { 'a.jpg': ['resim', null], 'b.mp4': ['video', 2048], 'c.pdf': ['pdf', 1500], 'f.MOV': ['video', 1] });
+});
+test('a PDF or a video in the archive can be deleted (to the Trash) with a question that names the type; files outside the archive or of other types cannot', async t => {
+  const sorular = [];
+  const h = harness(t, [], false, { dialog: async c => { sorular.push(c.message); return { response: 1 }; } });
+  const { klasor } = arsivKur(h, { 'c.pdf': 'p', 'b.mp4': 'v', 'd.exe': 'x' });
+  assert.equal((await h.invoke('fotograf-sil', path.join(klasor, 'c.pdf'))).silindi, true);
+  assert.equal((await h.invoke('fotograf-sil', path.join(klasor, 'b.mp4'))).silindi, true);
+  assert.deepEqual(sorular, ['Bu PDF silinsin mi?', 'Bu video silinsin mi?']);
+  await assert.rejects(h.invoke('fotograf-sil', path.join(klasor, 'd.exe')), /arşiv klasöründeki dosyalar/);
+  const disari = path.join(h.dir, 'disari.pdf'); fs.writeFileSync(disari, 'p');
+  await assert.rejects(h.invoke('fotograf-sil', disari), /arşiv klasöründeki dosyalar/);
+  assert.equal(fs.existsSync(disari), true);
+});
+test('PDF’i Aç opens only PDFs and videos inside the archive in the computer’s own program', async t => {
+  const h = harness(t, []);
+  const { klasor } = arsivKur(h, { 'c.pdf': 'p', 'b.mp4': 'v', 'a.jpg': 'j', 'k.exe': 'x', 'k.app': 'x' });
+  assert.deepEqual({ ...(await h.invoke('dosya-ac', path.join(klasor, 'c.pdf'))) }, { acildi: true });
+  assert.equal((await h.invoke('dosya-ac', path.join(klasor, 'b.mp4'))).acildi, true);
+  for (const ad of ['a.jpg', 'k.exe', 'k.app']) assert.match((await h.invoke('dosya-ac', path.join(klasor, ad))).hata, /Yalnızca arşivdeki PDF/, ad);
+  const disari = path.join(h.dir, 'disari.pdf'); fs.writeFileSync(disari, 'p');
+  assert.match((await h.invoke('dosya-ac', disari)).hata, /Yalnızca arşivdeki PDF/);
+  const bag = path.join(klasor, 'bag.pdf'); fs.symlinkSync(disari, bag);
+  assert.match((await h.invoke('dosya-ac', bag)).hata, /Sembolik/);
+  assert.match((await h.invoke('dosya-ac', '../../etc/passwd')).hata, /./);
+  assert.match((await h.invoke('dosya-ac', 42)).hata, /Yalnızca arşivdeki PDF/);
+  assert.deepEqual([...h.acilanlar], [fs.realpathSync(path.join(klasor, 'c.pdf')), fs.realpathSync(path.join(klasor, 'b.mp4'))]);
+});
+test('video and PDF thumbnails come from the operating system when available; without it the gallery shows an icon', async t => {
+  const istenen = [];
+  const sahte = { createFromBuffer: () => ({ isEmpty: () => true }), createFromPath: () => ({ isEmpty: () => true }),
+    createThumbnailFromPath: async (p, boyut) => { istenen.push([p, boyut]); return { isEmpty: () => false, resize: () => ({ toJPEG: () => Buffer.from('kucuk') }) }; } };
+  const h = harness(t, [], false, { nativeImage: sahte });
+  const { klasor } = arsivKur(h, { 'c.pdf': 'p', 'b.mp4': 'v' });
+  const kucuk = await h.invoke('kucuk-uret', { yol: path.join(klasor, 'c.pdf'), gun: '2026-10-14', ad: 'c.pdf' });
+  assert.equal(fs.readFileSync(kucuk, 'utf8'), 'kucuk');
+  assert.equal(path.dirname(kucuk), path.join(h.dir, 'kucuk', '2026-10-14'));
+  assert.equal(istenen[0][0], fs.realpathSync(path.join(klasor, 'c.pdf'))); assert.deepEqual({ ...istenen[0][1] }, { width: 320, height: 320 });
+  const disari = path.join(h.dir, 'disari.mp4'); fs.writeFileSync(disari, 'v');
+  assert.equal(await h.invoke('kucuk-uret', { yol: disari, gun: '2026-10-14', ad: 'disari.mp4' }), null, 'arşiv dışındaki dosyaya küçük resim üretilmez');
+  const yok = harness(t, []);
+  const a = arsivKur(yok, { 'b.mp4': 'v' });
+  assert.equal(await yok.invoke('kucuk-uret', { yol: path.join(a.klasor, 'b.mp4'), gun: '2026-10-14', ad: 'b.mp4' }), null, 'işletim sistemi desteklemiyorsa ikon');
+});
+test('deleting a day also removes its videos and PDFs and the question says files when they are mixed', async t => {
+  const sorular = [];
+  const h = harness(t, [], false, { dialog: async c => { sorular.push(c.detail); return { response: 1 }; } });
+  const { klasor } = arsivKur(h, { 'a.jpg': 'j', 'b.mp4': 'v', 'c.pdf': 'p' });
+  const sonuc = await h.invoke('gun-sil', '2026-10-14', null);
+  assert.equal(sonuc.adet, 3);
+  assert.deepEqual(fs.readdirSync(klasor), []);
+  assert.match(sorular[0], /toplam 3 dosya yerel Çöp Kutusu/);
+});
+test('finish notification says files when videos or PDFs were downloaded', t => {
+  const h = harness(t, []);
+  const m = (sayac) => vm.runInContext('bitisBildirimMetni(' + JSON.stringify(sayac) + ', {}, false)', h.ctx);
+  assert.equal(m({ indirilen: 3, video: 1, pdf: 0 }), '3 dosya indirildi');
+  assert.equal(m({ indirilen: 3, video: 0, pdf: 2 }), '3 dosya indirildi');
+  assert.equal(m({ indirilen: 3, video: 0, pdf: 0 }), '3 fotoğraf indirildi');
 });

@@ -75,7 +75,7 @@ const SAHTE_API = (veri) => `
     window.api = {
       durumAl: kaydet('durumAl', durum), arsivAl: kaydet('arsivAl', ${JSON.stringify(veri)}), kucukUret: kaydet('kucukUret', null),
       gruplarAl: kaydet('gruplarAl', []), klasorAc: kaydet('klasorAc'), gunSil: kaydet('gunSil', { silindi: true }), fotografSil: kaydet('fotografSil', { silindi: true }),
-      dosyaGoster: kaydet('dosyaGoster'), ayarKaydet: kaydet('ayarKaydet', (a) => ({ ...durum.ayar, ...a })), degisiklikSor: kaydet('degisiklikSor', true),
+      dosyaGoster: kaydet('dosyaGoster'), dosyaAc: kaydet('dosyaAc', { acildi: true }), ayarKaydet: kaydet('ayarKaydet', (a) => ({ ...durum.ayar, ...a })), degisiklikSor: kaydet('degisiklikSor', true),
       topla: kaydet('topla', {}), durdur: kaydet('durdur', true), baglan: kaydet('baglan', { liste: [] }), gruplariGetir: kaydet('gruplariGetir', { liste: [] }),
       gecmisKontrol: kaydet('gecmisKontrol', {}), gecmisIndir: kaydet('gecmisIndir', {}), gecmisiSifirla: kaydet('gecmisiSifirla', true), klasorSec: kaydet('klasorSec', null),
       veriKlasoruAc: kaydet('veriKlasoruAc'), whatsappCikis: kaydet('whatsappCikis', { cikildi: true }), senkronizasyonOnayla: kaydet('senkronizasyonOnayla', true), hizOnayi: kaydet('hizOnayi', true),
