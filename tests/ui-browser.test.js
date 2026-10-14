@@ -939,7 +939,7 @@ test('galeri: video ve PDF karolari, gun basliginda dosya sayisi, buyuk gorunumd
 test('ayarlar: Acilista Otomatik Topla satiri eski Acilista Uygulamayi Ac yerine gelir, varsayilan kapali, Bitti ile kaydedilir', { skip: ATLA }, async (t) => {
   const h = await ac(t);
   await tikla(h.sayfa, '#ayarAc'); await bekle(300);
-  assert.equal(await h.sayfa.evaluate(() => document.getElementById('otomatikAnahtar').closest('.satir').querySelector('label').textContent), 'Açılışta Otomatik ToplaBilgisayar açılınca arka planda başlar ve toplar');
+  assert.equal(await h.sayfa.evaluate(() => document.getElementById('otomatikAnahtar').closest('.satir').querySelector('label').textContent), 'Açılışta Otomatik ToplaBilgisayar açılınca ya da uykudan uyanınca arka planda toplar');
   assert.equal(await h.sayfa.evaluate(() => document.body.textContent.includes('Açılışta Uygulamayı Aç')), false);
   assert.equal(await h.sayfa.$eval('#otomatikAnahtar', (e) => e.getAttribute('aria-checked')), 'false');
   await tikla(h.sayfa, '#otomatikAnahtar');

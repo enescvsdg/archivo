@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, Notification, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, Notification, net, powerMonitor } = require('electron');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -1805,6 +1805,12 @@ async function otomatikToplamaDene(deneme) {
   if (sonuc && sonuc.hata) { otomatikKaydet('atla', sonuc.hata); bildirimGonder('Otomatik toplama başlamadı: ' + sonuc.hata); tepsiDurumuYaz('Otomatik toplama yapılmadı'); }
   return k;
 }
+// Uykudan uyaninca (MacBook kapagi acilinca) da ayni kurallarla otomatik toplama denenir: 5 dk sonra, 6 saat kurali gecerli.
+// Archivo arka planda acik oldugu surece calisir; ayar kapaliysa hicbir sey yapmaz.
+function uyanincaKur() {
+  if (!powerMonitor || typeof powerMonitor.on !== 'function') return;
+  powerMonitor.on('resume', () => { if (ayarOku().acilistaOtomatikTopla === true) otomatikToplamayiKur(); });
+}
 // Otomatik toplama bitti: her bitiste bildirim; hata olduysa nedeniyle ayrica bir bildirim. QR ile durdurulduysa yalniz QR bildirimi gitmistir.
 function otomatikBitti(sayac, rapor, i) {
   if (i.sessizBitir) { tepsiDurumuYaz('Otomatik toplama yapılamadı · QR gerekiyor'); return; }
@@ -1842,6 +1848,7 @@ app.whenReady().then(async () => {
   const baslangic = baslangicDurumu();
   if (!SESSIZ && !baslangic.gizli) pencereAc();
   if (baslangic.acilis) otomatikToplamayiKur();
+  uyanincaKur();
 
 });
 

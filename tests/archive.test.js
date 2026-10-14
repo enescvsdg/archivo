@@ -53,7 +53,7 @@ function harness(t, chats, failure = false, options = {}) {
   }
   const app = { isPackaged: false, getPath: () => dir, setPath: () => {}, whenReady: () => new Promise(() => {}), on: (olay, fn) => { (appOn[olay] ||= []).push(fn); }, setLoginItemSettings: (o) => girisOgeleri.push(o), getLoginItemSettings: () => options.girisOgesi || {}, requestSingleInstanceLock: () => true, quit: () => { quitSayisi++; } };
   const bildirimler = [], tumGrupSorulari = [], acilanlar = [], girisOgeleri = [];
-  const electron = { app, net: options.net, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)), openPath: async p => { acilanlar.push(p); return options.openPathHata || ''; } }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: options.nativeImage || { createFromBuffer: () => ({ isEmpty: () => true }) } };
+  const electron = { app, net: options.net, powerMonitor: options.powerMonitor, Notification: options.bildirimYok ? undefined : class { static isSupported() { return true; } constructor(o) { this.o = o; this.dinleyici = {}; bildirimler.push(this); } on(k, fn) { this.dinleyici[k] = fn; } show() { this.gosterildi = true; } }, dialog: { showMessageBox: async (_window, config) => { if (/^Hiç grup seçmedin/.test(config.message)) { tumGrupSorulari.push(config); return { response: options.tumGruplar ?? 1 }; } if (options.dialog) return options.dialog(config); return { response: options.confirm ?? 0 }; } }, shell: { trashItem: options.trash || (async file => fs.unlinkSync(file)), openPath: async p => { acilanlar.push(p); return options.openPathHata || ''; } }, ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, nativeImage: options.nativeImage || { createFromBuffer: () => ({ isEmpty: () => true }) } };
   // Testlerde bekleme yoktur; istenirse options.pace ile tempo araligi verilir, options.beklemeler gercek beklemeleri kaydeder.
   // Yetim Chrome temizligi testte gercek surecleri taramaz; cagrilar kaydedilir, istenirse options.yetimTemizligi ile davranis verilir.
   const temizlikler = [];
@@ -1800,4 +1800,21 @@ test('an automatic run that ends with an error sends the finish notification and
   assert.equal(metinler.length, 2, metinler.join(' | '));
   assert.match(metinler[0], /^Otomatik toplama: /);
   assert.match(metinler[1], /^Otomatik toplama hatası: /);
+});
+test('waking from sleep (MacBook lid opened) schedules the same automatic run when the switch is on; nothing when it is off', async t => {
+  const { EventEmitter: Olay } = require('node:events');
+  const guc = new Olay();
+  const d = otomatikDuzenek(t, { secenek: { powerMonitor: guc } });
+  vm.runInContext('uyanincaKur()', d.h.ctx);
+  guc.emit('resume');
+  await istemciBekle(d.h);
+  assert.equal(d.h.clients.length, 1, 'uyanınca otomatik toplama başlar');
+  await d.h.invoke('durdur'); await d.h.settle();
+  const guc2 = new Olay();
+  const kapali = otomatikDuzenek(t, { ayar: { acilistaOtomatikTopla: false }, secenek: { powerMonitor: guc2 } });
+  vm.runInContext('uyanincaKur()', kapali.h.ctx);
+  guc2.emit('resume');
+  await kisaBekle(80);
+  assert.equal(kapali.h.clients.length, 0);
+  assert.equal(kapali.otomatik(), null);
 });
