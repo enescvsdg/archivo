@@ -29,6 +29,14 @@ async function main() {
     config.electronDist = zip;
     process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
   }
+  // Mac: signed with this Mac's Developer ID certificate when there is one (macOS delivers notifications
+  // only for signed apps); without one (GitHub, other Macs) or with --imzasiz the package stays unsigned.
+  // Not notarized, so no hardened runtime is needed. The signature timestamp needs internet.
+  if (!windows) {
+    const kimlik = process.argv.includes('--imzasiz') ? null : macImzaKimligi();
+    config.mac = { identity: kimlik, hardenedRuntime: false, notarize: false };
+    console.log(kimlik ? `Mac paketi imzalanıyor: Developer ID Application: ${kimlik}` : 'Mac paketi imzasız (Developer ID sertifikası yok)');
+  }
   // Cross-building an unsigned portable EXE avoids Wine and administrator-dependent installers.
   // Native Windows builds retain normal icon/version resource editing.
   if (windows && process.platform !== 'win32') config.win = { signAndEditExecutable: false };
@@ -38,5 +46,14 @@ async function main() {
       : Platform.MAC.createTarget(['dmg', 'zip'], Arch[archName]),
     config,
   });
+}
+function macImzaKimligi() {
+  try {
+    const liste = require('node:child_process').execFileSync('security', ['find-identity', '-v', '-p', 'codesigning'], { encoding: 'utf8' });
+    const bulunan = liste.match(/"Developer ID Application: ([^"]+)"/);
+    return bulunan ? bulunan[1] : null;
+  } catch (error) {
+    return null;
+  }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

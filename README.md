@@ -10,7 +10,7 @@ WhatsApp gruplarındaki fotoğrafları yerel diskte tarih ve grup klasörlerine 
 
 Windows taşınabilir uygulaması çalışırken kullanıcıya ait geçici klasöre açılır; ayarlar ve oturum kullanıcı veri klasörüne yazılır. Kurumun uygulama çalıştırma ve ağ kuralları yine geçerlidir. Eski çalışan EXE'yi yeni sürüm aynı iş bilgisayarında doğrulanana kadar saklayın. Mac üzerinden üretilen Windows paketinde EXE kaynak simgesi/sürüm düzenleme kapalıdır; Windows üzerinde derleme bunları korur.
 
-Mac'te DMG içinden Archivo'yu Applications klasörüne sürükleyin. Mevcut paketler Developer ID ile imzalanmış ve Apple tarafından notarize edilmiş değildir. Genel dağıtım için bu işlemler ayrıca tamamlanmalıdır.
+Mac'te DMG içinden Archivo'yu Applications klasörüne sürükleyin. 2.0.2 Mac paketleri bu bilgisayarda Developer ID sertifikasıyla imzalanır (macOS bildirimleri yalnızca imzalı uygulamalara iletir); Apple tarafından notarize edilmez. Bu yüzden internetten indirilip başka bir Mac'te açılırsa bir kez Sistem Ayarları › Gizlilik ve Güvenlik › Yine de Aç gerekir. Windows EXE imzasızdır.
 
 ## Geliştirme
 
@@ -32,7 +32,7 @@ pnpm exe
 pnpm kurulum-exe
 ```
 
-Mac paketi Mac üzerinde derlenir. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.1 paketleri `dist/2.0.1/` içine yazılır (Mac Apple Silicon paketi bu bilgisayarda derlendi; Windows ve Intel Mac paketleri GitHub Actions ile derlenir). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
+Mac paketi Mac üzerinde derlenir. Anahtar Zinciri'nde "Developer ID Application" sertifikası varsa derleme betiği paketi onunla imzalar (imza zaman damgası için internet gerekir, imzalama birkaç dakika sürer); sertifika yoksa (GitHub Actions) ya da `--imzasiz` verilirse paket imzasız kalır. Windows EXE Mac üzerinde de paketlenebilir; Windows'taki açılış testi Windows makinede yapılmalıdır. Çıktılar sürüm numarasıyla `dist/<sürüm>/` klasörüne yazılır; 2.0.1 paketleri `dist/2.0.1/` içine yazılır (Mac Apple Silicon paketi bu bilgisayarda derlendi; Windows ve Intel Mac paketleri GitHub Actions ile derlenir). GitHub iş akışı yalnızca derleme artefaktı üretir; otomatik yayın yapmaz.
 
 ## Veri güvenilirliği
 

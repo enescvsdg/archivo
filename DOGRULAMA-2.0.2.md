@@ -23,9 +23,15 @@ Yeni ya da değişen davranışların her biri için düzeltme bilerek geri alı
 
 ## Paketlenmiş uygulama
 
-Üç paket bu bilgisayarda internetsiz derlendi (Mac Apple Silicon: DMG+ZIP, Mac Intel: DMG+ZIP, Windows x64: taşınabilir EXE; imzasız). Mimariler: arm64, x86_64, PE32. Paket içindeki `main.js`, `preload.js`, `index.html`, `browser-processes.js`, `collection-plan.js`, `operation-policy.js` kaynakla birebir aynı; sürüm 2.0.2.
+Üç paket bu bilgisayarda indirme yapılmadan derlendi (Mac Apple Silicon: DMG+ZIP, Mac Intel: DMG+ZIP, Windows x64: taşınabilir EXE). Mac paketleri Developer ID ile imzalı (aşağıya bakın), Windows EXE imzasız. Mimariler: arm64, x86_64, PE32. Paket içindeki `main.js`, `preload.js`, `index.html`, `browser-processes.js`, `collection-plan.js`, `operation-policy.js` kaynakla birebir aynı; sürüm 2.0.2.
 
 Paketlenmiş Mac arm64 uygulaması (gerçek Electron 44.5.1, gerçek ana süreç) geçici bir veri klasörüyle açıldı (gerçek `profiller/2.0.2`’ye dokunulmadığı doğrulandı): 33 API işlevi (`dosyaAc`, `onEslesme` dahil); gerçek bir PDF ve gerçek bir `.mov` için küçük resimler macOS Quick Look ile üretildi; gün başlıkları “3 dosya / 1 foto”; PDF kartı (“Keşif raporu.pdf”, grup, tarih, boyut); video gerçekten yüklenip oynatılabilir oldu (16 sn, 400 px, hata yok) ve kapatınca boşaltıldı; gerçek ana süreç `/etc/hosts`’u açmayı reddetti; Ayarlar 494 px, yeni satır metinleri doğru; konsolda hata yok.
+
+## Mac imzası (Developer ID, notarizasyon yok)
+
+Electron 44 belgesine göre macOS bildirimleri yalnızca imzalı uygulamalara iletilir; önceki paketlerde yalnızca bağlayıcının geçici (ad-hoc) imzası vardı ve gömülü Chrome for Testing hiç imzalı değildi. Derleme betiği artık Anahtar Zinciri’ndeki “Developer ID Application” sertifikasıyla imzalar (`hardenedRuntime: false`, `notarize: false`; sertifika yoksa ya da `--imzasiz` ile imzasız). Uygulama kodu değişmedi; sürüm 2.0.2 kaldı.
+
+İki Mac paketinde: `codesign --verify --deep --strict` geçerli; uygulama, gömülü Chrome ve tüm Mach-O dosyaları aynı takım kimliğiyle ve Apple zaman damgasıyla imzalı; DMG içindeki uygulama da geçerli; `spctl` “Unnotarized Developer ID” der (notarizasyon yapılmadığı için beklenen; yalnızca internetten indirilen dosyada uyarı çıkarır). İmzalı Apple Silicon paketi yeniden uçtan uca denendi (aynı sonuçlar, konsolda hata yok); gömülü Chrome imzalıyken Puppeteer ile açılıp sayfada JavaScript çalıştırdı. İki paketteki 9 kod dosyası kaynakla birebir aynı. İmzalama her paket için yaklaşık 10 dakika sürer.
 
 ## GitHub Actions
 
@@ -36,6 +42,6 @@ Paketlenmiş Mac arm64 uygulaması (gerçek Electron 44.5.1, gerçek ana süreç
 ## Doğrulanmadı
 
 - **Gerçek WhatsApp hesabında:** telefondan çıkışta `LOGOUT` nedeninin gerçekten geldiği (kütüphane kodundan çıkarıldı); PDF mesajında açıklamanın `caption` alanında geldiği (kütüphane bunu `body`’ye koyuyor); yetim Chrome temizliğinin gerçek uyku sonrası davranışı.
-- **Açılışta Otomatik Topla:** Mac’te giriş öğesiyle açılışta `wasOpenedAtLogin`’in gerçekten `true` geldiği (Electron 44’te alan var; gelmezse bilgisayar 10 dakikadan kısa süre önce açıldıysa pencere açık olarak yine toplar); uykudan uyanma olayı; bildirimlerin pencere kapalıyken görünmesi ve izin davranışı. Bilgisayarı yeniden başlatarak ve kapağı kapatıp açarak denenmelidir.
+- **Açılışta Otomatik Topla:** Mac’te giriş öğesiyle açılışta `wasOpenedAtLogin`’in gerçekten `true` geldiği (Electron 44’te alan var; gelmezse bilgisayar 10 dakikadan kısa süre önce açıldıysa pencere açık olarak yine toplar); uykudan uyanma olayı; bildirimlerin pencere kapalıyken görünmesi ve izin davranışı (imzalı pakette bildirimlerin gerçekten göründüğü henüz denenmedi). İmzalı Intel paketi bu Mac’te (Rosetta yok) çalıştırılamadı, yalnızca imzası doğrulandı. Bilgisayarı yeniden başlatarak ve kapağı kapatıp açarak denenmelidir.
 - **Windows:** taşınabilir exe’nin gerçek açılışı, giriş öğesinin asıl exe’yi başlatması ve kabuk küçük resimleri (CI’da sahte istemciyle sınandı; PowerShell ile gerçek süreç listesi ve kapatma CI’da gerçek süreçlerle geçti). **Intel Mac** gerçek açılışı.
 - Yeni sürüm hesabın kısıtlanmayacağını garanti etmez.
