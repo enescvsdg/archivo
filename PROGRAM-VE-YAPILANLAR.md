@@ -54,12 +54,19 @@ Erişim raporu yalnızca Web’den ulaşılabilen geçmişi kapsar. İstenen tar
 - 2.0.1: Genel sayfalama güne göre (sayfa başına 7/15/30 gün, sayfanın en altında `ARCHIV`+O çubuğu); gün kartı içi sayfalama kaldırıldı. Hata bildirimleri yalnızca Tümü’nde görünür ve 30 saniye sonra kaybolur.
 - 2.0.1: Ayarlar: Telefon Eşlemesi satırı (durum rozeti ve iki eşit düğme), kalın ve baş harfleri büyük başlıklar, İndirme Hızı (Yavaş/Orta/Hızlı; Hızlı’da onay).
 - 2.0.1: Hazırlık beklemesi: sayaç %99+ takılıp WhatsApp “senkron tamam” derse 10 saniyede devam edilir (önceden 45).
+- 2.0.2: Sürüm. 2.0.1’in verisi taşınmaz; 2.0.2 temiz profille (`profiller/2.0.2`) ve `Pictures/Archivo 2.0.2 Arsivi` klasörüyle başlar, WhatsApp eşleşmesi yeniden yapılır.
+- 2.0.2: Telefondan çıkış Archivo’yu “Bağlı değil / QR kod göster” durumuna döndürür (kopma nedeni okunur, uyku/ağ kopması eşleşmeyi silmez); elle çıkışta “Çıkış yapılıyor” hemen görünür ve Bitti beklenmeden güncellenir.
+- 2.0.2: Yetim Chrome temizliği (“The browser is already running” hatası): yalnızca bu sürümün oturum klasörüyle açılmış Chrome süreçleri kapatılır.
+- 2.0.2: Hiç grup seçili değilken Topla/Geçmiş önce sorar (Vazgeç varsayılan); çıkışta grup seçimi korunur.
+- 2.0.2: PDF’leri de İndir (belge türleri tablosu; diğer belgeler yalnızca sayılır); galeride video ve PDF (karo, video oynatıcı, PDF’i Aç, silme, arama); videoların örtüşmede ikinci kez inmesi hatası düzeltildi.
+- 2.0.2: Açılışta Otomatik Topla (bilgisayar açılınca ya da uykudan uyanınca; 5 dk bekleme, 6 saat kuralı, bildirimler, menü çubuğu durumu); Windows giriş öğesi asıl exe yoluna yazılır.
+- 2.0.2: Ayarlar kartı %30 büyük; hata bildirimleri 10 saniye; bağlandıktan sonra özet satırı yenilenir.
 
 ## Doğrulama ve sınırlar
 
 2.0.1 için GitHub Actions (`v2.0.1` dalı, çalışma 37235694150) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde test, paketleme ve artefakt yükleme adımlarını başarıyla tamamladı: https://github.com/enescvsdg/archivo/actions/runs/37235694150.
 
-2.0.1 için 173 yerel test geçti (2.0.0’da 145, 1.4.4’te 62; 34’ü gerçek Chrome ile arayüzü sürer). 2.0.1 ayrıntıları DOGRULAMA-2.0.1.md içindedir. Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda değil, GitHub Actions’ta derlendi.
+2.0.2 için 232 yerel test geçti (2.0.1’de 173; 40’ı gerçek Chrome ile arayüzü sürer, biri gerçek Chrome ile yetim tarayıcı hatasını üretir). 2.0.2 ayrıntıları DOGRULAMA-2.0.2.md, 2.0.1 ayrıntıları DOGRULAMA-2.0.1.md içindedir. Testler sahte WhatsApp istemcisi kullanır; otomatik testlerde gerçek hesap kullanılmaz. Gerçek hesapla Mac arm64 üzerinde elle canlı testler yapıldı (eşleşme, grup listesi, 1 grup/1 gün ve 4 grup/3 gün toplama, uygulama içi çıkış); ayrıntı ve sonuçlar DOGRULAMA-2.0.0.md’dedir. Sayfa sağlık kontrolü ayrıca gerçek Puppeteer ve Chrome for Testing ile denendi. Mac arm64 paketi derlendi ve paket içindeki kaynak dosyalar kaynakla karşılaştırıldı (yedi kod dosyası birebir aynı; `package.json` electron-builder tarafından yeniden yazılır); Intel Mac ve Windows 2.0.0 paketleri bu bilgisayarda değil, GitHub Actions’ta derlendi.
 
 2.0.0 için GitHub Actions (`v2.0.0` dalı, çalışma 37169528298) Windows x64, Apple Silicon Mac ve Intel Mac üzerinde test (testler her sistemde geçti), paketleme ve artefakt yükleme adımlarını başarıyla tamamladı: https://github.com/enescvsdg/archivo/actions/runs/37169528298. Önceki sürümde Windows’taki CSP özet testini bozan satır sonu dönüşümü `.gitattributes` ile LF’ye sabitlenmişti.
 

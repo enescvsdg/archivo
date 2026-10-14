@@ -1,7 +1,9 @@
-# Archivo 2.0.1 kurulumu
+# Archivo 2.0.2 kurulumu
 
-Bu bilgisayarda Apple Silicon paketi derlenir (dist/2.0.1): Archivo-2.0.1-mac-arm64.dmg. Intel Mac ve Windows paketleri GitHub Actions ile derlenir (Actions sayfasındaki çalışmanın artefaktları: Archivo-mac-arm64, Archivo-mac-x64, Archivo-windows-x64). Intel Mac: Archivo-2.0.1-mac-x64.dmg. Windows: Archivo-2.0.1-win-x64.exe.
+Bu bilgisayarda üç paket internetsiz derlenir (dist/2.0.2): Archivo-2.0.2-mac-arm64.dmg (Apple Silicon), Archivo-2.0.2-mac-x64.dmg (Intel Mac), Archivo-2.0.2-win-x64.exe (Windows, taşınabilir). Aynı paketler GitHub Actions çalışmasının artefaktlarında da bulunur (Archivo-mac-arm64, Archivo-mac-x64, Archivo-windows-x64).
 
 Mac’te uygulamayı DMG’den Applications klasörüne sürükleyin. Windows EXE kullanıcı yetkisiyle çalışır; kurumun çalıştırma politikaları geçerlidir. Paketler imzalı değildir.
 
-2.0.1, 2.0.0’ın verisini taşımaz: telefonu yeniden eşleştirmeniz gerekir (2.0.0’ın fotoğrafları `Pictures/Archivo 2.0.0 Arsivi` içinde kalır). Her yeni sürüm boş profille başlar; eski sürümün fotoğraf arşivi ve kullanıcı veri klasörü kendi klasöründe kalır, silinmez. Eski cihaz eşleşmesini kaldırmak gerekirse (WhatsApp en fazla 4 bağlı cihaza izin verir) telefonun Bağlı Cihazlar ekranını kullanın. Ayarlar’da QR kod göster ile eşleşin. Gruplar otomatik listeye eklenir. Telefon senkronizasyonu bittiğinde Devam et seçeneğini kullanın.
+2.0.2, 2.0.1’in verisini taşımaz: telefonu yeniden eşleştirmeniz gerekir (2.0.1’in fotoğrafları `Pictures/Archivo 2.0.1 Arsivi` içinde kalır). Eski cihaz eşleşmesini kaldırmak gerekirse (WhatsApp en fazla 4 bağlı cihaza izin verir) telefonun Bağlı Cihazlar ekranını kullanın. Ayarlar’da QR kod göster ile eşleşin. Gruplar otomatik listeye eklenir. Telefon senkronizasyonu bittiğinde Devam et seçeneğini kullanın, sonra Hangi Gruplar’dan grupları seçip Bitti’ye basın.
+
+Açılışta Otomatik Topla’yı açmak için: Ayarlar › Açılışta Otomatik Topla › Bitti. Archivo bundan sonra bilgisayar açılınca ya da uykudan uyanınca arka planda 5 dakika bekleyip seçili grupları toplar (son başarılı toplamadan 6 saat geçmediyse toplamaz). Windows taşınabilir EXE’yi kalıcı bir klasöre (örneğin Belgeler) koyduktan sonra anahtarı açın; EXE’yi taşırsanız anahtarı kapatıp yeniden açın.
