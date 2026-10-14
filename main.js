@@ -591,6 +591,8 @@ function mesajSayaciIzle(i, kayit = () => {}) {
 async function telefonOnayiniBekle(i, kayit = () => {}) {
   if (jsonOku(path.join(veriKok(), 'senkronizasyon-onayi.json'), {}).tamam) return;
   kontrol(i);
+  // Otomatik toplamada onay verecek pencere yoktur: beklemeden durur.
+  if (i.otomatik) throw new Error('Telefon senkronizasyonu onaylanmamış; Archivo’yu açıp Devam et’e basın');
   baglantiDurumu = 'Senkronize ediliyor';
   yolla('senkron', { baglandi: true, grupSayisi: gruplariOku().length || null, onayBekliyor: true });
   yolla('durum', { metin: 'Senkronize ediliyor', telefonOnayi: true,
@@ -834,7 +836,8 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const alinamayanYolu = path.join(veriKok(), 'alinamayan-medya.json');
   const alinamayanlar = jsonOku(alinamayanYolu, {});
   const islenenMesajlar = new Set(mevcutKayitlar.flatMap(([, k]) => [k.mesajKimligi, ...(k.mesajKimlikleri || [])]).filter(Boolean));
-  let silinenSecimi;
+  // Otomatik toplamada daha once silinen gorseller sorulmaz ve geri eklenmez (arka planda soru penceresi acilmasin).
+  let silinenSecimi = secenek.otomatik ? false : undefined;
   const kuyruk = [];
 
   canliDurum = null;
@@ -845,7 +848,7 @@ async function toplamayiBaslat(zorla, gecmis = false, sadeceTara = false, taslak
   const client = mevcutClient || new Client(istemciSecenekleri());
   const tani = observeConnection(client, path.join(veriKok(), 'baglanti-tanisi.json'), bilgi => yolla('durum', bilgi), !!mevcutClient);
   const bekci = mevcutClient ? null : hazirBekcisi(client, tani.record);
-  const i = { client, iptal: false };
+  const i = { client, iptal: false, otomatik: !!secenek.otomatik };
   islem = i;
   calisiyor = true;
   let tamamlandi = false;
@@ -1769,6 +1772,7 @@ function baslangicDurumu() {
 const OTOMATIK_BILDIRIM = {
   qr: 'Otomatik toplama yapılamadı: WhatsApp eşleşmesi düşmüş. Archivo’yu açıp QR kodu okutun.',
   'eslesme-yok': 'Otomatik toplama yapılamadı: WhatsApp eşleşmesi yok. Archivo’yu açıp QR kodu okutun.',
+  'senkron-onayi-yok': 'Otomatik toplama yapılamadı: telefon senkronizasyonu onaylanmamış. Archivo’yu açıp Devam et’e basın.',
   'grup-yok': 'Otomatik toplama yapılmadı: hiç grup seçilmemiş (Ayarlar › Hangi Gruplar).',
   'internet-yok': 'Otomatik toplama yapılamadı: internet bağlantısı yok.',
 };
@@ -1786,7 +1790,7 @@ async function otomatikToplamaDene(deneme) {
   const ayar = ayarOku();
   const k = otomatikToplamaKarari({
     ayarAcik: ayar.acilistaOtomatikTopla === true, acilistaMi: true, simdi: Math.floor(Date.now() / 1000), sonZaman: sonZamanOku(),
-    eslesme: eslesmeVar(), seciliSayi: (ayar.sadeceSuGruplar || []).length, calisiyor: calisiyor || yerelSilme, cevrimici: cevrimiciMi(),
+    eslesme: eslesmeVar(), senkronOnayli: !!jsonOku(path.join(veriKok(), 'senkronizasyon-onayi.json'), {}).tamam, seciliSayi: (ayar.sadeceSuGruplar || []).length, calisiyor: calisiyor || yerelSilme, cevrimici: cevrimiciMi(),
   }, LIMITS);
   if (k.karar === 'bekle') {
     if (deneme + 1 < LIMITS.otomatikInternetDeneme) { otomatikToplamayiKur(deneme + 1, LIMITS.otomatikInternetAralikMs); return k; }

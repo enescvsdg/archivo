@@ -48,12 +48,14 @@ function budget(now = Date.now) {
   };
 }
 // Acilista otomatik toplama karari. Saf fonksiyon: ag, dosya ya da WhatsApp cagrisi yapmaz.
-// Sira: ayar ve acilis -> calisan islem -> 6 saat kurali -> eslesme -> grup -> internet.
-function otomatikToplamaKarari({ ayarAcik, acilistaMi, simdi, sonZaman, eslesme, seciliSayi, calisiyor, cevrimici }, limitler = LIMITS) {
+// Sira: ayar ve acilis -> calisan islem -> 6 saat kurali -> eslesme -> telefon senkron onayi -> grup -> internet.
+function otomatikToplamaKarari({ ayarAcik, acilistaMi, simdi, sonZaman, eslesme, senkronOnayli = true, seciliSayi, calisiyor, cevrimici }, limitler = LIMITS) {
   if (!ayarAcik || !acilistaMi) return { karar: 'yok' };
   if (calisiyor) return { karar: 'atla', neden: 'calisiyor' };
   if (sonZaman != null && simdi - sonZaman < limitler.otomatikAralikSn) return { karar: 'atla', neden: 'yakinda-toplandi' };
   if (!eslesme) return { karar: 'atla', neden: 'eslesme-yok' };
+  // Eslesmeden sonra telefonda "Devam et" onayi verilmediyse arka planda bekleyecek pencere yoktur.
+  if (!senkronOnayli) return { karar: 'atla', neden: 'senkron-onayi-yok' };
   if (!seciliSayi) return { karar: 'atla', neden: 'grup-yok' };
   if (!cevrimici) return { karar: 'bekle', neden: 'internet-yok' };
   return { karar: 'basla' };

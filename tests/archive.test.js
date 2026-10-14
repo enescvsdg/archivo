@@ -1818,3 +1818,22 @@ test('waking from sleep (MacBook lid opened) schedules the same automatic run wh
   assert.equal(kapali.h.clients.length, 0);
   assert.equal(kapali.otomatik(), null);
 });
+test('automatic run: without the phone sync approval (Devam et) it does not start; a deleted photo is neither asked about nor added back', async t => {
+  const { otomatikToplamaKarari } = require('../operation-policy');
+  assert.deepEqual(otomatikToplamaKarari({ ayarAcik: true, acilistaMi: true, simdi: 9e9, sonZaman: null, eslesme: true, senkronOnayli: false, seciliSayi: 1, calisiyor: false, cevrimici: true }), { karar: 'atla', neden: 'senkron-onayi-yok' });
+  const onaysiz = otomatikDuzenek(t, {});
+  writeJson(path.join(onaysiz.h.dir, 'senkronizasyon-onayi.json'), { tamam: false });
+  vm.runInContext('otomatikToplamayiKur()', onaysiz.h.ctx);
+  await kisaBekle(80);
+  assert.equal(onaysiz.h.clients.length, 0);
+  assert.deepEqual(onaysiz.bildirimMetinleri(), ['Otomatik toplama yapılamadı: telefon senkronizasyonu onaylanmamış. Archivo’yu açıp Devam et’e basın.']);
+  // Silinen fotograf
+  const sorular = [];
+  const d = otomatikDuzenek(t, { secenek: { dialog: async c => { sorular.push(c.message); return { response: 1 }; } } });
+  writeJson(path.join(d.h.dir, 'silinen-mesajlar.json'), { o1: { zaman: 1, ad: 'eski.jpg', tekrarEkle: false } });
+  vm.runInContext('otomatikToplamayiKur()', d.h.ctx);
+  await istemciBekle(d.h);
+  d.h.clients[0].emit('ready'); await d.h.settle();
+  assert.deepEqual(sorular, [], 'arka planda soru sorulmaz');
+  assert.equal(Object.keys(readJson(path.join(d.h.dir, 'dizin.json'), {})).length, 0, 'silinen fotoğraf geri eklenmez');
+});
